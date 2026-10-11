@@ -28,6 +28,7 @@ import {
   userSchema,
 } from '@kopilka/shared';
 import type { CookieOptions, Request, Response } from 'express';
+import { API_PREFIX } from '../common/http/api-prefix.js';
 import { ApiErrorResponses } from '../common/openapi/api-error-responses.decorator.js';
 import type { Env } from '../config/env.js';
 import { AuthService, type Session } from './auth.service.js';
@@ -36,12 +37,14 @@ import { Public } from './public.decorator.js';
 
 export const REFRESH_COOKIE = 'refresh_token';
 
+// Sent only to the auth routes, not with every API call.
+const REFRESH_COOKIE_PATH = `/${API_PREFIX}/auth`;
+
 // Guessing passwords and mass sign-ups: far below the global limit.
 // Counted per IP and per route, so login and register have separate budgets.
 const AUTH_THROTTLE = { default: { limit: 10, ttl: minutes(1) } };
 
-const SETS_REFRESH_COOKIE =
-  'Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/auth).';
+const SETS_REFRESH_COOKIE = `Also sets the \`refresh_token\` cookie (httpOnly, SameSite=Strict, Path=${REFRESH_COOKIE_PATH}).`;
 
 @ApiTags('auth')
 @Controller('auth')
@@ -59,8 +62,7 @@ export class AuthController {
       secure: config.get('NODE_ENV', { infer: true }) === 'production',
       // Not sent on cross-site requests: CSRF cannot trigger a refresh.
       sameSite: 'strict',
-      // Sent only to /auth/*, not with every API call.
-      path: '/auth',
+      path: REFRESH_COOKIE_PATH,
     };
   }
 

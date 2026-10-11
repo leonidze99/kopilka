@@ -21,7 +21,7 @@ describe('Behind a trusted proxy (e2e)', () => {
     Number(
       (
         await request(app.getHttpServer())
-          .get('/')
+          .get('/api')
           .set('X-Forwarded-For', forwardedFor)
           .expect(200)
       ).headers['x-ratelimit-remaining'],

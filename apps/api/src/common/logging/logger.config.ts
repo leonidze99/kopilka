@@ -4,6 +4,7 @@ import type { Params } from 'nestjs-pino';
 import type { DestinationStream, LevelWithSilent } from 'pino';
 import type { Options } from 'pino-http';
 import type { Env } from '../../config/env.js';
+import { API_PREFIX } from '../http/api-prefix.js';
 
 export const REQUEST_ID_HEADER = 'X-Request-ID';
 
@@ -47,7 +48,7 @@ export function createLoggerParams(
     // Platform health probes hit every few seconds and would drown the
     // access log; failed checks are logged by terminus itself.
     autoLogging: {
-      ignore: (req) => req.url?.startsWith('/health/') ?? false,
+      ignore: (req) => req.url?.startsWith(`/${API_PREFIX}/health/`) ?? false,
     },
     customLogLevel: (_req, res, error) => {
       if (error || res.statusCode >= 500) return 'error';

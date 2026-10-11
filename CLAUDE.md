@@ -73,12 +73,12 @@ Exception filter готов; `requestId` в теле ошибки совпада
 
 - **Все роуты требуют access-токен по умолчанию** (глобальный `JwtAuthGuard` через `APP_GUARD`). Открытые помечать `@Public()`. Текущий пользователь — `@CurrentUser() user: AuthUser`.
 - Access-токен: JWT HS256, 15 мин (`JWT_ACCESS_TTL_SECONDS`), в теле ответа; фронт держит его в памяти (не localStorage). Алгоритм закреплён в `verifyOptions`. Проверка без похода в БД.
-- Refresh-токен: случайные 32 байта, в БД только SHA-256 (`refresh_tokens.token_hash`), 30 дней (`REFRESH_TOKEN_TTL_DAYS`). Кука `refresh_token`: httpOnly, `SameSite=Strict`, `Path=/auth`, `Secure` только в production. `cookie-parser` подключён только для `AuthController`.
+- Refresh-токен: случайные 32 байта, в БД только SHA-256 (`refresh_tokens.token_hash`), 30 дней (`REFRESH_TOKEN_TTL_DAYS`). Кука `refresh_token`: httpOnly, `SameSite=Strict`, `Path=/api/auth`, `Secure` только в production. `cookie-parser` подключён только для `AuthController`.
 - Ротация: каждый refresh гасит токен и выдаёт новый в том же семействе (`family_id` = сессия). Повторное предъявление погашенного токена = кража → гасится всё семейство, warn в лог. Гашение — атомарный compare-and-set (`updateMany ... where revokedAt: null`) в транзакции с выдачей нового.
 - Компромисс: два одновременных refresh с одним токеном (две вкладки) выглядят как повторное использование и разлогинивают. Если станет проблемой — grace period в несколько секунд или координация вкладок на фронте (BroadcastChannel / Web Locks).
 - Пароли: argon2id через `@node-rs/argon2` (параметры OWASP по умолчанию, без install-скриптов). Логин отвечает одинаково на неверный пароль и неизвестный email и проверяет хеш-пустышку, чтобы время ответа не выдавало зарегистрированные email.
 - Email нормализуется в схеме (`trim` + `toLowerCase` до проверки формата) — уникальность фактически регистронезависимая.
-- `SameSite=Strict` рассчитан на то, что фронт и API на одном сайте (localhost:5173 и localhost:3000 — один сайт). Если на проде они окажутся на разных доменах — пересмотреть (`SameSite=None` + CSRF-защита).
+- `SameSite=Strict` рассчитан на то, что фронт и API на одном origin: в проде API сам отдаёт фронт, в dev Vite проксирует `/api`. Если фронт и API разъедутся по разным доменам — пересмотреть (`SameSite=None` + CSRF-защита). Платформенные домены (`*.up.railway.app`, `*.fly.dev`) — в Public Suffix List: два сервиса на них — разные сайты.
 - Не сделано: очистка истёкших/погашенных `refresh_tokens` (фоновая задача, когда понадобится), смена пароля и «выйти на всех устройствах», блокировка по аккаунту (сейчас лимит попыток только по IP — перебор паролей одного аккаунта с многих IP он не остановит).
 
 Сообщения ошибок: верхнеуровневый `message` — на английском (для разработчика и логов), `details[].message` — на русском (показываются пользователю у поля формы).
@@ -92,7 +92,7 @@ Exception filter готов; `requestId` в теле ошибки совпада
 Защита (e2e — `apps/api/test/security.e2e-spec.ts`):
 
 - helmet — через `app.use` в `setupApp`, поэтому заголовки есть и на ответах body-parser (битый JSON). Убирает `X-Powered-By`.
-- CORS: `CORS_ORIGINS` (через запятую, только origin без пути и слеша на конце, по умолчанию `http://localhost:5173`), `credentials: true` для куки refresh-токена. Фронт должен слать запросы к `/auth/*` с `credentials: 'include'`. Наружу открыты заголовки `X-Request-ID` и `Retry-After`.
+- CORS: `CORS_ORIGINS` (через запятую, только origin без пути и слеша на конце, по умолчанию `http://localhost:5173`), `credentials: true` для куки refresh-токена. Самому фронту CORS не нужен (один origin); оставлен для клиентов с другого origin. Наружу открыты заголовки `X-Request-ID` и `Retry-After`.
 - Throttler (`@nestjs/throttler`, глобальный guard): 100 запросов в минуту с IP на маршрут; `/auth/login` и `/auth/register` — по 10 в минуту (`@Throttle(AUTH_THROTTLE)`). Превышение → 429 `RATE_LIMITED` + `Retry-After`. Счётчики в памяти процесса — при нескольких инстансах нужно общее хранилище (Redis).
 - `trust proxy` — через `TRUST_PROXY_HOPS` (число прокси перед приложением, по умолчанию 0 = `X-Forwarded-For` игнорируется). **При деплое за прокси (Railway, Fly.io) выставить 1**, иначе `req.ip` у всех клиентов будет адресом прокси и лимит станет общим на всех пользователей. Никогда не `true`: тогда клиент сам впишет любой IP в `X-Forwarded-For` и обойдёт лимиты. e2e — `apps/api/test/trust-proxy.e2e-spec.ts`.
 
@@ -127,6 +127,17 @@ CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, д
 
 Фаза 2 закрыта.
 
+Деплой (платформа ещё не выбрана; образ проверен локально):
+
+- **Все маршруты API — под `/api`** (`setGlobalPrefix`, `API_PREFIX` в `apps/api/src/common/http/api-prefix.ts`), включая health: `/api/health/live|ready`. Пути в остальных разделах CLAUDE.md и в OpenAPI — без префикса: документ строится с `ignoreGlobalPrefix` и `servers: ['/api']`, поэтому фронтовые типы остались `'/transactions'`. Вне префикса — только `/docs` (не в production) и фронт.
+- Один процесс отдаёт и API, и собранный фронт (`WEB_DIST_DIR`, `apps/api/src/web-app.ts`, e2e — `test/web-app.e2e-spec.ts`): `/assets/*` — `immutable` на год, любой GET-запрос страницы вне `/api` без расширения — `index.html` с `no-cache`, отсутствующий файл — 404. Причина одного origin — кука `SameSite=Strict` и отсутствие CORS. Регистрируется в `setupApp` до `app.init()`, иначе её перехватит 404 роутера Nest.
+- CSP от helmet (`script-src 'self'`) запрещает инлайн-скрипты: скрипт темы — файлом `apps/web/public/theme-init.js`.
+- `Dockerfile` (multi-stage, `node:22-bookworm-slim`): `build` (всё + сборка shared → web → api), `migrate` (на базе build: Prisma CLI + openssl, `prisma migrate deploy`), `runtime` — по умолчанию (prod-зависимости api, `--ignore-scripts`, три `dist`, `USER node`, `HEALTHCHECK`, `node dist/main.js` напрямую — SIGTERM доходит до приложения). Миграции — отдельным шагом релиза, не при старте приложения.
+- Известный компромисс: образ ~890 МБ, из них ~200 МБ — Prisma CLI с деревом (Studio, TypeScript): lockfile разрешает `@prisma/client` вместе с его optional peer `prisma`, и `--prod` его оставляет (`pnpm deploy` — тоже). Убрать — вынести схему и CLI в отдельный пакет.
+- Локально: `pnpm prod:up` (профиль `prod` в `docker-compose.yml`: `migrate` → `app` на `http://localhost:8080`, БД — та же dev-база), `pnpm prod:down`.
+- CI-job `image`: сборка обоих образов, миграции на пустой БД, старт, smoke-тест `/api/health/ready` и страницы `/categories`.
+- На платформе: `NODE_ENV=production` уже в образе; задать `DATABASE_URL`, `JWT_ACCESS_SECRET`, `TRUST_PROXY_HOPS=1`; healthcheck — `/api/health/ready`; миграции — образ `migrate` (или `prisma migrate deploy` из CI) перед выкаткой.
+
 Фронт (`apps/web`): регистрация, вход, выход, защищённая главная.
 
 - FSD, импорт слоёв через `@/` (`@/app`, `@/pages`, `@/features`, `@/entities`, `@/shared`); из слайса — только через его `index.ts`. Зависимости только вниз: `shared` не импортирует `entities`.
@@ -139,7 +150,7 @@ CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, д
 - Маршруты (`app/router`): `RequireAuth` (анонима — на `/login` с возвратом обратно), `GuestOnly` (вошедшего — с `/login`/`/register` туда, куда шёл).
 - `tsconfig.app.json`: `strict` + `noUncheckedIndexedAccess` (в шаблоне Vite strict не было).
 - Тесты: Vitest + RTL + MSW 3 (`pnpm --filter web test`). `src/test/render.tsx` — `renderApp(path, { session })` поднимает реальные store, роуты и guard'ы. Запрос без MSW-обработчика **валит тест** (`src/test/setup.ts`; в MSW 3 опция называется `onUnhandledFrame`, а стратегия `'error'` сама тест не валит).
-- API для фронта — `VITE_API_URL` (по умолчанию `http://localhost:3000`). Без Vite-прокси: кука refresh-токена с `Path=/auth`, под прокси `/api/auth/...` браузер её бы не отправил.
+- API для фронта — `/api` на том же origin (`VITE_API_URL` переопределяет). В dev Vite проксирует `/api` на `:3000` (`API_PROXY_TARGET`), так что кука `Path=/api/auth` работает как в проде.
 
 Не сделано на фронте: e2e на Cypress (в плане), обработка `Retry-After` в тексте ошибки (fetchBaseQuery не отдаёт заголовки в `error`), code splitting (бандл ~560 КБ, ~178 КБ gzip — заметную часть даёт Zod из shared).
 

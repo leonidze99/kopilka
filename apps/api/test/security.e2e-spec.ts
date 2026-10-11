@@ -21,7 +21,7 @@ describe('Security (e2e)', () => {
 
   describe('helmet', () => {
     it('sets security headers and hides the framework', async () => {
-      const res = await http().get('/').expect(200);
+      const res = await http().get('/api').expect(200);
 
       expect(res.headers['x-powered-by']).toBeUndefined();
       expect(res.headers['x-content-type-options']).toBe('nosniff');
@@ -31,7 +31,7 @@ describe('Security (e2e)', () => {
 
     it('also covers errors raised by body-parser before routing', async () => {
       const res = await http()
-        .post('/auth/login')
+        .post('/api/auth/login')
         .set('Content-Type', 'application/json')
         .send('{"broken": ')
         .expect(400);
@@ -44,7 +44,7 @@ describe('Security (e2e)', () => {
   describe('CORS', () => {
     it('answers a preflight from the frontend origin, with credentials', async () => {
       const res = await http()
-        .options('/auth/login')
+        .options('/api/auth/login')
         .set('Origin', FRONTEND)
         .set('Access-Control-Request-Method', 'POST')
         .set('Access-Control-Request-Headers', 'content-type,x-request-id')
@@ -59,7 +59,7 @@ describe('Security (e2e)', () => {
     });
 
     it('lets the frontend read X-Request-ID and Retry-After', async () => {
-      const res = await http().get('/').set('Origin', FRONTEND).expect(200);
+      const res = await http().get('/api').set('Origin', FRONTEND).expect(200);
 
       expect(res.headers['access-control-expose-headers']).toBe(
         'X-Request-ID,Retry-After',
@@ -68,7 +68,7 @@ describe('Security (e2e)', () => {
 
     it('does not allow other origins', async () => {
       const res = await http()
-        .get('/')
+        .get('/api')
         .set('Origin', 'https://evil.example')
         .expect(200);
 
@@ -80,7 +80,7 @@ describe('Security (e2e)', () => {
 
   describe('rate limiting', () => {
     it('applies the global limit to ordinary routes', async () => {
-      const res = await http().get('/').expect(200);
+      const res = await http().get('/api').expect(200);
 
       expect(res.headers['x-ratelimit-limit']).toBe('100');
     });
@@ -88,7 +88,7 @@ describe('Security (e2e)', () => {
     it('ignores X-Forwarded-For when no proxy is trusted', async () => {
       const remaining = async (ip: string) =>
         Number(
-          (await http().get('/').set('X-Forwarded-For', ip).expect(200))
+          (await http().get('/api').set('X-Forwarded-For', ip).expect(200))
             .headers['x-ratelimit-remaining'],
         );
 
@@ -100,7 +100,7 @@ describe('Security (e2e)', () => {
     it('blocks the 11th login attempt within a minute with RATE_LIMITED', async () => {
       const attempt = () =>
         http()
-          .post('/auth/login')
+          .post('/api/auth/login')
           .send({ email: 'nobody@security-e2e.test', password: 'wrong' });
 
       // Requests rejected by body-parser (e.g. the malformed JSON in the
@@ -117,7 +117,7 @@ describe('Security (e2e)', () => {
 
     it('counts register separately from login', async () => {
       const res = await http()
-        .post('/auth/register')
+        .post('/api/auth/register')
         .send({ email: 'not-an-email', password: 'x' })
         .expect(400);
 

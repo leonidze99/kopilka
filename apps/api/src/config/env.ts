@@ -39,6 +39,9 @@ export const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(900),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  // The built web app (apps/web/dist) to serve from this process; the
+  // Docker image sets it. Unset: API only, as in development.
+  WEB_DIST_DIR: z.string().min(1).optional(),
   // Defaults per NODE_ENV live in the logger config (debug / silent / info).
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])

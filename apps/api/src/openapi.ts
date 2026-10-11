@@ -5,6 +5,7 @@ import {
   type StandardSchemaConverter,
   SwaggerModule,
 } from '@nestjs/swagger';
+import { API_PREFIX } from './common/http/api-prefix.js';
 
 export const BEARER_AUTH = 'bearer';
 
@@ -77,7 +78,13 @@ export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
     // Mirrors the global JwtAuthGuard: every operation needs a token
     // unless @Public() clears the requirement.
     .addSecurityRequirements(BEARER_AUTH)
+    // Paths are written without the global prefix and the server adds it:
+    // the frontend types keep '/transactions', its base URL ends in /api.
+    .addServer(`/${API_PREFIX}`)
     .build();
 
-  return SwaggerModule.createDocument(app, config, { standardSchemaConverter });
+  return SwaggerModule.createDocument(app, config, {
+    standardSchemaConverter,
+    ignoreGlobalPrefix: true,
+  });
 }

@@ -360,7 +360,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/auth). */
+            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -411,7 +411,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/auth). */
+            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -458,7 +458,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/auth). */
+            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). */
             200: {
                 headers: {
                     [name: string]: unknown;

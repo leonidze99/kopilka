@@ -25,7 +25,7 @@ describe('Health checks (e2e)', () => {
   const http = () => request(app.getHttpServer());
 
   it('reports liveness without checking dependencies', async () => {
-    const res = await http().get('/health/live').expect(200);
+    const res = await http().get('/api/health/live').expect(200);
 
     expect(res.body).toEqual({
       status: 'ok',
@@ -36,7 +36,7 @@ describe('Health checks (e2e)', () => {
   });
 
   it('reports readiness with the database status', async () => {
-    const res = await http().get('/health/ready').expect(200);
+    const res = await http().get('/api/health/ready').expect(200);
 
     expect(res.body).toMatchObject({
       status: 'ok',
@@ -45,7 +45,7 @@ describe('Health checks (e2e)', () => {
   });
 
   it('needs no access token and is not rate limited', async () => {
-    const res = await http().get('/health/ready').expect(200);
+    const res = await http().get('/api/health/ready').expect(200);
 
     expect(res.headers['x-ratelimit-limit']).toBeUndefined();
   });
@@ -56,8 +56,8 @@ describe('Health checks (e2e)', () => {
         new Error('connect ECONNREFUSED 127.0.0.1:5432'),
       );
 
-      const ready = await http().get('/health/ready').expect(503);
-      await http().get('/health/live').expect(200);
+      const ready = await http().get('/api/health/ready').expect(503);
+      await http().get('/api/health/live').expect(200);
 
       // The reason goes to the logs, not to an anonymous caller.
       expect(apiErrorSchema.parse(ready.body)).toMatchObject({
@@ -73,7 +73,7 @@ describe('Health checks (e2e)', () => {
       );
 
       const started = Date.now();
-      await http().get('/health/ready').expect(503);
+      await http().get('/api/health/ready').expect(503);
 
       expect(Date.now() - started).toBeLessThan(2000);
     });

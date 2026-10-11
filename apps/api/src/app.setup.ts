@@ -2,9 +2,11 @@ import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { API_PREFIX } from './common/http/api-prefix.js';
 import { REQUEST_ID_HEADER } from './common/logging/logger.config.js';
 import type { AppConfigService } from './config/env.js';
 import { createOpenApiDocument } from './openapi.js';
+import { serveWebApp } from './web-app.js';
 
 /**
  * App-level setup that cannot live in a module (Express middleware that
@@ -46,6 +48,8 @@ export function setupApp(app: NestExpressApplication): void {
     maxAge: 600,
   });
 
+  app.setGlobalPrefix(API_PREFIX);
+
   // Interactive docs at /docs, raw document at /docs/openapi.json. Not in
   // production: a public map of every endpoint is attack surface for no gain.
   if (!isProduction) {
@@ -53,6 +57,10 @@ export function setupApp(app: NestExpressApplication): void {
       jsonDocumentUrl: 'docs/openapi.json',
     });
   }
+
+  // The built web app, when this process serves it too (the Docker image).
+  const webDir = config.get('WEB_DIST_DIR', { infer: true });
+  if (webDir) serveWebApp(app, webDir);
 
   app.enableShutdownHooks();
 }

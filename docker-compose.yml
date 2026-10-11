@@ -15,5 +15,30 @@ services:
       interval: 5s
       retries: 5
 
+  # The production image, locally: `pnpm prod:up`, then http://localhost:8080.
+  # Uses the development database. Not started by `pnpm db:up`.
+  migrate:
+    profiles: [prod]
+    build: { context: ., target: migrate }
+    image: kopilka-migrate:local
+    environment:
+      DATABASE_URL: postgresql://kopilka:kopilka@postgres:5432/kopilka
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  app:
+    profiles: [prod]
+    build: { context: ., target: runtime }
+    image: kopilka:local
+    ports: ['8080:3000']
+    environment:
+      DATABASE_URL: postgresql://kopilka:kopilka@postgres:5432/kopilka
+      # A local check only; a real deployment gets its own secret.
+      JWT_ACCESS_SECRET: local-production-check-not-a-real-secret
+    depends_on:
+      postgres: { condition: service_healthy }
+      # A release starts only on a migrated schema.
+      migrate: { condition: service_completed_successfully }
+
 volumes:
   pgdata:

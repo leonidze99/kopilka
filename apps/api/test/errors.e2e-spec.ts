@@ -90,18 +90,18 @@ describe('Error format (e2e)', () => {
   const http = () => request(app.getHttpServer());
 
   it('returns the shared error shape with the same requestId as the header', async () => {
-    const res = await http().get('/no-such-route').expect(404);
+    const res = await http().get('/api/no-such-route').expect(404);
 
     expect(apiErrorSchema.parse(res.body)).toEqual({
       code: 'NOT_FOUND',
-      message: 'Cannot GET /no-such-route',
+      message: 'Cannot GET /api/no-such-route',
       requestId: res.headers['x-request-id'],
     });
   });
 
   it('reuses a valid incoming X-Request-ID', async () => {
     const res = await http()
-      .get('/no-such-route')
+      .get('/api/no-such-route')
       .set('X-Request-ID', 'front-abc_123')
       .expect(404);
 
@@ -113,7 +113,7 @@ describe('Error format (e2e)', () => {
     'replaces an unsafe incoming X-Request-ID %#',
     async (unsafe) => {
       const res = await http()
-        .get('/no-such-route')
+        .get('/api/no-such-route')
         .set('X-Request-ID', unsafe)
         .expect(404);
 
@@ -124,7 +124,7 @@ describe('Error format (e2e)', () => {
 
   it('reports every validation issue with its field', async () => {
     const res = await http()
-      .post('/__test/transactions')
+      .post('/api/__test/transactions')
       .send({ amount: '-1' })
       .expect(400);
 
@@ -139,7 +139,7 @@ describe('Error format (e2e)', () => {
 
   it('passes the parsed value to the handler', async () => {
     const res = await http()
-      .post('/__test/transactions')
+      .post('/api/__test/transactions')
       .send(validTransaction)
       .expect(201);
 
@@ -148,7 +148,7 @@ describe('Error format (e2e)', () => {
 
   it('answers malformed JSON with BAD_REQUEST', async () => {
     const res = await http()
-      .post('/__test/transactions')
+      .post('/api/__test/transactions')
       .set('Content-Type', 'application/json')
       .send('{"amount": ')
       .expect(400);
@@ -158,7 +158,7 @@ describe('Error format (e2e)', () => {
 
   it('passes through body-parser errors such as an oversized body', async () => {
     const res = await http()
-      .post('/__test/transactions')
+      .post('/api/__test/transactions')
       .send({ comment: 'x'.repeat(200 * 1024) })
       .expect(413);
 
@@ -169,7 +169,7 @@ describe('Error format (e2e)', () => {
   });
 
   it('keeps code and details of an AppException', async () => {
-    const res = await http().get('/__test/app-exception').expect(409);
+    const res = await http().get('/api/__test/app-exception').expect(409);
 
     expect(res.body).toMatchObject({
       code: 'CONFLICT',
@@ -179,14 +179,14 @@ describe('Error format (e2e)', () => {
   });
 
   it('maps built-in HttpExceptions by status', async () => {
-    const res = await http().get('/__test/forbidden').expect(403);
+    const res = await http().get('/api/__test/forbidden').expect(403);
 
     expect(res.body).toMatchObject({ code: 'FORBIDDEN', message: 'Forbidden' });
   });
 
   it.each([
-    ['/__test/crash', 'db://admin:secret'],
-    ['/__test/internal', 'secret internals'],
+    ['/api/__test/crash', 'db://admin:secret'],
+    ['/api/__test/internal', 'secret internals'],
   ])('hides internals of 5xx errors (%s)', async (path, secret) => {
     const res = await http().get(path).expect(500);
 
@@ -198,8 +198,8 @@ describe('Error format (e2e)', () => {
   });
 
   it.each([
-    ['/__test/unique', 409, 'CONFLICT'],
-    ['/__test/not-found', 404, 'NOT_FOUND'],
+    ['/api/__test/unique', 409, 'CONFLICT'],
+    ['/api/__test/not-found', 404, 'NOT_FOUND'],
   ])('falls back on Prisma error codes (%s)', async (path, status, code) => {
     const res = await http().get(path).expect(status);
 

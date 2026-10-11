@@ -23,7 +23,7 @@ describe('In production (e2e)', () => {
   });
 
   it('upgrades insecure requests in the CSP', async () => {
-    const res = await request(app.getHttpServer()).get('/health/live');
+    const res = await request(app.getHttpServer()).get('/api/health/live');
 
     expect(res.headers['content-security-policy']).toMatch(
       /upgrade-insecure-requests/,

@@ -31,7 +31,7 @@ describe('Transactions (e2e)', () => {
     const category = async (kind: string, name: string) =>
       (
         await http()
-          .post('/categories')
+          .post('/api/categories')
           .set('Authorization', user.auth)
           .send({ kind, name })
           .expect(201)
@@ -44,10 +44,13 @@ describe('Transactions (e2e)', () => {
   }
 
   const add = (user: TestUser, body: object) =>
-    http().post('/transactions').set('Authorization', user.auth).send(body);
+    http().post('/api/transactions').set('Authorization', user.auth).send(body);
 
   const list = (user: TestUser, query: Record<string, string | number> = {}) =>
-    http().get('/transactions').query(query).set('Authorization', user.auth);
+    http()
+      .get('/api/transactions')
+      .query(query)
+      .set('Authorization', user.auth);
 
   describe('create', () => {
     it('accepts an amount as typed and stores it exactly', async () => {
@@ -235,7 +238,7 @@ describe('Transactions (e2e)', () => {
       });
 
       const res = await http()
-        .get('/transactions/summary')
+        .get('/api/transactions/summary')
         .query({ from: '2026-10-01T00:00:00Z', to: '2026-11-01T00:00:00Z' })
         .set('Authorization', user.auth)
         .expect(200);
@@ -251,7 +254,7 @@ describe('Transactions (e2e)', () => {
       const { user } = await setUp();
 
       const res = await http()
-        .get('/transactions/summary')
+        .get('/api/transactions/summary')
         .set('Authorization', user.auth)
         .expect(200);
 
@@ -266,14 +269,14 @@ describe('Transactions (e2e)', () => {
   describe('by category', () => {
     const byCategory = (user: TestUser, query: Record<string, string> = {}) =>
       http()
-        .get('/transactions/by-category')
+        .get('/api/transactions/by-category')
         .query(query)
         .set('Authorization', user.auth);
 
     it('sums each category of a kind over the period, largest first', async () => {
       const { user, food, salary } = await setUp();
       const { body: cafe } = await http()
-        .post('/categories')
+        .post('/api/categories')
         .set('Authorization', user.auth)
         .send({ kind: 'expense', name: 'Кафе' })
         .expect(201);
@@ -348,7 +351,7 @@ describe('Transactions (e2e)', () => {
       }).expect(201);
 
       const res = await http()
-        .patch(`/transactions/${created.id}`)
+        .patch(`/api/transactions/${created.id}`)
         .set('Authorization', user.auth)
         .send({ amount: '150,25', categoryId: salary.id })
         .expect(200);
@@ -366,12 +369,12 @@ describe('Transactions (e2e)', () => {
       }).expect(201);
 
       await http()
-        .patch(`/transactions/${created.id}`)
+        .patch(`/api/transactions/${created.id}`)
         .set('Authorization', bob.user.auth)
         .send({ amount: '1' })
         .expect(404);
       await http()
-        .delete(`/transactions/${created.id}`)
+        .delete(`/api/transactions/${created.id}`)
         .set('Authorization', bob.user.auth)
         .expect(404);
 
@@ -391,7 +394,7 @@ describe('Transactions (e2e)', () => {
       }).expect(201);
 
       await http()
-        .delete(`/transactions/${created.id}`)
+        .delete(`/api/transactions/${created.id}`)
         .set('Authorization', user.auth)
         .expect(204);
 

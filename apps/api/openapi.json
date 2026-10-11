@@ -17,7 +17,7 @@
         },
         "responses": {
           "201": {
-            "description": "Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/auth).",
+            "description": "Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth).",
             "content": {
               "application/json": {
                 "schema": {
@@ -82,7 +82,7 @@
         },
         "responses": {
           "200": {
-            "description": "Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/auth).",
+            "description": "Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth).",
             "content": {
               "application/json": {
                 "schema": {
@@ -138,7 +138,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/auth).",
+            "description": "Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth).",
             "content": {
               "application/json": {
                 "schema": {
@@ -1334,7 +1334,11 @@
     "contact": {}
   },
   "tags": [],
-  "servers": [],
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
   "components": {
     "securitySchemes": {
       "bearer": {

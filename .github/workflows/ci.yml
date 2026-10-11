@@ -108,3 +108,50 @@ jobs:
 
       - name: E2E tests
         run: pnpm --filter api test:e2e
+
+  image:
+    name: Docker image (build, migrate, smoke test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: kopilka
+          POSTGRES_PASSWORD: kopilka
+          POSTGRES_DB: kopilka
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U kopilka"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The second build reuses the stages of the first from the local cache.
+      - name: Build images
+        run: |
+          docker build --target migrate -t kopilka-migrate .
+          docker build -t kopilka .
+
+      # The release flow on an empty database: migrate, then start.
+      - name: Migrate
+        run: docker run --rm --network host -e DATABASE_URL kopilka-migrate
+
+      - name: Start the app
+        run: docker run -d --name app --network host -e DATABASE_URL -e JWT_ACCESS_SECRET kopilka
+
+      - name: Smoke test
+        run: |
+          for _ in $(seq 1 30); do
+            curl -fsS localhost:3000/api/health/ready && break
+            sleep 2
+          done
+          curl -fsS localhost:3000/api/health/ready
+          # The web app comes from the same origin, client routes included.
+          curl -fsS -H 'Accept: text/html' localhost:3000/categories | grep -q '<div id="root">'
+
+      - name: App logs
+        if: failure()
+        run: docker logs app

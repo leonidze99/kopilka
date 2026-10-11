@@ -1,0 +1,18 @@
+# Built inside the image; local copies are for another OS anyway.
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+apps/api/src/generated
+**/coverage
+
+# Secrets stay out of the image and its build context.
+**/.env
+**/.env.*
+!**/.env.example
+
+.git
+.github
+.claude
+.idea
+.vscode
+docs

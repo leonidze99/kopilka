@@ -15,15 +15,8 @@
       media="(prefers-color-scheme: dark)"
     />
     <title>Копилка</title>
-    <script>
-      // Before the first paint, or a dark-theme user sees a white flash.
-      // Keep the key in sync with shared/lib/theme.ts.
-      try {
-        var theme = localStorage.getItem('kopilka:theme');
-        if (theme === 'light' || theme === 'dark')
-          document.documentElement.dataset.theme = theme;
-      } catch (e) {}
-    </script>
+    <!-- Blocking on purpose: the theme must be set before the first paint. -->
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

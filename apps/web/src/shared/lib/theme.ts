@@ -2,7 +2,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 export type Theme = 'light' | 'dark';
 
-// index.html reads the same key before the first paint.
+// public/theme-init.js reads the same key before the first paint.
 const STORAGE_KEY = 'kopilka:theme';
 // Optional: jsdom in tests has no matchMedia.
 const darkQuery = (): MediaQueryList | undefined =>

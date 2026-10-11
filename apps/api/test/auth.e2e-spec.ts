@@ -39,7 +39,7 @@ describe('Auth (e2e)', () => {
   const http = () => request(app.getHttpServer());
 
   const register = (email = newEmail()) =>
-    http().post('/auth/register').send({ email, password: PASSWORD });
+    http().post('/api/auth/register').send({ email, password: PASSWORD });
 
   describe('register', () => {
     it('creates a user, returns an access token and sets the refresh cookie', async () => {
@@ -57,7 +57,7 @@ describe('Auth (e2e)', () => {
       );
       expect(cookie).toMatch(/HttpOnly/);
       expect(cookie).toMatch(/SameSite=Strict/);
-      expect(cookie).toMatch(/Path=\/auth/);
+      expect(cookie).toMatch(/Path=\/api\/auth;/);
     });
 
     it('stores an argon2id hash, not the password', async () => {
@@ -82,7 +82,7 @@ describe('Auth (e2e)', () => {
 
     it('validates email and password', async () => {
       const res = await http()
-        .post('/auth/register')
+        .post('/api/auth/register')
         .send({ email: 'not-an-email', password: 'short' })
         .expect(400);
 
@@ -99,7 +99,7 @@ describe('Auth (e2e)', () => {
       await register(email).expect(201);
 
       const res = await http()
-        .post('/auth/login')
+        .post('/api/auth/login')
         .send({ email: email.toUpperCase(), password: PASSWORD })
         .expect(200);
 
@@ -112,11 +112,11 @@ describe('Auth (e2e)', () => {
       await register(email).expect(201);
 
       const wrongPassword = await http()
-        .post('/auth/login')
+        .post('/api/auth/login')
         .send({ email, password: 'wrong password' })
         .expect(401);
       const unknownEmail = await http()
-        .post('/auth/login')
+        .post('/api/auth/login')
         .send({ email: newEmail(), password: PASSWORD })
         .expect(401);
 
@@ -137,9 +137,9 @@ describe('Auth (e2e)', () => {
     it('is required by default and resolves the current user', async () => {
       const { body } = await register().expect(201);
 
-      await http().get('/auth/me').expect(401);
+      await http().get('/api/auth/me').expect(401);
       const me = await http()
-        .get('/auth/me')
+        .get('/api/auth/me')
         .set('Authorization', `Bearer ${body.accessToken}`)
         .expect(200);
 
@@ -169,7 +169,7 @@ describe('Auth (e2e)', () => {
       ],
     ])('is rejected when %s', async (_case, makeToken) => {
       const res = await http()
-        .get('/auth/me')
+        .get('/api/auth/me')
         .set('Authorization', `Bearer ${makeToken()}`)
         .expect(401);
 
@@ -182,7 +182,7 @@ describe('Auth (e2e)', () => {
       const cookie = refreshCookie(await register().expect(201));
 
       const res = await http()
-        .post('/auth/refresh')
+        .post('/api/auth/refresh')
         .set('Cookie', cookie)
         .expect(200);
 
@@ -193,13 +193,16 @@ describe('Auth (e2e)', () => {
     it('revokes the whole session when a rotated token is presented again', async () => {
       const stolen = refreshCookie(await register().expect(201));
       const legit = refreshCookie(
-        await http().post('/auth/refresh').set('Cookie', stolen).expect(200),
+        await http()
+          .post('/api/auth/refresh')
+          .set('Cookie', stolen)
+          .expect(200),
       );
 
       // The attacker replays the old token: rejected, and the session dies...
-      await http().post('/auth/refresh').set('Cookie', stolen).expect(401);
+      await http().post('/api/auth/refresh').set('Cookie', stolen).expect(401);
       // ...so the token the legitimate client holds stops working too.
-      await http().post('/auth/refresh').set('Cookie', legit).expect(401);
+      await http().post('/api/auth/refresh').set('Cookie', legit).expect(401);
     });
 
     it('lets exactly one of many concurrent requests with the same token through', async () => {
@@ -207,7 +210,7 @@ describe('Auth (e2e)', () => {
 
       const results = await Promise.all(
         Array.from({ length: 10 }, () =>
-          http().post('/auth/refresh').set('Cookie', cookie),
+          http().post('/api/auth/refresh').set('Cookie', cookie),
         ),
       );
 
@@ -217,10 +220,10 @@ describe('Auth (e2e)', () => {
     });
 
     it('rejects a missing or unknown token and clears the cookie', async () => {
-      await http().post('/auth/refresh').expect(401);
+      await http().post('/api/auth/refresh').expect(401);
 
       const res = await http()
-        .post('/auth/refresh')
+        .post('/api/auth/refresh')
         .set('Cookie', 'refresh_token=garbage')
         .expect(401);
       expect(res.headers['set-cookie']?.[0]).toMatch(/^refresh_token=;/);
@@ -232,16 +235,16 @@ describe('Auth (e2e)', () => {
       const cookie = refreshCookie(await register().expect(201));
 
       const res = await http()
-        .post('/auth/logout')
+        .post('/api/auth/logout')
         .set('Cookie', cookie)
         .expect(204);
       expect(res.headers['set-cookie']?.[0]).toMatch(/^refresh_token=;/);
 
-      await http().post('/auth/refresh').set('Cookie', cookie).expect(401);
+      await http().post('/api/auth/refresh').set('Cookie', cookie).expect(401);
     });
 
     it('is idempotent without a cookie', async () => {
-      await http().post('/auth/logout').expect(204);
+      await http().post('/api/auth/logout').expect(204);
     });
   });
 });

@@ -22,7 +22,7 @@ export function testUsers(app: INestApplication) {
       const email = `user-${randomUUID()}@kopilka-e2e.test`;
       emails.push(email);
       const res = await request(app.getHttpServer())
-        .post('/auth/register')
+        .post('/api/auth/register')
         .send({ email, password: 'correct horse battery' })
         .expect(201);
       return { email, auth: `Bearer ${res.body.accessToken as string}` };

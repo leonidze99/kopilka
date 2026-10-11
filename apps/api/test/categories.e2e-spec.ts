@@ -23,10 +23,10 @@ describe('Categories (e2e)', () => {
 
   const http = () => request(app.getHttpServer());
   const create = (user: TestUser, body: object) =>
-    http().post('/categories').set('Authorization', user.auth).send(body);
+    http().post('/api/categories').set('Authorization', user.auth).send(body);
 
   it('requires an access token', async () => {
-    await http().get('/categories').expect(401);
+    await http().get('/api/categories').expect(401);
   });
 
   it('creates a category with a trimmed name', async () => {
@@ -62,7 +62,7 @@ describe('Categories (e2e)', () => {
     await create(user, { kind: 'expense', name: 'Аптека' }).expect(201);
 
     const res = await http()
-      .get('/categories')
+      .get('/api/categories')
       .set('Authorization', user.auth)
       .expect(200);
 
@@ -80,7 +80,7 @@ describe('Categories (e2e)', () => {
     }).expect(201);
 
     const res = await http()
-      .patch(`/categories/${category.id}`)
+      .patch(`/api/categories/${category.id}`)
       .set('Authorization', alice.auth)
       .send({ name: 'Транспорт', kind: 'income' })
       .expect(200);
@@ -95,17 +95,19 @@ describe('Categories (e2e)', () => {
     }).expect(201);
 
     const res = await http()
-      .patch(`/categories/${category.id}`)
+      .patch(`/api/categories/${category.id}`)
       .set('Authorization', bob.auth)
       .send({ name: 'Взлом' })
       .expect(404);
     await http()
-      .delete(`/categories/${category.id}`)
+      .delete(`/api/categories/${category.id}`)
       .set('Authorization', bob.auth)
       .expect(404);
 
     expect(res.body.code).toBe('NOT_FOUND');
-    const own = await http().get('/categories').set('Authorization', bob.auth);
+    const own = await http()
+      .get('/api/categories')
+      .set('Authorization', bob.auth);
     expect(own.body).toEqual([]);
   });
 
@@ -116,11 +118,11 @@ describe('Categories (e2e)', () => {
     }).expect(201);
 
     await http()
-      .delete(`/categories/${category.id}`)
+      .delete(`/api/categories/${category.id}`)
       .set('Authorization', alice.auth)
       .expect(204);
     await http()
-      .delete(`/categories/${category.id}`)
+      .delete(`/api/categories/${category.id}`)
       .set('Authorization', alice.auth)
       .expect(404);
   });
@@ -131,7 +133,7 @@ describe('Categories (e2e)', () => {
       name: 'Продукты',
     }).expect(201);
     await http()
-      .post('/transactions')
+      .post('/api/transactions')
       .set('Authorization', alice.auth)
       .send({
         categoryId: category.id,
@@ -141,7 +143,7 @@ describe('Categories (e2e)', () => {
       .expect(201);
 
     const res = await http()
-      .delete(`/categories/${category.id}`)
+      .delete(`/api/categories/${category.id}`)
       .set('Authorization', alice.auth)
       .expect(409);
 
@@ -150,7 +152,7 @@ describe('Categories (e2e)', () => {
 
   it('rejects a malformed id with 400 instead of a database error', async () => {
     const res = await http()
-      .delete('/categories/not-a-uuid')
+      .delete('/api/categories/not-a-uuid')
       .set('Authorization', alice.auth)
       .expect(400);
 
