@@ -57,7 +57,7 @@ Env в api: `@nestjs/config` (global, cache) + Zod-схема `apps/api/src/conf
 
 Prisma: первая миграция `init` — `users`, `categories`, `transactions` (enum `transaction_kind`, CHECK `amount > 0`, `RESTRICT` на удаление категории с транзакциями, каскад от пользователя). Глобальный `PrismaModule` / `PrismaService`.
 
-Отложено сознательно (решить при проектировании фич): счета (accounts) и переводы между ними, бюджеты, мультивалютность (сейчас одна валюта), регистронезависимая уникальность email, тип категории (доход/расход) — сейчас `kind` только у транзакции. В `@kopilka/shared` `amount: z.number()`, а Prisma отдаёт `Decimal` (в JSON — строка): контракт суммы в API решить при фиче транзакций.
+Отложено сознательно (решить при проектировании фич): счета (accounts) и переводы между ними, бюджеты, мультивалютность (сейчас одна валюта), тип категории (доход/расход) — сейчас `kind` только у транзакции. В `@kopilka/shared` `amount: z.number()`, а Prisma отдаёт `Decimal` (в JSON — строка): контракт суммы в API решить при фиче транзакций.
 
 Exception filter готов; `requestId` в теле ошибки совпадает с заголовком `X-Request-ID`. e2e-тесты — `apps/api/test/errors.e2e-spec.ts`.
 
@@ -69,7 +69,21 @@ Exception filter готов; `requestId` в теле ошибки совпада
 - Уровень: `LOG_LEVEL`, по умолчанию debug в development, silent в test, info в production. В development — pino-pretty, в остальных — JSON.
 - Ошибки body-parser (битый JSON, 413) случаются до pino-http: access-лога для них нет, поэтому фильтр сам назначает request-id и пишет warn-строку.
 
-Следующее (фаза 2, вместе с первой фичей): Swagger + openapi-typescript, health-чеки `@nestjs/terminus`, helmet, CORS, `@nestjs/throttler`, CI на GitHub Actions. Первая фича — регистрация/логин (JWT access + refresh с ротацией, argon2).
+Авторизация (`apps/api/src/auth/`, e2e — `apps/api/test/auth.e2e-spec.ts`): `POST /auth/register|login|refresh|logout`, `GET /auth/me`.
+
+- **Все роуты требуют access-токен по умолчанию** (глобальный `JwtAuthGuard` через `APP_GUARD`). Открытые помечать `@Public()`. Текущий пользователь — `@CurrentUser() user: AuthUser`.
+- Access-токен: JWT HS256, 15 мин (`JWT_ACCESS_TTL_SECONDS`), в теле ответа; фронт держит его в памяти (не localStorage). Алгоритм закреплён в `verifyOptions`. Проверка без похода в БД.
+- Refresh-токен: случайные 32 байта, в БД только SHA-256 (`refresh_tokens.token_hash`), 30 дней (`REFRESH_TOKEN_TTL_DAYS`). Кука `refresh_token`: httpOnly, `SameSite=Strict`, `Path=/auth`, `Secure` только в production. `cookie-parser` подключён только для `AuthController`.
+- Ротация: каждый refresh гасит токен и выдаёт новый в том же семействе (`family_id` = сессия). Повторное предъявление погашенного токена = кража → гасится всё семейство, warn в лог. Гашение — атомарный compare-and-set (`updateMany ... where revokedAt: null`) в транзакции с выдачей нового.
+- Компромисс: два одновременных refresh с одним токеном (две вкладки) выглядят как повторное использование и разлогинивают. Если станет проблемой — grace period в несколько секунд или координация вкладок на фронте (BroadcastChannel / Web Locks).
+- Пароли: argon2id через `@node-rs/argon2` (параметры OWASP по умолчанию, без install-скриптов). Логин отвечает одинаково на неверный пароль и неизвестный email и проверяет хеш-пустышку, чтобы время ответа не выдавало зарегистрированные email.
+- Email нормализуется в схеме (`trim` + `toLowerCase` до проверки формата) — уникальность фактически регистронезависимая.
+- `SameSite=Strict` рассчитан на то, что фронт и API на одном сайте (localhost:5173 и localhost:3000 — один сайт). Если на проде они окажутся на разных доменах — пересмотреть (`SameSite=None` + CSRF-защита).
+- Не сделано: очистка истёкших/погашенных `refresh_tokens` (фоновая задача, когда понадобится), лимит попыток логина (`@nestjs/throttler`, фаза 2), смена пароля и «выйти на всех устройствах».
+
+Сообщения ошибок: верхнеуровневый `message` — на английском (для разработчика и логов), `details[].message` — на русском (показываются пользователю у поля формы).
+
+Следующее (фаза 2): `@nestjs/throttler` (в первую очередь на `/auth/login` и `/auth/register`), helmet, CORS (с `credentials: true` для куки), health-чеки `@nestjs/terminus`, Swagger + openapi-typescript, CI на GitHub Actions. Затем фронт: страницы регистрации/логина.
 
 История решений и исходные тексты конфигов — в [docs/planning-log.md](docs/planning-log.md).
 

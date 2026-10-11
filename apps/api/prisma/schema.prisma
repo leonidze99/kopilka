@@ -23,8 +23,9 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  categories   Category[]
-  transactions Transaction[]
+  categories    Category[]
+  transactions  Transaction[]
+  refreshTokens RefreshToken[]
 
   @@map("users")
 }
@@ -60,4 +61,23 @@ model Transaction {
   @@index([userId, occurredAt(sort: Desc)])
   @@index([categoryId])
   @@map("transactions")
+}
+
+/// Opaque refresh tokens; only a SHA-256 hash is stored, never the token itself.
+/// Every login starts a family; each refresh rotates the token within it.
+/// Presenting an already rotated token means it was stolen: the whole family is revoked.
+model RefreshToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  familyId  String    @map("family_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@index([userId])
+  @@map("refresh_tokens")
 }

@@ -17,9 +17,11 @@ import {
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
+import { Public } from './../src/auth/public.decorator.js';
 import { AppException } from './../src/common/errors/app.exception.js';
 import { Prisma } from './../src/generated/prisma/client.js';
 
+@Public()
 @Controller('__test')
 class ErrorsTestController {
   @Post('transactions')
