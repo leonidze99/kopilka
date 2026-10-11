@@ -25,7 +25,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "openapi:generate": "nest build && node dist/scripts/generate-openapi.js"
+    "openapi:generate": "nest build && node dist/scripts/generate-openapi.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@kopilka/shared": "workspace:*",

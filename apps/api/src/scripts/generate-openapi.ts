@@ -13,7 +13,9 @@ import { createOpenApiDocument } from '../openapi.js';
  */
 const output = new URL('../../openapi.json', import.meta.url);
 
-const app = await NestFactory.create(AppModule, { logger: false });
+// Errors only: with the logger off, a startup failure such as an invalid
+// config would exit with code 1 and no message at all.
+const app = await NestFactory.create(AppModule, { logger: ['error', 'warn'] });
 const document = createOpenApiDocument(app);
 writeFileSync(output, `${JSON.stringify(document, null, 2)}\n`);
 await app.close();
