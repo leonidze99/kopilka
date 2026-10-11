@@ -20,6 +20,13 @@ WORKDIR /app
 
 # ---- build: all dependencies, then shared -> web -> api ---------------------
 FROM base AS build
+# Before the install: the postinstall of @prisma/engines picks the build of
+# the migration engine by the OpenSSL it finds. Installed later, the engine
+# would not match and Prisma would try to download another one at runtime
+# (and fail: node_modules is not writable for the `node` user).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl \
+ && rm -rf /var/lib/apt/lists/*
 # Manifests first: this layer and the install are reused until a
 # dependency changes, not on every source edit.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -41,10 +48,6 @@ RUN pnpm --filter @kopilka/shared build \
 # database, TypeScript): it belongs to a one-off job, not to every app
 # container. This stage reuses the build stage, which already has it.
 FROM build AS migrate
-# The migration engine links against OpenSSL.
-RUN apt-get update \
- && apt-get install -y --no-install-recommends openssl \
- && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/apps/api
 USER node
 CMD ["node_modules/.bin/prisma", "migrate", "deploy"]
