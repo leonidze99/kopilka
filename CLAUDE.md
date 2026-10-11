@@ -44,7 +44,9 @@
 
 Prettier настроен на всю монорепу: один конфиг в корне (`.prettierrc.json`), `pnpm format` / `pnpm format:check`. `docs/planning-log.md` исключён — исторический лог.
 
-Следующее: конфиг/env с валидацией → Prisma-схема.
+Env в api: `@nestjs/config` (global, cache) + Zod-схема `apps/api/src/config/env.ts`, передаётся в `validationSchema` напрямую (Standard Schema). Приложение падает на старте со списком всех невалидных переменных. Типизированный доступ — `AppConfigService` (`ConfigService<Env, true>`), `config.get('PORT', { infer: true })`. Новая переменная = поле в `envSchema` + строка в `apps/api/.env.example`.
+
+Следующее: Prisma-схема и первая миграция.
 
 История решений и исходные тексты конфигов — в [docs/planning-log.md](docs/planning-log.md).
 
@@ -56,4 +58,4 @@ Prettier настроен на всю монорепу: один конфиг в
 - Node >= 22 (зафиксировано в `engines`).
 - У Nest скрипт watch-запуска зовётся `start:dev`, поэтому в `apps/api/package.json` добавлен `"dev": "nest start --watch"` для корневого `pnpm dev`.
 - После остановки `pnpm dev` дочерние node-процессы могут пережить родителя и держать порты 3000/5173.
-- Первая сборка `shared` (`pnpm --filter @kopilka/shared build`) обязательна перед первым `pnpm dev` на чистом клоне.
+- На чистом клоне перед первым `pnpm dev`: собрать `shared` (`pnpm --filter @kopilka/shared build`) и скопировать `apps/api/.env.example` в `apps/api/.env`.
