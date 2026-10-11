@@ -11,12 +11,14 @@
 
 ## Стек
 - Монорепа: pnpm workspaces (без Turborepo/Nx)
-- `apps/web`: React + TypeScript + Vite + Redux Toolkit, архитектура Feature-Sliced Design, тесты Jest/RTL, e2e Cypress
-- `apps/api`: NestJS + TypeScript, тесты Jest + Supertest
+- `apps/web`: React + TypeScript + Vite + Redux Toolkit, архитектура Feature-Sliced Design, тесты Vitest + RTL, e2e Cypress
+- `apps/api`: NestJS 12 (ESM) + TypeScript, тесты Vitest + Supertest
 - `packages/shared` (`@kopilka/shared`): Zod 4 схемы и типы, общие для фронта и бэка
 - БД: PostgreSQL 16 (docker-compose) + Prisma
 - Авторизация: JWT access + refresh с ротацией, argon2
 - API: REST + Swagger
+- Линтер: oxlint (в обоих приложениях), форматирование: Prettier
+- Инструменты: Node >= 22, pnpm 10, TypeScript 6
 
 ## Правила
 - `packages/shared` — только платформенно-независимый код: без `process.env`, `import.meta.env`, Node/браузерных API. ESM, `NodeNext`, относительные импорты с `.js`.
@@ -34,13 +36,7 @@
 ## Текущий статус
 Каркас монорепы готов и закоммичен: `pnpm dev` поднимает shared (tsc --watch), web (Vite, :5173) и api (Nest, :3000); Postgres 16 в compose; `pnpm test`/`lint`/`typecheck` зелёные. `@kopilka/shared` прилинкован в оба приложения, но в коде ещё не используется.
 
-Фактические версии от генераторов (отличаются от исходного плана):
-- Nest 12 — ESM (`"type": "module"`), тесты на **Vitest** (не Jest), Supertest есть.
-- Vite 8 + React 19.
-- Линтер в обоих приложениях — **oxlint** (не ESLint).
-- TypeScript 6 везде (в корне тоже `^6.0.2`); pnpm 10, `packageManager` зафиксирован в корневом `package.json`.
-
-Следующее: решить Jest vs Vitest и ESLint vs oxlint → Prettier на всю монорепу → конфиг/env с валидацией → Prisma-схема.
+Следующее: Prettier на всю монорепу → конфиг/env с валидацией → Prisma-схема.
 
 История решений и исходные тексты конфигов — в [docs/planning-log.md](docs/planning-log.md).
 
