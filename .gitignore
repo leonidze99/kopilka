@@ -7,3 +7,4 @@ build/
 .DS_Store
 .idea/
 *.tsbuildinfo
+apps/api/src/generated/
