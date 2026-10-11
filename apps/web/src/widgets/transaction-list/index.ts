@@ -1,1 +1,1 @@
-export { TransactionList } from './ui/TransactionList';
+export { type ListFilter, TransactionList } from './ui/TransactionList';

@@ -1,6 +1,9 @@
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { createTransactionSchema } from '@kopilka/shared';
-import { Plus } from 'lucide-react';
+import {
+  type CreateTransactionDto,
+  createTransactionSchema,
+} from '@kopilka/shared';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router';
@@ -9,8 +12,7 @@ import {
   type TransactionKind,
   useListCategoriesQuery,
 } from '@/entities/category';
-import { useCreateTransactionMutation } from '@/entities/transaction';
-import { applyApiError, toDateTimeLocal } from '@/shared/lib';
+import { applyApiError } from '@/shared/lib';
 import {
   Button,
   Form,
@@ -19,21 +21,43 @@ import {
   SelectField,
   TextField,
 } from '@/shared/ui';
-import styles from './CreateTransactionForm.module.css';
+import styles from './TransactionForm.module.css';
 
-const emptyValues = (categoryId = '') => ({
-  categoryId,
-  amount: '',
-  // Local time: <input type="datetime-local"> has no time zone.
-  occurredAt: toDateTimeLocal(new Date()),
-  comment: '',
-});
+/** What the inputs hold: the date as <input type="datetime-local"> wants it. */
+export interface TransactionFormValues {
+  categoryId: string;
+  amount: string;
+  occurredAt: string;
+  comment: string;
+}
 
-export function CreateTransactionForm() {
+interface TransactionFormProps {
+  defaultValues: TransactionFormValues;
+  defaultKind: TransactionKind;
+  submitLabel: ReactNode;
+  /** Sends the validated values; an error is shown in the form. */
+  submit: (values: CreateTransactionDto) => Promise<{ error?: unknown }>;
+  /** `reset` puts new values into the form, e.g. to add the next one. */
+  onSuccess: (
+    values: CreateTransactionDto,
+    reset: (values: TransactionFormValues) => void,
+  ) => void;
+  /** Extra controls under the submit button, e.g. delete. */
+  footer?: ReactNode;
+}
+
+/** The fields of a transaction, shared by the create and edit forms. */
+export function TransactionForm({
+  defaultValues,
+  defaultKind,
+  submitLabel,
+  submit,
+  onSuccess,
+  footer,
+}: TransactionFormProps) {
   const { data: categories = [] } = useListCategoriesQuery();
-  const [createTransaction] = useCreateTransactionMutation();
   // Not part of the request: a transaction takes its kind from the category.
-  const [kind, setKind] = useState<TransactionKind>('expense');
+  const [kind, setKind] = useState<TransactionKind>(defaultKind);
   const ofKind = categories.filter((category) => category.kind === kind);
 
   const {
@@ -47,14 +71,11 @@ export function CreateTransactionForm() {
     // The API validates with the same schema: "1 234,5" is accepted on
     // both sides and sent normalized as "1234.5".
     resolver: standardSchemaResolver(createTransactionSchema),
-    defaultValues: emptyValues(),
+    defaultValues,
   });
 
   const onSubmit = handleSubmit(async (values) => {
-    const result = await createTransaction({
-      ...values,
-      occurredAt: values.occurredAt.toISOString(),
-    });
+    const result = await submit(values);
     if (result.error) {
       applyApiError(result.error, setError, [
         'categoryId',
@@ -64,8 +85,7 @@ export function CreateTransactionForm() {
       ]);
       return;
     }
-    // Keep the category: several expenses of a kind often come in a row.
-    reset(emptyValues(values.categoryId));
+    onSuccess(values, (next) => reset(next));
   });
 
   return (
@@ -125,9 +145,9 @@ export function CreateTransactionForm() {
         />
       </div>
       <Button type="submit" loading={isSubmitting}>
-        {!isSubmitting && <Plus size={18} aria-hidden />}
-        Добавить операцию
+        {submitLabel}
       </Button>
+      {footer}
     </Form>
   );
 }

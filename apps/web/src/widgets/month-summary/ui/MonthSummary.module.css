@@ -25,12 +25,12 @@
   pointer-events: none;
 }
 
-.month {
-  margin: 0 0 16px;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  opacity: 0.8;
+/* Translucent white: the default skeleton would be a gray patch on green. */
+.hero .skeleton {
+  display: inline-block;
+  max-width: 100%;
+  background-color: rgb(255 255 255 / 0.16);
+  vertical-align: middle;
 }
 
 .stats {

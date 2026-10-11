@@ -3,10 +3,17 @@ export {
   dayKey,
   formatDay,
   formatDayHeading,
-  formatMonth,
   formatTime,
-  monthRange,
   toDateTimeLocal,
 } from './date';
+export {
+  currentMonth,
+  formatMonthIn,
+  formatMonthTitle,
+  type Month,
+  monthPeriod,
+  parseMonth,
+  shiftMonth,
+} from './month';
 export { formatMoney, formatSignedMoney } from './money';
 export { type Theme, useTheme } from './theme';

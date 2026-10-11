@@ -1,28 +1,33 @@
 import { type Category, useDeleteCategoryMutation } from '@/entities/category';
 import { errorMessage } from '@/shared/lib';
-import { ConfirmButton } from '@/shared/ui';
-import styles from './DeleteCategoryButton.module.css';
+import { ConfirmButton, FormError, toast } from '@/shared/ui';
 
-/**
- * Two cells of the parent grid: the button, and the error under the whole
- * row — it is too long to fit next to the category name.
- */
-export function DeleteCategoryButton({ category }: { category: Category }) {
+interface DeleteCategoryButtonProps {
+  category: Category;
+  onDeleted?: () => void;
+}
+
+export function DeleteCategoryButton({
+  category,
+  onDeleted,
+}: DeleteCategoryButtonProps) {
   const [deleteCategory, { isLoading, error }] = useDeleteCategoryMutation();
 
   return (
     <>
       <ConfirmButton
+        look="text"
         label={`Удалить категорию «${category.name}»`}
         loading={isLoading}
-        onConfirm={() => deleteCategory(category.id)}
+        onConfirm={async () => {
+          const result = await deleteCategory(category.id);
+          if (result.error) return;
+          toast('Категория удалена');
+          onDeleted?.();
+        }}
       />
       {/* e.g. CATEGORY_IN_USE: the category still has transactions. */}
-      {error && (
-        <p className={styles.error} role="alert">
-          {errorMessage(error)}
-        </p>
-      )}
+      <FormError message={error && errorMessage(error)} />
     </>
   );
 }

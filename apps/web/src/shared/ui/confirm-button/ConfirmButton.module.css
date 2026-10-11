@@ -1,0 +1,7 @@
+.text {
+  width: 100%;
+}
+
+.text[aria-label^='Удалить'] {
+  color: var(--color-danger);
+}

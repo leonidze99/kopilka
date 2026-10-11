@@ -36,6 +36,7 @@ export const emptyAccount = () => [
   http.get(apiUrl('/transactions/summary'), () =>
     HttpResponse.json({ income: '0.00', expense: '0.00', balance: '0.00' }),
   ),
+  http.get(apiUrl('/transactions/by-category'), () => HttpResponse.json([])),
 ];
 
 export const FOOD = {

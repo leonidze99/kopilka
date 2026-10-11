@@ -12,21 +12,8 @@ export function toDateTimeLocal(date: Date): string {
   );
 }
 
-/** [start of the month, start of the next month) in local time. */
-export function monthRange(date = new Date()): { from: Date; to: Date } {
-  return {
-    from: new Date(date.getFullYear(), date.getMonth(), 1),
-    to: new Date(date.getFullYear(), date.getMonth() + 1, 1),
-  };
-}
-
 const dayFormat = new Intl.DateTimeFormat('ru-RU', {
   day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
-
-const monthFormat = new Intl.DateTimeFormat('ru-RU', {
   month: 'long',
   year: 'numeric',
 });
@@ -44,8 +31,6 @@ const timeFormat = new Intl.DateTimeFormat('ru-RU', {
 });
 
 export const formatDay = (iso: string) => dayFormat.format(new Date(iso));
-
-export const formatMonth = (date: Date) => monthFormat.format(date);
 
 /** "14:30" in the user's time zone. */
 export const formatTime = (iso: string) => timeFormat.format(new Date(iso));

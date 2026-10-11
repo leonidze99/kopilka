@@ -19,6 +19,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  type CategoryTotal,
+  type CategoryTotalsQuery,
+  categoryTotalsQuerySchema,
+  categoryTotalsSchema,
   type CreateTransactionDto,
   createTransactionSchema,
   type ListTransactionsQuery,
@@ -70,6 +74,20 @@ export class TransactionsController {
     query: TransactionSummaryQuery,
   ): Promise<TransactionSummary> {
     return this.transactions.summary(user.id, query);
+  }
+
+  @Get('by-category')
+  @ApiOperation({
+    summary: 'Totals per category over a period, largest first',
+    description: 'Only categories with transactions in the period.',
+  })
+  @ApiOkResponse({ standardSchema: categoryTotalsSchema })
+  @ApiErrorResponses(400)
+  byCategory(
+    @CurrentUser() user: AuthUser,
+    @Query({ schema: categoryTotalsQuerySchema }) query: CategoryTotalsQuery,
+  ): Promise<CategoryTotal[]> {
+    return this.transactions.byCategory(user.id, query);
   }
 
   @Post()

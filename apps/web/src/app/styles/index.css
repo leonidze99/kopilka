@@ -32,9 +32,31 @@
   --color-danger: light-dark(#c0322a, #f2766b);
   --color-danger-soft: light-dark(#fdecea, #2d1614);
 
+  /* Inverted surface: toasts. */
+  --color-inverse: light-dark(#1b211d, #eef2ee);
+  --color-on-inverse: light-dark(#f1f4f1, #121613);
+  --color-accent-on-inverse: light-dark(#5ccb96, #1b7a50);
+
   --color-hero-from: light-dark(#1d7d53, #1a5d3f);
   --color-hero-to: light-dark(#0f4a31, #0c2b1e);
   --color-on-hero: #ffffff;
+
+  /*
+   * Categorical palette for categories: a category keeps its slot in the
+   * chart and in its avatar. Validated for color-vision deficiencies on
+   * both surfaces; the light steps of 3, 4 and 5 are under 3:1, so every
+   * mark of them comes with a visible label. Never add a 9th hue: a
+   * category without a slot is drawn in --series-none.
+   */
+  --series-1: light-dark(#2a78d6, #3987e5);
+  --series-2: light-dark(#eb6834, #d95926);
+  --series-3: light-dark(#1baf7a, #199e70);
+  --series-4: light-dark(#eda100, #c98500);
+  --series-5: light-dark(#e87ba4, #d55181);
+  --series-6: light-dark(#008300, #008300);
+  --series-7: light-dark(#4a3aa7, #9085e9);
+  --series-8: light-dark(#e34948, #e66767);
+  --series-none: light-dark(#9aa39b, #59625b);
 
   --shadow-color: light-dark(rgb(21 33 25 / 0.07), rgb(0 0 0 / 0.45));
   --shadow-sm: 0 1px 2px var(--shadow-color);
@@ -111,6 +133,16 @@ a:hover {
 
 ::selection {
   background: var(--color-accent-soft);
+}
+
+/* Read by screen readers, not shown. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {

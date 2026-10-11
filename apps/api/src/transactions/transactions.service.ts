@@ -1,5 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type {
+  CategoryTotal,
+  CategoryTotalsQuery,
   CreateTransactionDto,
   ListTransactionsQuery,
   Transaction,
@@ -125,6 +127,44 @@ export class TransactionsService {
       expense: expense.toFixed(2),
       balance: income.minus(expense).toFixed(2),
     };
+  }
+
+  /**
+   * Totals per category of one kind, largest first. One GROUP BY in the
+   * database instead of loading transactions: the work and the result stay
+   * small however many transactions there are.
+   */
+  async byCategory(
+    userId: string,
+    { from, to, kind }: CategoryTotalsQuery,
+  ): Promise<CategoryTotal[]> {
+    const conditions = [
+      Prisma.sql`t.user_id = ${userId}::uuid`,
+      Prisma.sql`c.kind = ${kind}::transaction_kind`,
+    ];
+    if (from) conditions.push(Prisma.sql`t.occurred_at >= ${from}`);
+    if (to) conditions.push(Prisma.sql`t.occurred_at < ${to}`);
+
+    const rows = await this.prisma.$queryRaw<
+      {
+        id: string;
+        kind: TransactionKind;
+        name: string;
+        total: Prisma.Decimal;
+      }[]
+    >`
+      SELECT c.id, c.kind, c.name, SUM(t.amount) AS total
+      FROM transactions t
+      JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id
+      WHERE ${Prisma.join(conditions, ' AND ')}
+      GROUP BY c.id
+      ORDER BY total DESC, c.name
+    `;
+
+    return rows.map(({ total, ...category }) => ({
+      category,
+      total: new Prisma.Decimal(total).toFixed(2),
+    }));
   }
 
   async create(

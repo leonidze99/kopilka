@@ -1,3 +1,8 @@
+.filter {
+  width: 200px;
+  min-width: 0;
+}
+
 .day + .day {
   margin-top: 20px;
 }
@@ -17,17 +22,46 @@
   list-style: none;
 }
 
+/* The whole row is the button that opens the transaction. */
 .item {
   display: flex;
   align-items: center;
   gap: 14px;
+  width: 100%;
   padding: 10px 12px;
+  border: none;
   border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   transition: background-color 0.15s;
 }
 
 .item:hover {
   background: var(--color-surface-2);
+}
+
+.fresh {
+  animation: appear 0.45s ease-out;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.fresh .item {
+  animation: highlight 2.4s ease-out;
+}
+
+@keyframes highlight {
+  from {
+    background: var(--color-accent-soft);
+  }
 }
 
 .main {
@@ -78,35 +112,54 @@
   color: var(--color-text-subtle);
 }
 
-/* Delete shows up on hover; it stays while focused (and armed). */
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  min-width: 36px;
+.chevron {
+  flex-shrink: 0;
+  margin-left: -6px;
+  color: var(--color-text-subtle);
   opacity: 0;
   transition: opacity 0.15s;
 }
 
-.item:hover .actions,
-.actions:focus-within {
+.item:hover .chevron,
+.item:focus-visible .chevron {
   opacity: 1;
 }
 
-/* Touch screens have no hover: always show it. */
-@media (hover: none) {
-  .actions {
-    opacity: 1;
-  }
-}
-
-.muted {
-  margin: 0;
-  color: var(--color-text-muted);
+.reset {
+  margin-top: 12px;
 }
 
 .more {
   width: 100%;
   margin-top: 16px;
+}
+
+.skeleton {
+  display: grid;
+  gap: 18px;
+  padding-top: 4px;
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.skeletonText {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+}
+
+@media (max-width: 640px) {
+  .filter {
+    width: 160px;
+  }
+
+  .chevron {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {
@@ -117,5 +170,10 @@
   .item {
     gap: 12px;
     padding: 10px 8px;
+  }
+
+  .item .avatar {
+    width: 36px;
+    height: 36px;
   }
 }

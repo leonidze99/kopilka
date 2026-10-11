@@ -4,7 +4,14 @@ import { Plus } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 import { KIND_OPTIONS, useCreateCategoryMutation } from '@/entities/category';
 import { applyApiError } from '@/shared/lib';
-import { Button, Form, FormError, Segmented, TextField } from '@/shared/ui';
+import {
+  Button,
+  Form,
+  FormError,
+  Segmented,
+  TextField,
+  toast,
+} from '@/shared/ui';
 
 export function CreateCategoryForm() {
   const [createCategory] = useCreateCategoryMutation();
@@ -27,6 +34,7 @@ export function CreateCategoryForm() {
       applyApiError(result.error, setError, ['kind', 'name']);
       return;
     }
+    toast('Категория добавлена');
     // Keep the kind: categories are usually added several of a kind at once.
     reset({ kind: values.kind, name: '' });
   });

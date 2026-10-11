@@ -27,15 +27,21 @@
   display: none;
 }
 
-/* A grid: the delete error takes a row of its own under the item. */
+/* The whole row is the button that opens the category. */
 .item {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 8px 12px;
+  gap: 12px;
+  width: 100%;
   min-height: 52px;
   padding: 8px 10px;
+  border: none;
   border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   transition: background-color 0.15s;
 }
 
@@ -44,32 +50,40 @@
 }
 
 .name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   font-weight: 550;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-/* Like in the transaction list: delete shows up on hover or focus. */
-.item > button {
+.chevron {
+  flex-shrink: 0;
+  color: var(--color-text-subtle);
   opacity: 0;
   transition: opacity 0.15s;
 }
 
-.item:hover > button,
-.item > button:focus,
-.item > button[aria-busy='true'],
-.item:has([role='alert']) > button {
+.item:hover .chevron,
+.item:focus-visible .chevron {
   opacity: 1;
 }
 
 @media (hover: none) {
-  .item > button {
+  .chevron {
     opacity: 1;
   }
 }
 
-.muted {
-  margin: 0;
-  color: var(--color-text-muted);
+.skeleton {
+  display: grid;
+  gap: 18px;
+  padding: 8px 0;
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }

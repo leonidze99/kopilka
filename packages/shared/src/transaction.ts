@@ -100,6 +100,25 @@ export const transactionSummarySchema = z
   })
   .meta({ id: 'TransactionSummary' });
 
+export const categoryTotalsQuerySchema = z.object({
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  /** Which side to break down; expenses by default. */
+  kind: transactionKindSchema.default('expense'),
+});
+
+export const categoryTotalSchema = z
+  .object({
+    category: categorySchema,
+    /** Sum over the period, always with 2 fraction digits. */
+    total: z.string(),
+  })
+  .meta({ id: 'CategoryTotal' });
+
+export const categoryTotalsSchema = z
+  .array(categoryTotalSchema)
+  .meta({ id: 'CategoryTotals' });
+
 export type CreateTransactionDto = z.infer<typeof createTransactionSchema>;
 export type UpdateTransactionDto = z.infer<typeof updateTransactionSchema>;
 export type Transaction = z.infer<typeof transactionSchema>;
@@ -109,3 +128,5 @@ export type TransactionSummaryQuery = z.infer<
   typeof transactionSummaryQuerySchema
 >;
 export type TransactionSummary = z.infer<typeof transactionSummarySchema>;
+export type CategoryTotalsQuery = z.infer<typeof categoryTotalsQuerySchema>;
+export type CategoryTotal = z.infer<typeof categoryTotalSchema>;

@@ -11,6 +11,15 @@
   gap: 2px;
 }
 
+/* The title with page-wide controls (e.g. the month) on the right. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+
 .title {
   margin: 0;
   font-size: var(--text-2xl);
@@ -36,6 +45,38 @@
   top: calc(var(--header-height) + 20px);
 }
 
+/* A floating "add" button for narrow screens, where the aside is hidden. */
+.fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 15;
+  display: none;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: none;
+  border-radius: 18px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  box-shadow:
+    0 8px 24px -6px color-mix(in srgb, var(--color-accent) 60%, transparent),
+    var(--shadow-md);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    transform 0.1s;
+}
+
+.fab:hover {
+  background: var(--color-accent-hover);
+}
+
+.fab:active {
+  transform: scale(0.96);
+}
+
 @media (max-width: 960px) {
   .columns {
     grid-template-columns: minmax(0, 1fr);
@@ -45,5 +86,25 @@
   .aside {
     position: static;
     order: -1;
+  }
+
+  .wideOnly {
+    display: none;
+  }
+
+  .fab {
+    display: grid;
+  }
+}
+
+@media (max-width: 640px) {
+  .title {
+    font-size: var(--text-xl);
+  }
+
+  /* Above the tab bar. */
+  .fab {
+    right: 16px;
+    bottom: calc(80px + env(safe-area-inset-bottom));
   }
 }

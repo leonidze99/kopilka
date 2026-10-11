@@ -8,7 +8,8 @@ import {
 export type Category = ResponseBody<'/categories', 'get', 200>[number];
 
 export const categoryApi = baseApi
-  .enhanceEndpoints({ addTagTypes: ['Category'] })
+  // Transactions carry the name of their category: a rename refetches them.
+  .enhanceEndpoints({ addTagTypes: ['Category', 'Transaction'] })
   .injectEndpoints({
     endpoints: (build) => ({
       listCategories: build.query<Category[], void>({
@@ -28,6 +29,18 @@ export const categoryApi = baseApi
         invalidatesTags: ['Category'],
       }),
 
+      renameCategory: build.mutation<
+        Category,
+        { id: string } & RequestBody<'/categories/{id}', 'patch'>
+      >({
+        query: ({ id, ...body }) => ({
+          url: `/categories/${id}`,
+          method: 'PATCH',
+          body,
+        }),
+        invalidatesTags: ['Category', 'Transaction'],
+      }),
+
       deleteCategory: build.mutation<void, string>({
         query: (id) => ({ url: `/categories/${id}`, method: 'DELETE' }),
         invalidatesTags: ['Category'],
@@ -38,5 +51,6 @@ export const categoryApi = baseApi
 export const {
   useListCategoriesQuery,
   useCreateCategoryMutation,
+  useRenameCategoryMutation,
   useDeleteCategoryMutation,
 } = categoryApi;

@@ -1,9 +1,0 @@
-.error {
-  grid-column: 1 / -1;
-  margin: 0;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--color-danger-soft);
-  font-size: var(--text-sm);
-  color: var(--color-danger);
-}

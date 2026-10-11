@@ -2,19 +2,34 @@ import {
   type Transaction,
   useDeleteTransactionMutation,
 } from '@/entities/transaction';
-import { ConfirmButton } from '@/shared/ui';
+import { errorMessage } from '@/shared/lib';
+import { ConfirmButton, FormError, toast } from '@/shared/ui';
+
+interface DeleteTransactionButtonProps {
+  transaction: Transaction;
+  onDeleted?: () => void;
+}
 
 export function DeleteTransactionButton({
   transaction,
-}: {
-  transaction: Transaction;
-}) {
-  const [deleteTransaction, { isLoading }] = useDeleteTransactionMutation();
+  onDeleted,
+}: DeleteTransactionButtonProps) {
+  const [deleteTransaction, { isLoading, error }] =
+    useDeleteTransactionMutation();
   return (
-    <ConfirmButton
-      label={`Удалить операцию «${transaction.category.name}»`}
-      loading={isLoading}
-      onConfirm={() => deleteTransaction(transaction.id)}
-    />
+    <>
+      <ConfirmButton
+        look="text"
+        label={`Удалить операцию «${transaction.category.name}»`}
+        loading={isLoading}
+        onConfirm={async () => {
+          const result = await deleteTransaction(transaction.id);
+          if (result.error) return;
+          toast('Операция удалена');
+          onDeleted?.();
+        }}
+      />
+      <FormError message={error && errorMessage(error)} />
+    </>
   );
 }

@@ -1,5 +1,4 @@
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
-import { useMemo } from 'react';
 import {
   type TransactionSummary,
   useTransactionSummaryQuery,
@@ -7,33 +6,41 @@ import {
 import {
   errorMessage,
   formatMoney,
-  formatMonth,
-  monthRange,
+  formatMonthTitle,
+  type Month,
+  monthPeriod,
 } from '@/shared/lib';
-import { FormError } from '@/shared/ui';
+import { FormError, Skeleton } from '@/shared/ui';
 import styles from './MonthSummary.module.css';
 
-/** Income, expense and balance of the current month, summed by the API. */
-export function MonthSummary() {
-  const range = useMemo(() => monthRange(), []);
-  const { data, error } = useTransactionSummaryQuery({
-    from: range.from.toISOString(),
-    to: range.to.toISOString(),
-  });
-  const month = formatMonth(range.from);
+/** Income, expense and balance of a month, summed by the API. */
+export function MonthSummary({ month }: { month: Month }) {
+  const { data, error } = useTransactionSummaryQuery(monthPeriod(month));
+
+  const money = (amount: string | undefined, width: number) =>
+    amount === undefined ? (
+      <Skeleton className={styles.skeleton} width={width} height="1em" />
+    ) : (
+      formatMoney(amount)
+    );
 
   return (
-    <section className={styles.hero} aria-labelledby="month-summary-title">
-      <h2 id="month-summary-title" className={styles.month}>
-        {month.charAt(0).toUpperCase() + month.slice(1)}
+    <section
+      className={styles.hero}
+      aria-labelledby="month-summary-title"
+      aria-busy={!data && !error}
+    >
+      {/* The month is in the switcher right above: a title for screen readers. */}
+      <h2 id="month-summary-title" className="visually-hidden">
+        Итоги: {formatMonthTitle(month)}
       </h2>
       {error ? (
         <FormError message={errorMessage(error)} />
       ) : (
         <dl className={styles.stats}>
           <div className={styles.balance}>
-            <dt>Баланс</dt>
-            <dd>{data ? formatMoney(data.balance) : '…'}</dd>
+            <dt>Баланс за месяц</dt>
+            <dd>{money(data?.balance, 220)}</dd>
             {data && <SpentBar summary={data} />}
           </div>
           <div className={styles.tile}>
@@ -43,7 +50,7 @@ export function MonthSummary() {
               </span>
               Доходы
             </dt>
-            <dd>{data ? formatMoney(data.income) : '…'}</dd>
+            <dd>{money(data?.income, 120)}</dd>
           </div>
           <div className={styles.tile}>
             <dt>
@@ -52,7 +59,7 @@ export function MonthSummary() {
               </span>
               Расходы
             </dt>
-            <dd>{data ? formatMoney(data.expense) : '…'}</dd>
+            <dd>{money(data?.expense, 120)}</dd>
           </div>
         </dl>
       )}

@@ -201,6 +201,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transactions/by-category": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Totals per category over a period, largest first
+         * @description Only categories with transactions in the period.
+         */
+        get: operations["TransactionsController_byCategory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transactions/{id}": {
         parameters: {
             query?: never;
@@ -288,6 +308,11 @@ export interface components {
             income: string;
             expense: string;
             balance: string;
+        };
+        CategoryTotals: components["schemas"]["CategoryTotal"][];
+        CategoryTotal: {
+            category: components["schemas"]["Category"];
+            total: string;
         };
         CreateTransactionRequest: {
             /** Format: uuid */
@@ -1083,6 +1108,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TransactionSummary"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    TransactionsController_byCategory: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                kind?: components["schemas"]["TransactionKind"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryTotals"];
                 };
             };
             /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */

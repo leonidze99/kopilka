@@ -56,27 +56,87 @@ describe('TransactionList', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('deletes a transaction only after confirmation', async () => {
-    const { state } = mockAccount({
-      categories: [FOOD],
-      transactions: [transaction({ category: FOOD })],
+  it('edits a transaction in a dialog opened from its row', async () => {
+    const { sent } = mockAccount({
+      categories: [FOOD, SALARY],
+      transactions: [
+        transaction({ amount: '1234.50', category: FOOD, comment: 'Ужин' }),
+      ],
     });
     const { user } = renderApp('/', { session: 'authenticated' });
 
+    await user.click(await screen.findByText('Ужин'));
+    const dialog = screen.getByRole('dialog', { name: 'Операция' });
+    // Filled in, the amount written as people type it.
+    expect(within(dialog).getByLabelText('Сумма')).toHaveValue('1234,50');
+    expect(within(dialog).getByLabelText('Категория')).toHaveValue(FOOD.id);
+
+    await user.clear(within(dialog).getByLabelText('Сумма'));
+    await user.type(within(dialog).getByLabelText('Сумма'), '99');
+    await user.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
+
+    expect(await screen.findByText(/−99,00\s₽/)).toBeInTheDocument();
+    expect(sent.updates).toEqual([expect.objectContaining({ amount: '99' })]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Изменения сохранены')).toBeInTheDocument();
+  });
+
+  it('deletes a transaction from its dialog only after confirmation', async () => {
+    const { state } = mockAccount({
+      categories: [FOOD],
+      transactions: [transaction({ category: FOOD, comment: 'Ужин' })],
+    });
+    const { user } = renderApp('/', { session: 'authenticated' });
+
+    await user.click(await screen.findByText('Ужин'));
+    const dialog = screen.getByRole('dialog', { name: 'Операция' });
     await user.click(
-      await screen.findByRole('button', {
+      within(dialog).getByRole('button', {
         name: 'Удалить операцию «Продукты»',
       }),
     );
     expect(state.transactions).toHaveLength(1);
 
     await user.click(
-      screen.getByRole('button', {
+      within(dialog).getByRole('button', {
         name: 'Подтвердите: Удалить операцию «Продукты»',
       }),
     );
 
     expect(await screen.findByText('Операций пока нет')).toBeInTheDocument();
     expect(state.transactions).toEqual([]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('asks the API for the picked month and filter and keeps them in the URL', async () => {
+    mockAccount({ categories: [FOOD, SALARY] });
+    const queries: URLSearchParams[] = [];
+    server.use(
+      http.get(apiUrl('/transactions'), ({ request }) => {
+        queries.push(new URL(request.url).searchParams);
+        return HttpResponse.json({ items: [], nextCursor: null });
+      }),
+    );
+    const { user, router } = renderApp('/?month=2026-03', {
+      session: 'authenticated',
+    });
+    expect(await screen.findByText('Март 2026')).toBeInTheDocument();
+    await screen.findByText('Операций пока нет');
+
+    await user.selectOptions(screen.getByLabelText('Показать'), 'Все доходы');
+
+    expect(
+      await screen.findByRole('button', { name: 'Сбросить фильтр' }),
+    ).toBeInTheDocument();
+    const last = queries.at(-1);
+    expect(last?.get('kind')).toBe('income');
+    expect(last?.get('from')).toBe(new Date(2026, 2, 1).toISOString());
+    expect(last?.get('to')).toBe(new Date(2026, 3, 1).toISOString());
+    expect(router.state.location.search).toBe('?month=2026-03&kind=income');
+
+    await user.click(screen.getByRole('button', { name: 'Следующий месяц' }));
+
+    expect(await screen.findByText('Апрель 2026')).toBeInTheDocument();
+    expect(router.state.location.search).toBe('?month=2026-04&kind=income');
   });
 });

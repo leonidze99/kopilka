@@ -8,11 +8,17 @@ const optionNames = () =>
     .getAllByRole('option')
     .map((option) => option.textContent);
 
+// The list filter offers the same categories: look in the form's select.
+const categoriesLoaded = async () =>
+  within(await screen.findByLabelText('Категория')).findByRole('option', {
+    name: FOOD.name,
+  });
+
 describe('CreateTransactionForm', () => {
   it('sends the amount normalized and the local date as ISO, then lists the transaction', async () => {
     const { sent } = mockAccount({ categories: [FOOD, SALARY] });
     const { user } = renderApp('/', { session: 'authenticated' });
-    await screen.findByRole('option', { name: FOOD.name });
+    await categoriesLoaded();
 
     await user.selectOptions(screen.getByLabelText('Категория'), FOOD.name);
     await user.type(screen.getByLabelText('Сумма'), '1 234,5');
@@ -23,8 +29,9 @@ describe('CreateTransactionForm', () => {
     await user.type(screen.getByLabelText('Комментарий'), 'Ужин');
     await user.click(screen.getByRole('button', { name: 'Добавить операцию' }));
 
-    const list = await screen.findByRole('list');
+    const list = await screen.findByRole('list', { name: /октября/ });
     expect(await within(list).findByText(/1\s234,50/)).toBeInTheDocument();
+    expect(screen.getByText('Операция добавлена')).toBeInTheDocument();
     expect(sent.transactions).toEqual([
       {
         categoryId: FOOD.id,
@@ -42,7 +49,7 @@ describe('CreateTransactionForm', () => {
   it('offers only categories of the chosen kind', async () => {
     mockAccount({ categories: [FOOD, SALARY] });
     const { user } = renderApp('/', { session: 'authenticated' });
-    await screen.findByRole('option', { name: FOOD.name });
+    await categoriesLoaded();
 
     expect(optionNames()).toEqual(['Выберите категорию', FOOD.name]);
 
@@ -54,7 +61,7 @@ describe('CreateTransactionForm', () => {
   it('validates with the shared schema before sending anything', async () => {
     const { sent } = mockAccount({ categories: [FOOD] });
     const { user } = renderApp('/', { session: 'authenticated' });
-    await screen.findByRole('option', { name: FOOD.name });
+    await categoriesLoaded();
 
     await user.type(screen.getByLabelText('Сумма'), '12,345');
     await user.click(screen.getByRole('button', { name: 'Добавить операцию' }));

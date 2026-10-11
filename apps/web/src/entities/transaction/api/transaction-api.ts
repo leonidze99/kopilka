@@ -12,11 +12,22 @@ export type TransactionSummary = ResponseBody<
   'get',
   200
 >;
+export type CategoryTotal = ResponseBody<
+  '/transactions/by-category',
+  'get',
+  200
+>[number];
 
 /** Dates as ISO strings: what goes into the query string. */
 export interface Period {
   from: string;
   to: string;
+}
+
+/** What the list shows: a period, narrowed to a kind or a category. */
+export interface TransactionFilter extends Period {
+  kind?: 'income' | 'expense';
+  categoryId?: string;
 }
 
 export const transactionApi = baseApi
@@ -25,21 +36,21 @@ export const transactionApi = baseApi
     endpoints: (build) => ({
       /**
        * Cursor pagination: each page's nextCursor is the page param of the
-       * next one. RTK Query keeps the loaded pages together and refetches
-       * them all after an invalidation.
+       * next one. RTK Query keeps the loaded pages of each filter together
+       * and refetches them all after an invalidation.
        */
       listTransactions: build.infiniteQuery<
         TransactionPage,
-        void,
+        TransactionFilter,
         string | null
       >({
         infiniteQueryOptions: {
           initialPageParam: null,
           getNextPageParam: (lastPage) => lastPage.nextCursor,
         },
-        query: ({ pageParam }) => ({
+        query: ({ queryArg, pageParam }) => ({
           url: '/transactions' satisfies ApiPath,
-          params: pageParam ? { cursor: pageParam } : undefined,
+          params: { ...queryArg, ...(pageParam && { cursor: pageParam }) },
         }),
         providesTags: ['Transaction'],
       }),
@@ -48,6 +59,17 @@ export const transactionApi = baseApi
         query: (period) => ({
           url: '/transactions/summary' satisfies ApiPath,
           params: period,
+        }),
+        providesTags: ['Transaction'],
+      }),
+
+      categoryTotals: build.query<
+        CategoryTotal[],
+        Period & { kind: 'income' | 'expense' }
+      >({
+        query: (params) => ({
+          url: '/transactions/by-category' satisfies ApiPath,
+          params,
         }),
         providesTags: ['Transaction'],
       }),
@@ -64,6 +86,18 @@ export const transactionApi = baseApi
         invalidatesTags: ['Transaction'],
       }),
 
+      updateTransaction: build.mutation<
+        Transaction,
+        { id: string } & RequestBody<'/transactions/{id}', 'patch'>
+      >({
+        query: ({ id, ...body }) => ({
+          url: `/transactions/${id}`,
+          method: 'PATCH',
+          body,
+        }),
+        invalidatesTags: ['Transaction'],
+      }),
+
       deleteTransaction: build.mutation<void, string>({
         query: (id) => ({ url: `/transactions/${id}`, method: 'DELETE' }),
         invalidatesTags: ['Transaction'],
@@ -74,6 +108,8 @@ export const transactionApi = baseApi
 export const {
   useListTransactionsInfiniteQuery,
   useTransactionSummaryQuery,
+  useCategoryTotalsQuery,
   useCreateTransactionMutation,
+  useUpdateTransactionMutation,
   useDeleteTransactionMutation,
 } = transactionApi;

@@ -1138,6 +1138,81 @@
         ]
       }
     },
+    "/transactions/by-category": {
+      "get": {
+        "description": "Only categories with transactions in the period.",
+        "operationId": "TransactionsController_byCategory",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "expense",
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionKind"
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryTotals"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Totals per category over a period, largest first",
+        "tags": [
+          "transactions"
+        ]
+      }
+    },
     "/transactions/{id}": {
       "patch": {
         "operationId": "TransactionsController_update",
@@ -1537,6 +1612,28 @@
           "income",
           "expense",
           "balance"
+        ],
+        "additionalProperties": false
+      },
+      "CategoryTotals": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CategoryTotal"
+        }
+      },
+      "CategoryTotal": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "total": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "total"
         ],
         "additionalProperties": false
       },

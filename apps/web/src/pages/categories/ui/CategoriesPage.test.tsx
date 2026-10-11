@@ -63,42 +63,69 @@ describe('CategoriesPage', () => {
       ),
     );
     const { user } = renderApp('/categories', { session: 'authenticated' });
-    const expenses = await panel('Расходы');
+    const dialog = await openCategory(user, 'Расходы', FOOD.name);
 
     await user.click(
-      await expenses.findByRole('button', {
-        name: 'Удалить категорию «Продукты»',
-      }),
+      dialog.getByRole('button', { name: 'Удалить категорию «Продукты»' }),
     );
     await user.click(
-      expenses.getByRole('button', {
+      dialog.getByRole('button', {
         name: 'Подтвердите: Удалить категорию «Продукты»',
       }),
     );
 
-    expect(await expenses.findByRole('alert')).toHaveTextContent(
+    expect(await dialog.findByRole('alert')).toHaveTextContent(
       'В категории есть операции',
     );
-    expect(expenses.getByText(FOOD.name)).toBeInTheDocument();
+    expect((await panel('Расходы')).getByText(FOOD.name)).toBeInTheDocument();
   });
 
   it('deletes an unused category', async () => {
     const { state } = mockAccount({ categories: [FOOD] });
     const { user } = renderApp('/categories', { session: 'authenticated' });
-    const expenses = await panel('Расходы');
+    const dialog = await openCategory(user, 'Расходы', FOOD.name);
 
     await user.click(
-      await expenses.findByRole('button', {
-        name: 'Удалить категорию «Продукты»',
-      }),
+      dialog.getByRole('button', { name: 'Удалить категорию «Продукты»' }),
     );
     await user.click(
-      expenses.getByRole('button', {
+      dialog.getByRole('button', {
         name: 'Подтвердите: Удалить категорию «Продукты»',
       }),
     );
 
-    expect(await expenses.findByText('Пока пусто')).toBeInTheDocument();
+    expect(
+      await (await panel('Расходы')).findByText('Пока пусто'),
+    ).toBeInTheDocument();
     expect(state.categories).toEqual([]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('renames a category', async () => {
+    const { state } = mockAccount({ categories: [FOOD] });
+    const { user } = renderApp('/categories', { session: 'authenticated' });
+    const dialog = await openCategory(user, 'Расходы', FOOD.name);
+
+    const name = dialog.getByLabelText('Название');
+    expect(name).toHaveValue(FOOD.name);
+    await user.clear(name);
+    await user.type(name, 'Еда');
+    await user.click(dialog.getByRole('button', { name: 'Сохранить' }));
+
+    expect(
+      await (await panel('Расходы')).findByText('Еда'),
+    ).toBeInTheDocument();
+    expect(state.categories).toEqual([{ ...FOOD, name: 'Еда' }]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
+
+/** Clicks a category in a panel and returns the dialog it opens. */
+async function openCategory(
+  user: ReturnType<typeof renderApp>['user'],
+  panelTitle: string,
+  name: string,
+) {
+  await user.click(await (await panel(panelTitle)).findByText(name));
+  return within(screen.getByRole('dialog', { name: 'Категория' }));
+}

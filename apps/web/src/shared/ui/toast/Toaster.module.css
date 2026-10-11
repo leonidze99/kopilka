@@ -1,0 +1,96 @@
+.region {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 360px;
+  padding: 10px 8px 10px 14px;
+  border-radius: var(--radius);
+  background: var(--color-inverse);
+  color: var(--color-on-inverse);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  pointer-events: auto;
+  animation: toast-in 0.2s ease;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (max-width: 640px) {
+  .toast {
+    animation-name: toast-in-top;
+  }
+}
+
+@keyframes toast-in-top {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--color-accent-on-inverse);
+}
+
+.message {
+  flex: 1;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.close:hover {
+  opacity: 1;
+}
+
+/* Clear of the floating "add" button pages show on narrow screens. */
+@media (max-width: 960px) {
+  .region {
+    bottom: 96px;
+  }
+}
+
+/* Phones: full width under the header; the bottom has the tab bar. */
+@media (max-width: 640px) {
+  .region {
+    top: calc(var(--header-height) + 8px);
+    right: 16px;
+    bottom: auto;
+    left: 16px;
+    align-items: stretch;
+  }
+
+  .toast {
+    max-width: none;
+  }
+}

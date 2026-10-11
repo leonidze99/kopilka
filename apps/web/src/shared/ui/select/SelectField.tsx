@@ -5,12 +5,18 @@ import styles from '../text-field/TextField.module.css';
 interface SelectFieldProps extends ComponentPropsWithRef<'select'> {
   label: string;
   error?: string;
+  /** For screen readers only, when the options speak for themselves. */
+  hideLabel?: boolean;
+  /** A shorter control, e.g. a filter in a panel header. */
+  compact?: boolean;
 }
 
 /** Labelled <select> with the same look and error handling as TextField. */
 export function SelectField({
   label,
   error,
+  hideLabel,
+  compact,
   id,
   children,
   ...selectProps
@@ -21,13 +27,18 @@ export function SelectField({
 
   return (
     <div className={styles.field}>
-      <label className={styles.label} htmlFor={selectId}>
+      <label
+        className={hideLabel ? 'visually-hidden' : styles.label}
+        htmlFor={selectId}
+      >
         {label}
       </label>
       <div className={styles.control}>
         <select
           id={selectId}
-          className={styles.input}
+          className={[styles.input, compact && styles.compact]
+            .filter(Boolean)
+            .join(' ')}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           {...selectProps}

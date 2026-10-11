@@ -263,6 +263,81 @@ describe('Transactions (e2e)', () => {
     });
   });
 
+  describe('by category', () => {
+    const byCategory = (user: TestUser, query: Record<string, string> = {}) =>
+      http()
+        .get('/transactions/by-category')
+        .query(query)
+        .set('Authorization', user.auth);
+
+    it('sums each category of a kind over the period, largest first', async () => {
+      const { user, food, salary } = await setUp();
+      const { body: cafe } = await http()
+        .post('/categories')
+        .set('Authorization', user.auth)
+        .send({ kind: 'expense', name: 'Кафе' })
+        .expect(201);
+      for (const [categoryId, amount, occurredAt] of [
+        [food.id, '0.1', '2026-10-02T10:00:00Z'],
+        [food.id, '0.2', '2026-10-03T10:00:00Z'],
+        [cafe.id, '500', '2026-10-04T10:00:00Z'],
+        [salary.id, '1000', '2026-10-04T10:00:00Z'],
+        // Outside the period.
+        [food.id, '999', '2026-11-01T00:00:00Z'],
+      ]) {
+        await add(user, { categoryId, amount, occurredAt }).expect(201);
+      }
+
+      const res = await byCategory(user, {
+        from: '2026-10-01T00:00:00Z',
+        to: '2026-11-01T00:00:00Z',
+      }).expect(200);
+
+      expect(res.body).toEqual([
+        { category: cafe, total: '500.00' },
+        { category: food, total: '0.30' },
+      ]);
+    });
+
+    it('breaks down income on request', async () => {
+      const { user, food, salary } = await setUp();
+      await add(user, {
+        categoryId: food.id,
+        amount: '100',
+        occurredAt: '2026-10-02T10:00:00Z',
+      }).expect(201);
+      await add(user, {
+        categoryId: salary.id,
+        amount: '1000',
+        occurredAt: '2026-10-02T10:00:00Z',
+      }).expect(201);
+
+      const res = await byCategory(user, { kind: 'income' }).expect(200);
+
+      expect(res.body).toEqual([{ category: salary, total: '1000.00' }]);
+    });
+
+    it("does not count another user's transactions", async () => {
+      const alice = await setUp();
+      const bob = await setUp();
+      await add(alice.user, {
+        categoryId: alice.food.id,
+        amount: '100',
+        occurredAt: '2026-10-02T10:00:00Z',
+      }).expect(201);
+
+      const res = await byCategory(bob.user).expect(200);
+
+      expect(res.body).toEqual([]);
+    });
+
+    it('rejects an unknown kind', async () => {
+      const { user } = await setUp();
+
+      await byCategory(user, { kind: 'transfer' }).expect(400);
+    });
+  });
+
   describe('update and delete', () => {
     it('changes amount and category', async () => {
       const { user, food, salary } = await setUp();
