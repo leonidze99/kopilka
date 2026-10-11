@@ -25,7 +25,9 @@
 ## Правила
 
 - `packages/shared` — только платформенно-независимый код: без `process.env`, `import.meta.env`, Node/браузерных API. ESM, `NodeNext`, относительные импорты с `.js`.
-- Zod-схемы из shared используются в Nest (ZodValidationPipe) и на фронте (react-hook-form + zodResolver).
+- Zod-схемы из shared используются в Nest и на фронте (react-hook-form + zodResolver). В Nest — встроенный `StandardSchemaValidationPipe` (глобальный, `APP_PIPE`), схема указывается в декораторе: `@Body({ schema: createTransactionSchema }) dto: CreateTransactionDto`. Своего ZodValidationPipe нет.
+- Ошибки API — единый формат `ApiError` из `@kopilka/shared`: `{ code, message, requestId, details?: [{ field?, message }] }`. Глобальный `AllExceptionsFilter` (`APP_FILTER`) превращает в него всё. Когда клиенту важно отличить ошибку — сервис кидает `AppException(code, message, status, details?)`; новые коды добавлять в `errorCodeSchema`. 5xx клиенту отдаются без деталей, полная ошибка — в лог.
+- Prisma-ошибки фильтр мапит только как fallback (P2002/P2003 → 409, P2025 → 404): с driver adapter в P2002 нет списка полей, только имя индекса, поэтому «email уже занят» и т.п. сервис ловит сам и кидает `AppException` с `field`.
 - Даты в схемах — `z.coerce.date()` (через JSON приходят строкой).
 - Миграции: `prisma migrate dev` локально, `migrate deploy` при деплое.
 - Prisma 7 (CLI и клиент закреплены на одной версии `7.10.0`; тег `latest` у CLI указывает на RC 8.x — не обновлять вслепую):
@@ -57,7 +59,9 @@ Prisma: первая миграция `init` — `users`, `categories`, `transac
 
 Отложено сознательно (решить при проектировании фич): счета (accounts) и переводы между ними, бюджеты, мультивалютность (сейчас одна валюта), регистронезависимая уникальность email, тип категории (доход/расход) — сейчас `kind` только у транзакции. В `@kopilka/shared` `amount: z.number()`, а Prisma отдаёт `Decimal` (в JSON — строка): контракт суммы в API решить при фиче транзакций.
 
-Следующее: глобальный exception filter с единым форматом ошибки → логирование `nestjs-pino` с request-id.
+Exception filter и request-id готовы: middleware `requestIdMiddleware` берёт `X-Request-ID` клиента (только `[\w-]{1,128}`, иначе генерирует UUID), кладёт в `req.id` и возвращает в заголовке ответа; `requestId` в теле ошибки совпадает с заголовком. e2e-тесты формата ошибок — `apps/api/test/errors.e2e-spec.ts`.
+
+Следующее: логирование `nestjs-pino` — взять `req.id` как id запроса (`genReqId: (req) => req.id`), прокинуть через AsyncLocalStorage. Учесть: pino-http сам дополняет `IncomingMessage.id`, наше дополнение `Request.id?` в `request-id.middleware.ts` может с ним конфликтовать.
 
 История решений и исходные тексты конфигов — в [docs/planning-log.md](docs/planning-log.md).
 
