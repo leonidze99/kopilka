@@ -5,3 +5,7 @@ packages:
 onlyBuiltDependencies:
   - '@prisma/engines'
   - prisma
+
+# Install-time telemetry from swagger-ui-dist: never run it.
+ignoredBuiltDependencies:
+  - '@scarf/scarf'

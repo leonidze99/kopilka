@@ -29,8 +29,11 @@ export const registerSchema = z
 // a user has registered, and the error must not hint at the rules.
 export const loginSchema = z
   .object({
-    email: z.string().trim().toLowerCase(),
-    password: z.string().min(1).max(128),
+    email: z.string().trim().toLowerCase().min(1, 'Введите email'),
+    password: z
+      .string()
+      .min(1, 'Введите пароль')
+      .max(128, 'Пароль должен быть не длиннее 128 символов'),
   })
   .meta({ id: 'LoginRequest' });
 

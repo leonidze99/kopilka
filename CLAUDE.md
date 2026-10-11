@@ -124,7 +124,25 @@ CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, д
 - `pnpm typecheck` проверяет все пакеты, у `api` — вместе с `test/` (`nest build` проверяет только `src/`).
 - Перед пушем можно прогнать то же локально: `pnpm format:check && pnpm lint && pnpm build && pnpm typecheck && pnpm test && pnpm --filter api test:e2e`.
 
-Фаза 2 закрыта. Следующее: фронт — страницы регистрации/логина (RTK, FSD, react-hook-form + zodResolver со схемами из shared, типы API из `src/shared/api/schema.d.ts`, access-токен в памяти, refresh через куку с `credentials: 'include'`).
+Фаза 2 закрыта.
+
+Фронт (`apps/web`): регистрация, вход, выход, защищённая главная.
+
+- FSD, импорт слоёв через `@/` (`@/app`, `@/pages`, `@/features`, `@/entities`, `@/shared`); из слайса — только через его `index.ts`. Зависимости только вниз: `shared` не импортирует `entities`.
+- Стек: RTK Query (`shared/api/base-api.ts`, эндпоинты — `injectEndpoints` в слайсах), react-router 8 (`createBrowserRouter`), react-hook-form + `standardSchemaResolver` со схемами из `@kopilka/shared` (те же, что валидирует API).
+- Типы запросов/ответов — из сгенерированного контракта: `RequestBody<'/auth/login', 'post'>`, `ResponseBody<'/auth/me', 'get', 200>`, URL — `'/auth/login' satisfies ApiPath`. Переименование пути или смена тела на бэке ломает компиляцию фронта.
+- Сессия (`entities/session`): access-токен только в памяти (Redux), не в localStorage. После перезагрузки — `restoreSession` (POST `/auth/refresh` с httpOnly-кукой), до ответа статус `unknown` и лоадер.
+- `shared/api/base-query.ts`: на 401 (кроме `/auth/login|register|refresh|logout`) — один refresh и повтор запроса. Одновременные refresh в вкладке объединяются в один запрос; между вкладками — Web Lock `kopilka:refresh-session`, иначе две вкладки отправят один и тот же refresh-токен и API разлогинит обе (обнаружение кражи). Слой API сообщает о сессии экшенами `sessionStarted` / `sessionEnded` из `shared/api`, их редьюсит `entities/session` — так `shared` не зависит от `entities`.
+- Каждый запрос шлёт `X-Request-ID` (тот же id попадает в логи API).
+- Ошибки API: `applyApiError(error, setError, fields)` раскладывает `details[].field` по полям формы, остальное — в `errors.root.server`; `errorMessage(error)` — текст для пользователя по `code` (для 5xx — с `requestId`).
+- Маршруты (`app/router`): `RequireAuth` (анонима — на `/login` с возвратом обратно), `GuestOnly` (вошедшего — с `/login`/`/register` туда, куда шёл).
+- `tsconfig.app.json`: `strict` + `noUncheckedIndexedAccess` (в шаблоне Vite strict не было).
+- Тесты: Vitest + RTL + MSW 3 (`pnpm --filter web test`). `src/test/render.tsx` — `renderApp(path, { session })` поднимает реальные store, роуты и guard'ы. Запрос без MSW-обработчика **валит тест** (`src/test/setup.ts`; в MSW 3 опция называется `onUnhandledFrame`, а стратегия `'error'` сама тест не валит).
+- API для фронта — `VITE_API_URL` (по умолчанию `http://localhost:3000`). Без Vite-прокси: кука refresh-токена с `Path=/auth`, под прокси `/api/auth/...` браузер её бы не отправил.
+
+Не сделано на фронте: e2e на Cypress (в плане), обработка `Retry-After` в тексте ошибки (fetchBaseQuery не отдаёт заголовки в `error`), code splitting (бандл ~520 КБ, ~165 КБ gzip — заметную часть даёт Zod из shared).
+
+Следующее: первая доменная фича — категории и транзакции (API + фронт). Перед этим решить контракт суммы (`Decimal` в БД, в JSON строка vs `amount: z.number()` в shared).
 
 История решений и исходные тексты конфигов — в [docs/planning-log.md](docs/planning-log.md).
 

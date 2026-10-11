@@ -4,7 +4,7 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    "types": ["vite/client"],
+    "types": ["vite/client", "vitest/globals"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
@@ -16,7 +16,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* FSD layers are imported as @/app, @/pages, @/features, @/entities, @/shared */
+    "paths": { "@/*": ["./src/*"] },
+
     /* Linting */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
