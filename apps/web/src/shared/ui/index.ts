@@ -8,3 +8,5 @@ export { Segmented } from './segmented/Segmented';
 export { SelectField } from './select/SelectField';
 export { ConfirmButton } from './confirm-button/ConfirmButton';
 export { Panel } from './panel/Panel';
+export { Logo } from './logo/Logo';
+export { EmptyState } from './empty-state/EmptyState';

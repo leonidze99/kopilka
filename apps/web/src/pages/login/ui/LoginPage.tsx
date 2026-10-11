@@ -6,6 +6,7 @@ export function LoginPage() {
   return (
     <CenteredCard
       title="Вход в Копилку"
+      subtitle="С возвращением! Ваши финансы ждут."
       footer={
         <>
           Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>

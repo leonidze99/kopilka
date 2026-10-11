@@ -1,5 +1,6 @@
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { createCategorySchema } from '@kopilka/shared';
+import { Plus } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 import { KIND_OPTIONS, useCreateCategoryMutation } from '@/entities/category';
 import { applyApiError } from '@/shared/lib';
@@ -42,6 +43,7 @@ export function CreateCategoryForm() {
             options={KIND_OPTIONS}
             value={field.value}
             onChange={field.onChange}
+            block
           />
         )}
       />
@@ -52,6 +54,7 @@ export function CreateCategoryForm() {
         {...register('name')}
       />
       <Button type="submit" loading={isSubmitting}>
+        {!isSubmitting && <Plus size={18} aria-hidden />}
         Добавить категорию
       </Button>
     </Form>

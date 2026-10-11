@@ -6,3 +6,4 @@ export {
   useListCategoriesQuery,
 } from './api/category-api';
 export { KIND_OPTIONS, KIND_TITLES, type TransactionKind } from './lib/kind';
+export { CategoryAvatar } from './ui/CategoryAvatar';

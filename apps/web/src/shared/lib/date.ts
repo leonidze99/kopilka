@@ -31,6 +31,47 @@ const monthFormat = new Intl.DateTimeFormat('ru-RU', {
   year: 'numeric',
 });
 
+const dayMonthFormat = new Intl.DateTimeFormat('ru-RU', {
+  day: 'numeric',
+  month: 'long',
+});
+
+const weekdayFormat = new Intl.DateTimeFormat('ru-RU', { weekday: 'long' });
+
+const timeFormat = new Intl.DateTimeFormat('ru-RU', {
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
 export const formatDay = (iso: string) => dayFormat.format(new Date(iso));
 
 export const formatMonth = (date: Date) => monthFormat.format(date);
+
+/** "14:30" in the user's time zone. */
+export const formatTime = (iso: string) => timeFormat.format(new Date(iso));
+
+/** The local calendar day, "2026-10-05": groups transactions by day. */
+export const dayKey = (iso: string) =>
+  toDateTimeLocal(new Date(iso)).slice(0, 10);
+
+/**
+ * "Сегодня", "Вчера", "5 октября, воскресенье"; the year only when it is
+ * not the current one.
+ */
+export function formatDayHeading(iso: string, now = new Date()): string {
+  const date = new Date(iso);
+  const days = Math.round(
+    (startOfDay(now).getTime() - startOfDay(date).getTime()) / 86_400_000,
+  );
+  if (days === 0) return 'Сегодня';
+  if (days === 1) return 'Вчера';
+  const day =
+    date.getFullYear() === now.getFullYear()
+      ? dayMonthFormat.format(date)
+      : dayFormat.format(date);
+  return `${day}, ${weekdayFormat.format(date)}`;
+}
+
+// Math.round above absorbs a 23- or 25-hour day at a DST switch.
+const startOfDay = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());

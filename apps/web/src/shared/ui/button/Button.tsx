@@ -2,8 +2,9 @@ import type { ComponentPropsWithRef } from 'react';
 import styles from './Button.module.css';
 
 interface ButtonProps extends ComponentPropsWithRef<'button'> {
-  variant?: 'primary' | 'secondary' | 'ghost';
-  size?: 'md' | 'sm';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  /** `icon`: a square button; give it an aria-label. */
+  size?: 'md' | 'sm' | 'icon';
   loading?: boolean;
 }
 
@@ -25,6 +26,7 @@ export function Button({
       aria-busy={loading || undefined}
       {...props}
     >
+      {loading && <span className={styles.spinner} aria-hidden />}
       {children}
     </button>
   );

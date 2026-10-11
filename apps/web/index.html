@@ -4,7 +4,26 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kopilka</title>
+    <meta
+      name="theme-color"
+      content="#f4f6f3"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0e110f"
+      media="(prefers-color-scheme: dark)"
+    />
+    <title>Копилка</title>
+    <script>
+      // Before the first paint, or a dark-theme user sees a white flash.
+      // Keep the key in sync with shared/lib/theme.ts.
+      try {
+        var theme = localStorage.getItem('kopilka:theme');
+        if (theme === 'light' || theme === 'dark')
+          document.documentElement.dataset.theme = theme;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

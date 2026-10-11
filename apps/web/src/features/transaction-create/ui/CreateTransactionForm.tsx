@@ -1,5 +1,6 @@
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { createTransactionSchema } from '@kopilka/shared';
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router';
@@ -74,12 +75,23 @@ export function CreateTransactionForm() {
         label="Тип операции"
         options={KIND_OPTIONS}
         value={kind}
+        block
         onChange={(next) => {
           setKind(next);
           setValue('categoryId', '');
         }}
       />
-      <div className={styles.row}>
+      <TextField
+        label="Сумма"
+        inputMode="decimal"
+        placeholder="0,00"
+        autoComplete="off"
+        suffix="₽"
+        large
+        error={errors.amount?.message}
+        {...register('amount')}
+      />
+      <div className={styles.category}>
         <SelectField
           label="Категория"
           error={errors.categoryId?.message}
@@ -92,20 +104,12 @@ export function CreateTransactionForm() {
             </option>
           ))}
         </SelectField>
-        <TextField
-          label="Сумма, ₽"
-          inputMode="decimal"
-          placeholder="0,00"
-          autoComplete="off"
-          error={errors.amount?.message}
-          {...register('amount')}
-        />
+        {ofKind.length === 0 && (
+          <p className={styles.hint}>
+            Категорий этого типа пока нет. <Link to="/categories">Создать</Link>
+          </p>
+        )}
       </div>
-      {ofKind.length === 0 && (
-        <p className={styles.hint}>
-          Категорий этого типа пока нет. <Link to="/categories">Создать</Link>
-        </p>
-      )}
       <div className={styles.row}>
         <TextField
           label="Дата и время"
@@ -121,6 +125,7 @@ export function CreateTransactionForm() {
         />
       </div>
       <Button type="submit" loading={isSubmitting}>
+        {!isSubmitting && <Plus size={18} aria-hidden />}
         Добавить операцию
       </Button>
     </Form>

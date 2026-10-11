@@ -10,7 +10,9 @@ const rub = new Intl.NumberFormat('ru-RU', {
  * part in arithmetic. Up to 14 significant digits survive the conversion.
  */
 export function formatMoney(amount: string): string {
-  return rub.format(Number(amount));
+  // Intl writes a hyphen; a negative balance gets the typographic minus,
+  // the same one as expenses in the list.
+  return rub.format(Number(amount)).replace('-', '−');
 }
 
 /** Expense as "−1 234,50 ₽", income as "+1 234,50 ₽". */

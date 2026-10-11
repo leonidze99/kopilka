@@ -1,8 +1,17 @@
 .error {
+  display: flex;
+  gap: 10px;
   margin: 0;
-  padding: 10px 12px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 25%, transparent);
   border-radius: var(--radius);
-  background: var(--color-danger-surface);
+  background: var(--color-danger-soft);
   color: var(--color-danger);
-  font-size: 14px;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.icon {
+  flex-shrink: 0;
+  margin-top: 1px;
 }

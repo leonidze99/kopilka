@@ -49,7 +49,7 @@ export function renderApp(
  */
 export async function expectOperationsPage() {
   await screen.findByRole('heading', { level: 1, name: 'Операции' });
-  await screen.findByText('Операций пока нет. Добавьте первую выше.');
+  await screen.findByText('Операций пока нет');
   // Income, expense and balance, once the summary has arrived.
   expect(await screen.findAllByText(/^0,00/)).toHaveLength(3);
 }

@@ -6,11 +6,20 @@ import styles from '../../page.module.css';
 export function CategoriesPage() {
   return (
     <div className={styles.stack}>
-      <h1 className={styles.title}>Категории</h1>
-      <Panel title="Новая категория">
-        <CreateCategoryForm />
-      </Panel>
-      <CategoryList />
+      <div className={styles.heading}>
+        <h1 className={styles.title}>Категории</h1>
+        <p className={styles.subtitle}>
+          По ним группируются операции и считаются итоги
+        </p>
+      </div>
+      <div className={styles.columns}>
+        <CategoryList />
+        <div className={styles.aside}>
+          <Panel title="Новая категория">
+            <CreateCategoryForm />
+          </Panel>
+        </div>
+      </div>
     </div>
   );
 }

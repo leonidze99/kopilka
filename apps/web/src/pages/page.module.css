@@ -1,10 +1,49 @@
 .stack {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+  min-width: 0;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .title {
-  margin: 8px 0 0;
-  font-size: 26px;
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 750;
+  letter-spacing: -0.025em;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* Content on the left, the form for a new item on the right. */
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 20px;
+  align-items: start;
+}
+
+.aside {
+  position: sticky;
+  top: calc(var(--header-height) + 20px);
+}
+
+@media (max-width: 960px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The form first: on a phone adding is what the page is opened for. */
+  .aside {
+    position: static;
+    order: -1;
+  }
 }

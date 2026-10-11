@@ -76,9 +76,7 @@ describe('TransactionList', () => {
       }),
     );
 
-    expect(
-      await screen.findByText('Операций пока нет. Добавьте первую выше.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Операций пока нет')).toBeInTheDocument();
     expect(state.transactions).toEqual([]);
   });
 });

@@ -1,0 +1,22 @@
+.avatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: var(--radius);
+  background: light-dark(hsl(var(--hue) 65% 92%), hsl(var(--hue) 30% 20%));
+  color: light-dark(hsl(var(--hue) 55% 32%), hsl(var(--hue) 65% 74%));
+  font-weight: 650;
+}
+
+.md {
+  width: 40px;
+  height: 40px;
+  font-size: var(--text-md);
+}
+
+.sm {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}

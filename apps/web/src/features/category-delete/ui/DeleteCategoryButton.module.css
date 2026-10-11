@@ -1,14 +1,9 @@
-.wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
 .error {
+  grid-column: 1 / -1;
   margin: 0;
-  max-width: 280px;
-  font-size: 13px;
-  text-align: right;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-soft);
+  font-size: var(--text-sm);
   color: var(--color-danger);
 }

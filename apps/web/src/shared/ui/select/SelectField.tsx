@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import { type ComponentPropsWithRef, useId } from 'react';
 import styles from '../text-field/TextField.module.css';
 
@@ -23,15 +24,18 @@ export function SelectField({
       <label className={styles.label} htmlFor={selectId}>
         {label}
       </label>
-      <select
-        id={selectId}
-        className={styles.input}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
-        {...selectProps}
-      >
-        {children}
-      </select>
+      <div className={styles.control}>
+        <select
+          id={selectId}
+          className={styles.input}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          {...selectProps}
+        >
+          {children}
+        </select>
+        <ChevronDown className={styles.chevron} size={18} aria-hidden />
+      </div>
       {error && (
         <p id={errorId} className={styles.error} role="alert">
           {error}

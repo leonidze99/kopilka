@@ -1,5 +1,12 @@
 .main {
-  max-width: 920px;
+  max-width: var(--content-width);
   margin: 0 auto;
-  padding: 16px 16px 48px;
+  padding: 28px 24px 64px;
+}
+
+@media (max-width: 640px) {
+  .main {
+    /* Room for the bottom tab bar. */
+    padding: 20px 16px calc(96px + env(safe-area-inset-bottom));
+  }
 }

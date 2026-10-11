@@ -3,11 +3,15 @@ import { errorMessage } from '@/shared/lib';
 import { ConfirmButton } from '@/shared/ui';
 import styles from './DeleteCategoryButton.module.css';
 
+/**
+ * Two cells of the parent grid: the button, and the error under the whole
+ * row — it is too long to fit next to the category name.
+ */
 export function DeleteCategoryButton({ category }: { category: Category }) {
   const [deleteCategory, { isLoading, error }] = useDeleteCategoryMutation();
 
   return (
-    <div className={styles.wrap}>
+    <>
       <ConfirmButton
         label={`Удалить категорию «${category.name}»`}
         loading={isLoading}
@@ -19,6 +23,6 @@ export function DeleteCategoryButton({ category }: { category: Category }) {
           {errorMessage(error)}
         </p>
       )}
-    </div>
+    </>
   );
 }

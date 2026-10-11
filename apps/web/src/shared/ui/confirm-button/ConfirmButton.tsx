@@ -1,3 +1,4 @@
+import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '../button/Button';
 
@@ -13,6 +14,7 @@ const RESET_AFTER_MS = 4000;
 /**
  * Two-step delete: the first click asks, the second one acts. Unlike
  * window.confirm() it does not block the page and is easy to test.
+ * At rest it is a trash icon; armed, it says what the next click does.
  */
 export function ConfirmButton({
   label,
@@ -29,10 +31,11 @@ export function ConfirmButton({
 
   return (
     <Button
-      variant={armed ? 'secondary' : 'ghost'}
-      size="sm"
+      variant={armed ? 'danger' : 'ghost'}
+      size={armed ? 'sm' : 'icon'}
       loading={loading}
       aria-label={armed ? `Подтвердите: ${label}` : label}
+      title={armed ? undefined : label}
       onClick={() => {
         if (armed) {
           setArmed(false);
@@ -42,7 +45,7 @@ export function ConfirmButton({
         }
       }}
     >
-      {armed ? 'Точно удалить?' : 'Удалить'}
+      {armed ? 'Удалить?' : <Trash2 size={17} aria-hidden />}
     </Button>
   );
 }

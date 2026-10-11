@@ -15,7 +15,7 @@ describe('CreateTransactionForm', () => {
     await screen.findByRole('option', { name: FOOD.name });
 
     await user.selectOptions(screen.getByLabelText('Категория'), FOOD.name);
-    await user.type(screen.getByLabelText('Сумма, ₽'), '1 234,5');
+    await user.type(screen.getByLabelText('Сумма'), '1 234,5');
     // user-event cannot type into datetime-local in jsdom.
     fireEvent.change(screen.getByLabelText('Дата и время'), {
       target: { value: '2026-10-05T14:30' },
@@ -35,7 +35,7 @@ describe('CreateTransactionForm', () => {
       },
     ]);
     // Ready for the next one; the category is kept.
-    expect(screen.getByLabelText('Сумма, ₽')).toHaveValue('');
+    expect(screen.getByLabelText('Сумма')).toHaveValue('');
     expect(screen.getByLabelText('Категория')).toHaveValue(FOOD.id);
   });
 
@@ -56,7 +56,7 @@ describe('CreateTransactionForm', () => {
     const { user } = renderApp('/', { session: 'authenticated' });
     await screen.findByRole('option', { name: FOOD.name });
 
-    await user.type(screen.getByLabelText('Сумма, ₽'), '12,345');
+    await user.type(screen.getByLabelText('Сумма'), '12,345');
     await user.click(screen.getByRole('button', { name: 'Добавить операцию' }));
 
     expect(

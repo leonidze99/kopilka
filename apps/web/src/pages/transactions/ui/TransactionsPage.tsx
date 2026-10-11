@@ -7,12 +7,19 @@ import styles from '../../page.module.css';
 export function TransactionsPage() {
   return (
     <div className={styles.stack}>
-      <h1 className={styles.title}>Операции</h1>
+      <div className={styles.heading}>
+        <h1 className={styles.title}>Операции</h1>
+        <p className={styles.subtitle}>Доходы и расходы за всё время</p>
+      </div>
       <MonthSummary />
-      <Panel title="Новая операция">
-        <CreateTransactionForm />
-      </Panel>
-      <TransactionList />
+      <div className={styles.columns}>
+        <TransactionList />
+        <div className={styles.aside}>
+          <Panel title="Новая операция">
+            <CreateTransactionForm />
+          </Panel>
+        </div>
+      </div>
     </div>
   );
 }
