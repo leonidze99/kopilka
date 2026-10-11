@@ -15,6 +15,8 @@ describe('envSchema', () => {
       ...base,
       NODE_ENV: 'development',
       PORT: 3000,
+      CORS_ORIGINS: ['http://localhost:5173'],
+      TRUST_PROXY_HOPS: 0,
       JWT_ACCESS_TTL_SECONDS: 900,
       REFRESH_TOKEN_TTL_DAYS: 30,
     });
@@ -62,6 +64,34 @@ describe('envSchema', () => {
     );
     expect(failedFields({ ...base, LOG_LEVEL: 'verbose' })).toEqual([
       'LOG_LEVEL',
+    ]);
+  });
+
+  it('splits CORS_ORIGINS into a list', () => {
+    expect(
+      envSchema.parse({
+        ...base,
+        CORS_ORIGINS: 'https://app.example.com, http://localhost:5173',
+      }).CORS_ORIGINS,
+    ).toEqual(['https://app.example.com', 'http://localhost:5173']);
+  });
+
+  // Browsers send Origin without a trailing slash, so such an entry would
+  // silently never match.
+  it.each([
+    'http://localhost:5173/',
+    'https://app.example.com/path',
+    'nope',
+    '',
+  ])('rejects CORS_ORIGINS entry %j', (origin) => {
+    expect(failedFields({ ...base, CORS_ORIGINS: origin })?.[0]).toMatch(
+      /^CORS_ORIGINS/,
+    );
+  });
+
+  it.each(['-1', '1.5', 'true'])('rejects TRUST_PROXY_HOPS %s', (hops) => {
+    expect(failedFields({ ...base, TRUST_PROXY_HOPS: hops })).toEqual([
+      'TRUST_PROXY_HOPS',
     ]);
   });
 

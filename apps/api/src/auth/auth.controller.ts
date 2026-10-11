@@ -9,6 +9,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { minutes, Throttle } from '@nestjs/throttler';
 import {
   type AuthResponse,
   type LoginDto,
@@ -24,6 +25,10 @@ import { type AuthUser, CurrentUser } from './current-user.decorator.js';
 import { Public } from './public.decorator.js';
 
 export const REFRESH_COOKIE = 'refresh_token';
+
+// Guessing passwords and mass sign-ups: far below the global limit.
+// Counted per IP and per route, so login and register have separate budgets.
+const AUTH_THROTTLE = { default: { limit: 10, ttl: minutes(1) } };
 
 @Controller('auth')
 export class AuthController {
@@ -46,6 +51,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle(AUTH_THROTTLE)
   @Post('register')
   async register(
     @Body({ schema: registerSchema }) dto: RegisterDto,
@@ -55,6 +61,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle(AUTH_THROTTLE)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(

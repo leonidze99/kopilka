@@ -79,11 +79,23 @@ Exception filter готов; `requestId` в теле ошибки совпада
 - Пароли: argon2id через `@node-rs/argon2` (параметры OWASP по умолчанию, без install-скриптов). Логин отвечает одинаково на неверный пароль и неизвестный email и проверяет хеш-пустышку, чтобы время ответа не выдавало зарегистрированные email.
 - Email нормализуется в схеме (`trim` + `toLowerCase` до проверки формата) — уникальность фактически регистронезависимая.
 - `SameSite=Strict` рассчитан на то, что фронт и API на одном сайте (localhost:5173 и localhost:3000 — один сайт). Если на проде они окажутся на разных доменах — пересмотреть (`SameSite=None` + CSRF-защита).
-- Не сделано: очистка истёкших/погашенных `refresh_tokens` (фоновая задача, когда понадобится), лимит попыток логина (`@nestjs/throttler`, фаза 2), смена пароля и «выйти на всех устройствах».
+- Не сделано: очистка истёкших/погашенных `refresh_tokens` (фоновая задача, когда понадобится), смена пароля и «выйти на всех устройствах», блокировка по аккаунту (сейчас лимит попыток только по IP — перебор паролей одного аккаунта с многих IP он не остановит).
 
 Сообщения ошибок: верхнеуровневый `message` — на английском (для разработчика и логов), `details[].message` — на русском (показываются пользователю у поля формы).
 
-Следующее (фаза 2): `@nestjs/throttler` (в первую очередь на `/auth/login` и `/auth/register`), helmet, CORS (с `credentials: true` для куки), health-чеки `@nestjs/terminus`, Swagger + openapi-typescript, CI на GitHub Actions. Затем фронт: страницы регистрации/логина.
+Сборка приложения и тесты:
+
+- То, что живёт в модулях (фильтр, пайп, guard'ы, middleware) — через `APP_*`-провайдеры в модулях. То, что настраивается на уровне приложения (`app.use`, `enableCors`, shutdown hooks) — только в `setupApp()` (`apps/api/src/app.setup.ts`), его вызывают и `main.ts`, и тесты. В `main.ts` — только логгер и `listen`.
+- e2e-тесты поднимают приложение через `createTestApp()` (`apps/api/test/utils/create-test-app.ts`): `AppModule` + `setupApp`, логгер выключен, throttler выключен (все запросы с одного IP); `{ throttle: true }` — для тестов лимитов, `{ controllers }` — для служебных контроллеров.
+
+Защита (e2e — `apps/api/test/security.e2e-spec.ts`):
+
+- helmet — через `app.use` в `setupApp`, поэтому заголовки есть и на ответах body-parser (битый JSON). Убирает `X-Powered-By`.
+- CORS: `CORS_ORIGINS` (через запятую, только origin без пути и слеша на конце, по умолчанию `http://localhost:5173`), `credentials: true` для куки refresh-токена. Фронт должен слать запросы к `/auth/*` с `credentials: 'include'`. Наружу открыты заголовки `X-Request-ID` и `Retry-After`.
+- Throttler (`@nestjs/throttler`, глобальный guard): 100 запросов в минуту с IP на маршрут; `/auth/login` и `/auth/register` — по 10 в минуту (`@Throttle(AUTH_THROTTLE)`). Превышение → 429 `RATE_LIMITED` + `Retry-After`. Счётчики в памяти процесса — при нескольких инстансах нужно общее хранилище (Redis).
+- `trust proxy` — через `TRUST_PROXY_HOPS` (число прокси перед приложением, по умолчанию 0 = `X-Forwarded-For` игнорируется). **При деплое за прокси (Railway, Fly.io) выставить 1**, иначе `req.ip` у всех клиентов будет адресом прокси и лимит станет общим на всех пользователей. Никогда не `true`: тогда клиент сам впишет любой IP в `X-Forwarded-For` и обойдёт лимиты. e2e — `apps/api/test/trust-proxy.e2e-spec.ts`.
+
+Следующее (фаза 2): health-чеки `@nestjs/terminus`, Swagger + openapi-typescript, CI на GitHub Actions. Затем фронт: страницы регистрации/логина.
 
 История решений и исходные тексты конфигов — в [docs/planning-log.md](docs/planning-log.md).
 

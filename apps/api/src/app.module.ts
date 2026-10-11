@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_FILTER, APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
+import { minutes, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -26,6 +27,12 @@ import { PrismaModule } from './prisma/prisma.module.js';
           LOG_LEVEL: config.get('LOG_LEVEL', { infer: true }),
         }),
     }),
+    // Per client IP, in memory: fine for a single instance. With several
+    // instances the counters must be shared (Redis storage).
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: minutes(1), limit: 100 }],
+      errorMessage: 'Too many requests, try again later',
+    }),
     PrismaModule,
     AuthModule,
   ],
@@ -36,6 +43,9 @@ import { PrismaModule } from './prisma/prisma.module.js';
     // building the app from AppModule get the same behavior.
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_PIPE, useFactory: createValidationPipe },
+    // useExisting lets tests swap the guard via overrideProvider(ThrottlerGuard).
+    ThrottlerGuard,
+    { provide: APP_GUARD, useExisting: ThrottlerGuard },
   ],
 })
 export class AppModule {}

@@ -1,12 +1,11 @@
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Test } from '@nestjs/testing';
 import { apiErrorSchema, authResponseSchema } from '@kopilka/shared';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
-import { AppModule } from './../src/app.module.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
+import { createTestApp } from './utils/create-test-app.js';
 
 const EMAIL_DOMAIN = '@auth-e2e.test';
 const PASSWORD = 'correct horse battery';
@@ -26,11 +25,7 @@ describe('Auth (e2e)', () => {
   let prisma: PrismaService;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-    app = moduleRef.createNestApplication({ logger: false });
-    await app.init();
+    app = await createTestApp();
     prisma = app.get(PrismaService);
   });
 

@@ -8,7 +8,6 @@ import {
   InternalServerErrorException,
   Post,
 } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 import {
   apiErrorSchema,
   createTransactionSchema,
@@ -16,10 +15,10 @@ import {
 } from '@kopilka/shared';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
-import { AppModule } from './../src/app.module.js';
 import { Public } from './../src/auth/public.decorator.js';
 import { AppException } from './../src/common/errors/app.exception.js';
 import { Prisma } from './../src/generated/prisma/client.js';
+import { createTestApp } from './utils/create-test-app.js';
 
 @Public()
 @Controller('__test')
@@ -82,13 +81,7 @@ describe('Error format (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
-      controllers: [ErrorsTestController],
-    }).compile();
-
-    app = moduleRef.createNestApplication({ logger: false });
-    await app.init();
+    app = await createTestApp({ controllers: [ErrorsTestController] });
   });
 
   afterAll(async () => {
