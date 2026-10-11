@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '../auth/public.decorator.js';
@@ -6,6 +7,7 @@ import { DatabaseHealthIndicator } from './database.health.js';
 
 // Probes come from the platform every few seconds, without credentials and
 // often from a single IP: they must be neither authenticated nor throttled.
+@ApiTags('health')
 @Public()
 @SkipThrottle()
 @Controller('health')

@@ -9,16 +9,26 @@ import {
   Res,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { minutes, Throttle } from '@nestjs/throttler';
 import {
   type AuthResponse,
   type LoginDto,
   type RegisterDto,
   type User,
+  authResponseSchema,
   loginSchema,
   registerSchema,
+  userSchema,
 } from '@kopilka/shared';
 import type { CookieOptions, Request, Response } from 'express';
+import { ApiErrorResponses } from '../common/openapi/api-error-responses.decorator.js';
 import type { Env } from '../config/env.js';
 import { AuthService, type Session } from './auth.service.js';
 import { type AuthUser, CurrentUser } from './current-user.decorator.js';
@@ -30,6 +40,10 @@ export const REFRESH_COOKIE = 'refresh_token';
 // Counted per IP and per route, so login and register have separate budgets.
 const AUTH_THROTTLE = { default: { limit: 10, ttl: minutes(1) } };
 
+const SETS_REFRESH_COOKIE =
+  'Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/auth).';
+
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   private readonly cookieOptions: CookieOptions;
@@ -53,6 +67,12 @@ export class AuthController {
   @Public()
   @Throttle(AUTH_THROTTLE)
   @Post('register')
+  @ApiOperation({ summary: 'Create an account and sign in' })
+  @ApiCreatedResponse({
+    description: SETS_REFRESH_COOKIE,
+    standardSchema: authResponseSchema,
+  })
+  @ApiErrorResponses(400, 409, 429)
   async register(
     @Body({ schema: registerSchema }) dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
@@ -64,6 +84,12 @@ export class AuthController {
   @Throttle(AUTH_THROTTLE)
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sign in with email and password' })
+  @ApiOkResponse({
+    description: SETS_REFRESH_COOKIE,
+    standardSchema: authResponseSchema,
+  })
+  @ApiErrorResponses(400, 401, 429)
   async login(
     @Body({ schema: loginSchema }) dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -74,6 +100,16 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Exchange the refresh_token cookie for new tokens',
+    description:
+      'Rotates the refresh token. Reusing an already rotated token revokes the whole session.',
+  })
+  @ApiOkResponse({
+    description: SETS_REFRESH_COOKIE,
+    standardSchema: authResponseSchema,
+  })
+  @ApiErrorResponses(401)
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -91,6 +127,8 @@ export class AuthController {
   @Public()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'End the session of the refresh_token cookie' })
+  @ApiNoContentResponse({ description: 'Clears the refresh_token cookie.' })
   async logout(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -100,6 +138,9 @@ export class AuthController {
   }
 
   @Get('me')
+  @ApiOperation({ summary: 'The signed-in user' })
+  @ApiOkResponse({ standardSchema: userSchema })
+  @ApiErrorResponses(401)
   me(@CurrentUser() user: AuthUser): Promise<User> {
     return this.auth.me(user.id);
   }

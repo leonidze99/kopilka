@@ -1,3 +1,6 @@
 pnpm-lock.yaml
 # Исторический лог: код в нём приведён дословно из чата
 docs/planning-log.md
+# Generated: pnpm api:generate
+apps/api/openapi.json
+apps/web/src/shared/api/schema.d.ts

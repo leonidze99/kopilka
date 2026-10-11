@@ -104,7 +104,17 @@ Health-чеки (`apps/api/src/health/`, e2e — `apps/api/test/health.e2e-spec.
 - Новые зависимости, без которых приложение не может работать (Redis и т.п.), добавлять в `/health/ready`, не в `/health/live`.
 - Фильтр ошибок: 503 → `SERVICE_UNAVAILABLE` и без стека в логе (его бросают намеренно, причину логирует бросивший); прочие 5xx → `INTERNAL_ERROR` со стеком.
 
-Следующее (фаза 2): Swagger + openapi-typescript, CI на GitHub Actions. Затем фронт: страницы регистрации/логина.
+OpenAPI (`apps/api/src/openapi.ts`, e2e — `apps/api/test/openapi*.e2e-spec.ts`):
+
+- Единственный источник правды — Zod-схемы из `@kopilka/shared`. Тело запроса попадает в документ само из `@Body({ schema })`; ответы описывать `@ApiOkResponse({ standardSchema: someSchema })` / `@ApiCreatedResponse`; ошибки — `@ApiErrorResponses(400, 401, ...)` (`apps/api/src/common/openapi/`). DTO-классы с `@ApiProperty` не писать.
+- Экспортируемые схемы в shared помечать `.meta({ id: 'Name' })` — иначе в OpenAPI и во фронтовых типах они будут безымянными инлайнами.
+- Входная сторона `pipe` (нормализация перед проверкой) описывается в доках как голая строка — правила после `pipe` повторять в `.meta({ format, maxLength })` на входной стороне (см. `emailSchema`).
+- Даты (`z.coerce.date()`) описываются как `string` / `date-time` своим `standardSchemaConverter`: Zod сам не умеет `Date` в JSON Schema и без конвертера падал бы старт приложения.
+- `@Public()` заодно ставит в документе `security: [{}]`; остальные операции — с глобальным bearer.
+- Swagger UI — `/docs`, JSON — `/docs/openapi.json`; только вне production. В dev CSP без `upgrade-insecure-requests`, иначе `/docs` не грузится по HTTP.
+- **После изменения API: `pnpm api:generate`** — собирает api, пишет `apps/api/openapi.json` и генерирует `apps/web/src/shared/api/schema.d.ts` (openapi-typescript). Оба файла коммитятся, в `.prettierignore`. e2e-тест падает, если `openapi.json` не совпадает с кодом. Генерация читает `apps/api/.env` (валидация конфига), БД не нужна.
+
+Следующее (фаза 2): CI на GitHub Actions (lint, typecheck, test, e2e с Postgres-сервисом, build, проверка что `api:generate` не даёт диффа). Затем фронт: страницы регистрации/логина.
 
 История решений и исходные тексты конфигов — в [docs/planning-log.md](docs/planning-log.md).
 
