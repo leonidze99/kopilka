@@ -59,9 +59,17 @@ Prisma: первая миграция `init` — `users`, `categories`, `transac
 
 Отложено сознательно (решить при проектировании фич): счета (accounts) и переводы между ними, бюджеты, мультивалютность (сейчас одна валюта), регистронезависимая уникальность email, тип категории (доход/расход) — сейчас `kind` только у транзакции. В `@kopilka/shared` `amount: z.number()`, а Prisma отдаёт `Decimal` (в JSON — строка): контракт суммы в API решить при фиче транзакций.
 
-Exception filter и request-id готовы: middleware `requestIdMiddleware` берёт `X-Request-ID` клиента (только `[\w-]{1,128}`, иначе генерирует UUID), кладёт в `req.id` и возвращает в заголовке ответа; `requestId` в теле ошибки совпадает с заголовком. e2e-тесты формата ошибок — `apps/api/test/errors.e2e-spec.ts`.
+Exception filter готов; `requestId` в теле ошибки совпадает с заголовком `X-Request-ID`. e2e-тесты — `apps/api/test/errors.e2e-spec.ts`.
 
-Следующее: логирование `nestjs-pino` — взять `req.id` как id запроса (`genReqId: (req) => req.id`), прокинуть через AsyncLocalStorage. Учесть: pino-http сам дополняет `IncomingMessage.id`, наше дополнение `Request.id?` в `request-id.middleware.ts` может с ним конфликтовать.
+Логирование: `nestjs-pino` (конфиг — `apps/api/src/common/logging/logger.config.ts`, тесты — `apps/api/test/logging.e2e-spec.ts`).
+
+- Request-id генерирует сам pino-http (`genReqId: resolveRequestId`): берёт `X-Request-ID` клиента (только `[\w-]{1,128}`, иначе UUID), кладёт в `req.id`, возвращает в заголовке. Отдельного middleware нет — один источник id.
+- Любой лог внутри запроса (`new Logger(Ctx)` из `@nestjs/common` или `PinoLogger`) автоматически получает `reqId` через AsyncLocalStorage (`quietReqLogger: true` — только `reqId`, без всего запроса). Логировать через Nest `Logger`, не через `console`.
+- Access-лог: 2xx/3xx → info, 4xx → warn, 5xx → error. `authorization`, `cookie`, `set-cookie` маскируются.
+- Уровень: `LOG_LEVEL`, по умолчанию debug в development, silent в test, info в production. В development — pino-pretty, в остальных — JSON.
+- Ошибки body-parser (битый JSON, 413) случаются до pino-http: access-лога для них нет, поэтому фильтр сам назначает request-id и пишет warn-строку.
+
+Следующее (фаза 2, вместе с первой фичей): Swagger + openapi-typescript, health-чеки `@nestjs/terminus`, helmet, CORS, `@nestjs/throttler`, CI на GitHub Actions. Первая фича — регистрация/логин (JWT access + refresh с ротацией, argon2).
 
 История решений и исходные тексты конфигов — в [docs/planning-log.md](docs/planning-log.md).
 

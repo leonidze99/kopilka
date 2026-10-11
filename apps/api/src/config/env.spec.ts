@@ -39,6 +39,15 @@ describe('envSchema', () => {
     },
   );
 
+  it('accepts a known LOG_LEVEL and rejects an unknown one', () => {
+    expect(envSchema.parse({ DATABASE_URL, LOG_LEVEL: 'warn' }).LOG_LEVEL).toBe(
+      'warn',
+    );
+    expect(
+      envSchema.safeParse({ DATABASE_URL, LOG_LEVEL: 'verbose' }).success,
+    ).toBe(false);
+  });
+
   it('rejects unknown NODE_ENV', () => {
     expect(
       envSchema.safeParse({ DATABASE_URL, NODE_ENV: 'staging' }).success,

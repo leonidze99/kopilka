@@ -8,8 +8,8 @@ import {
 } from '@nestjs/common';
 import type { ApiError, ErrorCode } from '@kopilka/shared';
 import type { Request, Response } from 'express';
-import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client.js';
+import { resolveRequestId } from '../logging/logger.config.js';
 import { AppException } from './app.exception.js';
 
 type ErrorBody = Omit<ApiError, 'requestId'>;
@@ -71,13 +71,31 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
-    const requestId = request.id ?? randomUUID();
-
     const [status, body] = this.toError(exception);
+
+    // Errors raised by body-parser (malformed JSON, oversized body) happen
+    // before the pino-http middleware runs: there is no request id yet and
+    // no access log line will be written, so both are done here.
+    let requestId = request.id;
+    if (typeof requestId !== 'string') {
+      requestId = resolveRequestId(request, response);
+      this.logger.warn({
+        reqId: requestId,
+        // Flat keys on purpose: pino-http serializers would rewrite req/res.
+        method: request.method,
+        url: request.originalUrl,
+        statusCode: status,
+        msg: `Request rejected before routing: ${body.message}`,
+      });
+    }
+
+    // Inside a request pino binds reqId to every log line, so the stack
+    // trace and the access log line can be joined by it.
     if (status >= 500) {
       this.logger.error(
-        `${request.method} ${request.originalUrl} failed [requestId=${requestId}]`,
-        exception instanceof Error ? exception.stack : String(exception),
+        exception instanceof Error
+          ? exception
+          : { thrown: exception, msg: 'Non-error value thrown' },
       );
     }
 

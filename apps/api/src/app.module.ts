@@ -1,12 +1,13 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_PIPE } from '@nestjs/core';
+import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { createValidationPipe } from './common/errors/validation.pipe.js';
-import { requestIdMiddleware } from './common/request-id/request-id.middleware.js';
-import { envSchema } from './config/env.js';
+import { createLoggerParams } from './common/logging/logger.config.js';
+import { envSchema, type Env } from './config/env.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
 @Module({
@@ -15,6 +16,14 @@ import { PrismaModule } from './prisma/prisma.module.js';
       isGlobal: true,
       cache: true,
       validationSchema: envSchema,
+    }),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) =>
+        createLoggerParams({
+          NODE_ENV: config.get('NODE_ENV', { infer: true }),
+          LOG_LEVEL: config.get('LOG_LEVEL', { infer: true }),
+        }),
     }),
     PrismaModule,
   ],
@@ -27,8 +36,4 @@ import { PrismaModule } from './prisma/prisma.module.js';
     { provide: APP_PIPE, useFactory: createValidationPipe },
   ],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(requestIdMiddleware).forRoutes('*');
-  }
-}
+export class AppModule {}
