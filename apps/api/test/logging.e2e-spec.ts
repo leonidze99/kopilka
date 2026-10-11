@@ -39,6 +39,14 @@ class LoggingTestController {
   }
 }
 
+@Controller('health')
+class FakeHealthController {
+  @Get('live')
+  live() {
+    return { status: 'ok' };
+  }
+}
+
 describe('Logging (e2e)', () => {
   let app: INestApplication<App>;
   const lines: LogLine[] = [];
@@ -58,7 +66,7 @@ describe('Logging (e2e)', () => {
           ),
         ),
       ],
-      controllers: [LoggingTestController],
+      controllers: [LoggingTestController, FakeHealthController],
       providers: [{ provide: APP_FILTER, useClass: AllExceptionsFilter }],
     }).compile();
 
@@ -132,6 +140,14 @@ describe('Logging (e2e)', () => {
       cookie: '[REDACTED]',
     });
     expect(JSON.stringify(lines)).not.toMatch(/secret-token|secret-cookie/);
+  });
+
+  it('does not write access logs for health probes', async () => {
+    await http().get('/health/live').set('X-Request-ID', 'log-6').expect(200);
+    // Give the response "finish" event a chance to fire.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(lines.some((l) => l.req?.id === 'log-6')).toBe(false);
   });
 
   it('logs requests rejected by body-parser, which never reach pino-http', async () => {

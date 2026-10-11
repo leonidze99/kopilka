@@ -19,6 +19,11 @@ const INTERNAL_ERROR: ErrorBody = {
   message: 'Internal server error',
 };
 
+const SERVICE_UNAVAILABLE: ErrorBody = {
+  code: 'SERVICE_UNAVAILABLE',
+  message: 'Service unavailable',
+};
+
 function codeByStatus(status: number): ErrorCode {
   switch (status) {
     case 401:
@@ -91,7 +96,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     // Inside a request pino binds reqId to every log line, so the stack
     // trace and the access log line can be joined by it.
-    if (status >= 500) {
+    // 503 is thrown on purpose (e.g. a failed readiness check) by code that
+    // logs the reason itself; its stack trace would only add noise.
+    if (status >= 500 && status !== 503) {
       this.logger.error(
         exception instanceof Error
           ? exception
@@ -116,6 +123,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
+      // Details of 5xx (e.g. which health check failed) stay in the logs.
+      if (status === 503) return [status, SERVICE_UNAVAILABLE];
       if (status >= 500) return [status, INTERNAL_ERROR];
       return [
         status,

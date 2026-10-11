@@ -44,6 +44,11 @@ export function createLoggerParams(
     // Logs written while handling a request carry only `reqId`
     // instead of the whole serialized request.
     quietReqLogger: true,
+    // Platform health probes hit every few seconds and would drown the
+    // access log; failed checks are logged by terminus itself.
+    autoLogging: {
+      ignore: (req) => req.url?.startsWith('/health/') ?? false,
+    },
     customLogLevel: (_req, res, error) => {
       if (error || res.statusCode >= 500) return 'error';
       if (res.statusCode >= 400) return 'warn';

@@ -95,7 +95,16 @@ Exception filter готов; `requestId` в теле ошибки совпада
 - Throttler (`@nestjs/throttler`, глобальный guard): 100 запросов в минуту с IP на маршрут; `/auth/login` и `/auth/register` — по 10 в минуту (`@Throttle(AUTH_THROTTLE)`). Превышение → 429 `RATE_LIMITED` + `Retry-After`. Счётчики в памяти процесса — при нескольких инстансах нужно общее хранилище (Redis).
 - `trust proxy` — через `TRUST_PROXY_HOPS` (число прокси перед приложением, по умолчанию 0 = `X-Forwarded-For` игнорируется). **При деплое за прокси (Railway, Fly.io) выставить 1**, иначе `req.ip` у всех клиентов будет адресом прокси и лимит станет общим на всех пользователей. Никогда не `true`: тогда клиент сам впишет любой IP в `X-Forwarded-For` и обойдёт лимиты. e2e — `apps/api/test/trust-proxy.e2e-spec.ts`.
 
-Следующее (фаза 2): health-чеки `@nestjs/terminus`, Swagger + openapi-typescript, CI на GitHub Actions. Затем фронт: страницы регистрации/логина.
+Health-чеки (`apps/api/src/health/`, e2e — `apps/api/test/health.e2e-spec.ts`), `@nestjs/terminus`:
+
+- `GET /health/live` — liveness, без проверки зависимостей (упавшая БД не лечится рестартом, а падающая liveness-проба вызвала бы рестарты по кругу). Для liveness-пробы платформы.
+- `GET /health/ready` — readiness, `SELECT 1` в БД с таймаутом 1 с; при отказе — 503 `SERVICE_UNAVAILABLE` без деталей в ответе, причина (`Database query failed: ECONNREFUSED`) — одной JSON-строкой в логе. Для readiness-пробы / healthcheck деплоя.
+- Оба `@Public()` и `@SkipThrottle()`; в access-лог не пишутся.
+- Свой `DatabaseHealthIndicator` вместо `PrismaHealthIndicator` из terminus: тот сначала вызывает MongoDB-метод и распознаёт SQL-базу по тексту ошибки.
+- Новые зависимости, без которых приложение не может работать (Redis и т.п.), добавлять в `/health/ready`, не в `/health/live`.
+- Фильтр ошибок: 503 → `SERVICE_UNAVAILABLE` и без стека в логе (его бросают намеренно, причину логирует бросивший); прочие 5xx → `INTERNAL_ERROR` со стеком.
+
+Следующее (фаза 2): Swagger + openapi-typescript, CI на GitHub Actions. Затем фронт: страницы регистрации/логина.
 
 История решений и исходные тексты конфигов — в [docs/planning-log.md](docs/planning-log.md).
 
