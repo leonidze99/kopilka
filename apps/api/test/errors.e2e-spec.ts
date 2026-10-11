@@ -71,8 +71,7 @@ class ErrorsTestController {
 }
 
 const validTransaction = {
-  amount: 100,
-  kind: 'expense',
+  amount: '100',
   categoryId: '0199d0a4-5b6e-7c3d-8e9f-0a1b2c3d4e5f',
   occurredAt: '2026-10-11T10:00:00.000Z',
 };
@@ -126,15 +125,14 @@ describe('Error format (e2e)', () => {
   it('reports every validation issue with its field', async () => {
     const res = await http()
       .post('/__test/transactions')
-      .send({ amount: -1, kind: 'gift' })
+      .send({ amount: '-1' })
       .expect(400);
 
     const body = apiErrorSchema.parse(res.body);
     expect(body.code).toBe('VALIDATION_FAILED');
     expect(body.details?.map((d) => d.field)).toEqual([
-      'amount',
-      'kind',
       'categoryId',
+      'amount',
       'occurredAt',
     ]);
   });

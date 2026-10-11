@@ -1,13 +1,23 @@
 import { Navigate, type RouteObject } from 'react-router';
-import { HomePage } from '@/pages/home';
+import { CategoriesPage } from '@/pages/categories';
 import { LoginPage } from '@/pages/login';
 import { RegisterPage } from '@/pages/register';
+import { TransactionsPage } from '@/pages/transactions';
+import { AppLayout } from '../layouts/AppLayout';
 import { GuestOnly, RequireAuth } from './guards';
 
 export const routes: RouteObject[] = [
   {
     element: <RequireAuth />,
-    children: [{ path: '/', element: <HomePage /> }],
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          { path: '/', element: <TransactionsPage /> },
+          { path: '/categories', element: <CategoriesPage /> },
+        ],
+      },
+    ],
   },
   {
     element: <GuestOnly />,

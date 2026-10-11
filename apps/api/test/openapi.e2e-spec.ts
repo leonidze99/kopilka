@@ -106,15 +106,14 @@ describe('OpenAPI for date fields (e2e)', () => {
 
   it('describes z.coerce.date() as an ISO 8601 string', () => {
     const doc = createOpenApiDocument(app);
-    const body = doc.paths['/__dates']?.post?.requestBody as {
-      content: Record<
-        string,
-        { schema: { properties: Record<string, unknown> } }
-      >;
+    // Named schema (.meta({ id })): the body is a $ref to a component.
+    const body = doc.components?.schemas?.['CreateTransactionRequest'] as {
+      properties: Record<string, unknown>;
     };
 
-    expect(
-      body.content['application/json']!.schema.properties['occurredAt'],
-    ).toEqual({ type: 'string', format: 'date-time' });
+    expect(body.properties['occurredAt']).toEqual({
+      type: 'string',
+      format: 'date-time',
+    });
   });
 });

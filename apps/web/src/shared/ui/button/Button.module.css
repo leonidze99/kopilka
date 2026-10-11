@@ -36,3 +36,19 @@
 .secondary:hover:not(:disabled) {
   background: var(--color-surface-hover);
 }
+
+.ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.sm {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+}

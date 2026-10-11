@@ -1,0 +1,60 @@
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.item:first-child {
+  border-top: none;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.category {
+  font-weight: 500;
+}
+
+.meta {
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.amount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.income {
+  color: var(--color-accent);
+}
+
+.expense {
+  color: var(--color-text);
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.more {
+  width: 100%;
+  margin-top: 12px;
+}

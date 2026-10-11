@@ -12,6 +12,7 @@ export const errorCodeSchema = z
     'FORBIDDEN',
     'NOT_FOUND',
     'CONFLICT',
+    'CATEGORY_IN_USE',
     'RATE_LIMITED',
     'SERVICE_UNAVAILABLE',
     'INTERNAL_ERROR',

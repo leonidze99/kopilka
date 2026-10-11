@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { apiError, apiUrl, authResponse, USER } from '@/test/api';
-import { renderApp } from '@/test/render';
+import { apiError, apiUrl, authResponse, emptyAccount, USER } from '@/test/api';
+import { expectOperationsPage, renderApp } from '@/test/render';
 import { server } from '@/test/server';
 
 describe('RegisterForm', () => {
@@ -48,7 +48,7 @@ describe('RegisterForm', () => {
       http.post(apiUrl('/auth/register'), () =>
         HttpResponse.json(authResponse(), { status: 201 }),
       ),
-      http.get(apiUrl('/auth/me'), () => HttpResponse.json(USER)),
+      ...emptyAccount(),
     );
     const { user, router } = renderApp('/register');
 
@@ -58,9 +58,7 @@ describe('RegisterForm', () => {
       screen.getByRole('button', { name: 'Зарегистрироваться' }),
     );
 
-    expect(
-      await screen.findByText(`Вы вошли как ${USER.email}`),
-    ).toBeInTheDocument();
+    await expectOperationsPage();
     expect(router.state.location.pathname).toBe('/');
   });
 });

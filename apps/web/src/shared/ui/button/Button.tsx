@@ -2,12 +2,14 @@ import type { ComponentPropsWithRef } from 'react';
 import styles from './Button.module.css';
 
 interface ButtonProps extends ComponentPropsWithRef<'button'> {
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'ghost';
+  size?: 'md' | 'sm';
   loading?: boolean;
 }
 
 export function Button({
   variant = 'primary',
+  size = 'md',
   loading = false,
   disabled,
   className,
@@ -16,7 +18,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      className={[styles.button, styles[variant], className]
+      className={[styles.button, styles[variant], styles[size], className]
         .filter(Boolean)
         .join(' ')}
       disabled={disabled || loading}

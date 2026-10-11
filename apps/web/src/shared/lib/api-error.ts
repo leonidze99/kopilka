@@ -36,11 +36,18 @@ export function errorMessage(error: unknown): string {
       return 'Проверьте правильность заполнения полей';
     case 'SERVICE_UNAVAILABLE':
       return 'Сервис временно недоступен. Попробуйте позже.';
+    case 'CATEGORY_IN_USE':
+      return 'В категории есть операции. Сначала удалите их или перенесите в другую категорию.';
+    case 'NOT_FOUND':
+      return 'Запись не найдена: возможно, её уже удалили.';
+    case 'CONFLICT':
+      return 'Такая запись уже существует';
     case 'INTERNAL_ERROR':
       // The id lets support find the exact request in the server logs.
       return `Что-то пошло не так. Код запроса: ${apiError.requestId}`;
     default:
-      return apiError.message;
+      // apiError.message is meant for developers and is in English.
+      return 'Не удалось выполнить действие. Попробуйте ещё раз.';
   }
 }
 

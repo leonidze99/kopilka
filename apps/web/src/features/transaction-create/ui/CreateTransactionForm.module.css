@@ -1,0 +1,11 @@
+.row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}

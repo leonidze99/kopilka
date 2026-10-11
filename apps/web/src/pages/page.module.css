@@ -1,0 +1,10 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.title {
+  margin: 8px 0 0;
+  font-size: 26px;
+}

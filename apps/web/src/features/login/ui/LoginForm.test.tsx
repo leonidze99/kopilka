@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { apiError, apiUrl, authResponse, USER } from '@/test/api';
-import { renderApp } from '@/test/render';
+import { apiError, apiUrl, authResponse, emptyAccount, USER } from '@/test/api';
+import { expectOperationsPage, renderApp } from '@/test/render';
 import { server } from '@/test/server';
 
 describe('LoginForm', () => {
@@ -35,7 +35,7 @@ describe('LoginForm', () => {
         sentBody = await request.json();
         return HttpResponse.json(authResponse());
       }),
-      http.get(apiUrl('/auth/me'), () => HttpResponse.json(USER)),
+      ...emptyAccount(),
     );
     // A protected page: the guard sends an anonymous user to /login first.
     const { user, router } = renderApp('/');
@@ -45,9 +45,7 @@ describe('LoginForm', () => {
 
     await fill(user, '  User@Example.COM ', 'secret-password');
 
-    expect(
-      await screen.findByText(`Вы вошли как ${USER.email}`),
-    ).toBeInTheDocument();
+    await expectOperationsPage();
     expect(router.state.location.pathname).toBe('/');
     // Normalized by the shared schema before sending.
     expect(sentBody).toEqual({

@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { apiError, apiUrl, authResponse, USER } from '@/test/api';
-import { renderApp } from '@/test/render';
+import { apiError, apiUrl, authResponse, emptyAccount } from '@/test/api';
+import { expectOperationsPage, renderApp } from '@/test/render';
 import { server } from '@/test/server';
 
 describe('App session flow', () => {
@@ -10,7 +10,7 @@ describe('App session flow', () => {
       http.post(apiUrl('/auth/refresh'), () =>
         HttpResponse.json(authResponse()),
       ),
-      http.get(apiUrl('/auth/me'), () => HttpResponse.json(USER)),
+      ...emptyAccount(),
     );
 
     renderApp('/', { session: 'unknown' });
@@ -18,9 +18,7 @@ describe('App session flow', () => {
     expect(
       screen.getByRole('status', { name: 'Загрузка' }),
     ).toBeInTheDocument();
-    expect(
-      await screen.findByText(`Вы вошли как ${USER.email}`),
-    ).toBeInTheDocument();
+    await expectOperationsPage();
   });
 
   it('sends a visitor without a valid cookie to the login page', async () => {
@@ -39,22 +37,17 @@ describe('App session flow', () => {
   });
 
   it('keeps a signed-in user away from the login page', async () => {
-    server.use(http.get(apiUrl('/auth/me'), () => HttpResponse.json(USER)));
+    server.use(...emptyAccount());
 
     const { router } = renderApp('/login', { session: 'authenticated' });
 
-    expect(
-      await screen.findByText(`Вы вошли как ${USER.email}`),
-    ).toBeInTheDocument();
+    await expectOperationsPage();
     expect(router.state.location.pathname).toBe('/');
   });
 
   it('logs out and returns to the login page', async () => {
     const logout = vi.fn(() => new HttpResponse(null, { status: 204 }));
-    server.use(
-      http.get(apiUrl('/auth/me'), () => HttpResponse.json(USER)),
-      http.post(apiUrl('/auth/logout'), logout),
-    );
+    server.use(...emptyAccount(), http.post(apiUrl('/auth/logout'), logout));
     const { user, store } = renderApp('/', { session: 'authenticated' });
 
     await user.click(await screen.findByRole('button', { name: 'Выйти' }));

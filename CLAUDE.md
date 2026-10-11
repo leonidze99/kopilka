@@ -86,6 +86,7 @@ Exception filter готов; `requestId` в теле ошибки совпада
 Сборка приложения и тесты:
 
 - То, что живёт в модулях (фильтр, пайп, guard'ы, middleware) — через `APP_*`-провайдеры в модулях. То, что настраивается на уровне приложения (`app.use`, `enableCors`, shutdown hooks) — только в `setupApp()` (`apps/api/src/app.setup.ts`), его вызывают и `main.ts`, и тесты. В `main.ts` — только логгер и `listen`.
+- e2e-файлы идут параллельно на одной БД: пользователей создавать через `testUsers(app)` (`apps/api/test/utils/auth.ts`) и удалять в `afterAll` только своих (`users.cleanup()`). Удаление «всех тестовых» по домену стирает данные соседнего набора посреди теста (так ловился флейк пагинации).
 - e2e-тесты поднимают приложение через `createTestApp()` (`apps/api/test/utils/create-test-app.ts`): `AppModule` + `setupApp`, логгер выключен, throttler выключен (все запросы с одного IP); `{ throttle: true }` — для тестов лимитов, `{ controllers }` — для служебных контроллеров.
 
 Защита (e2e — `apps/api/test/security.e2e-spec.ts`):
@@ -142,7 +143,23 @@ CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, д
 
 Не сделано на фронте: e2e на Cypress (в плане), обработка `Retry-After` в тексте ошибки (fetchBaseQuery не отдаёт заголовки в `error`), code splitting (бандл ~520 КБ, ~165 КБ gzip — заметную часть даёт Zod из shared).
 
-Следующее: первая доменная фича — категории и транзакции (API + фронт). Перед этим решить контракт суммы (`Decimal` в БД, в JSON строка vs `amount: z.number()` в shared).
+Категории и транзакции (API + фронт). Решения:
+
+- Сумма в API — десятичная строка (`"1234.56"`, ответы всегда с 2 знаками), `amountSchema` в shared принимает ввод `"1 234,5"`. Фронт деньги не считает; итоги — SQL `SUM` в numeric. `Number()` — только для отображения (`formatMoney`).
+- Тип (доход/расход) — у категории (`categories.kind`), у транзакции поля `kind` больше нет. Уникальность имени — `(user_id, kind, name)`.
+- Составной FK `transactions(category_id, user_id) → categories(id, user_id)`: чужую категорию отвергает сама БД (P2003 → 400 `categoryId`), проверки владельца в коде нет.
+- Курсорная (keyset) пагинация `GET /transactions` по `(occurred_at, id)`, индекс `(user_id, occurred_at DESC, id DESC)`, `take: limit + 1`, курсор — непрозрачный base64url.
+- Чужие записи → 404. Удаление категории с операциями → 409 `CATEGORY_IN_USE`.
+- `prisma migrate dev` не работает в неинтерактивной оболочке, если миграция удаляет данные: SQL генерировать через `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` в новую папку миграции, затем `pnpm --filter api db:deploy`.
+- Схемы ответов в shared используют `z.coerce.date()`, чтобы ими можно было разбирать JSON.
+
+- Фронт: страницы `/` (итоги месяца, форма операции, лента с «Показать ещё») и `/categories`, шапка с навигацией (`widgets/app-header`), макет `app/layouts/AppLayout`. Слой `widgets` FSD — составные блоки страниц. Удаление — двухшаговой `ConfirmButton` (без `window.confirm`).
+- Кэш RTK Query: теги объявляются в сущностях через `enhanceEndpoints({ addTagTypes })`; мутации операций инвалидируют `Transaction` (лента и итоги перезапрашиваются сами).
+- Тесты фронта: `mockAccount()` (`src/test/account.ts`) — API в памяти, созданное/удалённое видно в следующем запросе; `expectOperationsPage()` ждёт полной загрузки стартовой страницы, иначе её запросы долетают в следующий тест.
+
+Не сделано: переименование категории и редактирование операции в UI (в API есть: `PATCH`), фильтры ленты в UI (в API есть), категории по умолчанию для нового пользователя. В итогах баланс форматируется `Intl` с дефисом (`-1 234,50 ₽`), в ленте — с типографским минусом.
+
+Следующее: дизайн интерфейса.
 
 История решений и исходные тексты конфигов — в [docs/planning-log.md](docs/planning-log.md).
 

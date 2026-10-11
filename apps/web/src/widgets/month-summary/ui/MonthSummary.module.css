@@ -1,0 +1,26 @@
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.stats dt {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.stats dd {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.income {
+  color: var(--color-accent);
+}
+
+.expense {
+  color: var(--color-danger);
+}

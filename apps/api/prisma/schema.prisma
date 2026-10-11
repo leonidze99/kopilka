@@ -30,35 +30,42 @@ model User {
   @@map("users")
 }
 
+/// Income or expense: a transaction gets its kind from its category.
 model Category {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  name      String   @db.VarChar(64)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id        String          @id @default(uuid(7)) @db.Uuid
+  userId    String          @map("user_id") @db.Uuid
+  kind      TransactionKind
+  name      String          @db.VarChar(64)
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
-  @@unique([userId, name])
+  // "Подарки" may exist both as income and as expense.
+  @@unique([userId, kind, name])
+  // Target of the composite foreign key from transactions.
+  @@unique([id, userId])
   @@map("categories")
 }
 
 model Transaction {
-  id         String          @id @default(uuid(7)) @db.Uuid
-  userId     String          @map("user_id") @db.Uuid
-  categoryId String          @map("category_id") @db.Uuid
-  kind       TransactionKind
-  amount     Decimal         @db.Decimal(14, 2)
-  comment    String?         @db.VarChar(280)
-  occurredAt DateTime        @map("occurred_at") @db.Timestamptz(3)
-  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt  DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id         String   @id @default(uuid(7)) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  categoryId String   @map("category_id") @db.Uuid
+  amount     Decimal  @db.Decimal(14, 2)
+  comment    String?  @db.VarChar(280)
+  occurredAt DateTime @map("occurred_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  // Composite key: the database itself guarantees that a transaction
+  // only references a category of the same user.
+  category Category @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
 
-  @@index([userId, occurredAt(sort: Desc)])
+  // Keyset pagination: ORDER BY occurred_at DESC, id DESC within a user.
+  @@index([userId, occurredAt(sort: Desc), id(sort: Desc)])
   @@index([categoryId])
   @@map("transactions")
 }

@@ -4,3 +4,7 @@ export { PageLoader } from './page-loader/PageLoader';
 export { TextField } from './text-field/TextField';
 export { Form } from './form/Form';
 export { CenteredCard } from './centered-card/CenteredCard';
+export { Segmented } from './segmented/Segmented';
+export { SelectField } from './select/SelectField';
+export { ConfirmButton } from './confirm-button/ConfirmButton';
+export { Panel } from './panel/Panel';
