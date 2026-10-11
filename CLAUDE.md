@@ -5,11 +5,13 @@
 Автор — frontend-разработчик (React/TS, 6+ лет, финтех), бэкенд осваивает. Объясняй бэкенд-решения, не только пиши код. Ответы — кратко и по делу.
 
 ## Окружение
+
 - Windows, PowerShell, WebStorm
 - Путь: `C:\projects\kopilka`
 - Docker Desktop для Postgres
 
 ## Стек
+
 - Монорепа: pnpm workspaces (без Turborepo/Nx)
 - `apps/web`: React + TypeScript + Vite + Redux Toolkit, архитектура Feature-Sliced Design, тесты Vitest + RTL, e2e Cypress
 - `apps/api`: NestJS 12 (ESM) + TypeScript, тесты Vitest + Supertest
@@ -21,6 +23,7 @@
 - Инструменты: Node >= 22, pnpm 10, TypeScript 6
 
 ## Правила
+
 - `packages/shared` — только платформенно-независимый код: без `process.env`, `import.meta.env`, Node/браузерных API. ESM, `NodeNext`, относительные импорты с `.js`.
 - Zod-схемы из shared используются в Nest (ZodValidationPipe) и на фронте (react-hook-form + zodResolver).
 - Даты в схемах — `z.coerce.date()` (через JSON приходят строкой).
@@ -28,19 +31,25 @@
 - Не добавлять Redis/очереди/метрики заранее — только под реальную задачу.
 
 ## План развития
+
 1. До первой фичи: `@nestjs/config` + валидация env через Zod; глобальный exception filter с единым форматом ошибки (code, message, field, requestId); логирование `nestjs-pino` с request-id (X-Request-ID, AsyncLocalStorage); Prisma-миграции.
 2. Вместе с фичами: Swagger (+ openapi-typescript для фронта), health-чеки `@nestjs/terminus`, helmet, CORS, `@nestjs/throttler`, CI на GitHub Actions (lint, typecheck, test, build).
 3. После MVP: e2e с Testcontainers, метрики prom-client + Grafana, Redis + BullMQ по необходимости, multi-stage Dockerfile, деплой (Railway/Fly.io).
+
 Отдельно потренировать: транзакции и уровни изоляции, индексы/N+1/EXPLAIN ANALYZE, cursor-пагинация.
 
 ## Текущий статус
+
 Каркас монорепы готов и закоммичен: `pnpm dev` поднимает shared (tsc --watch), web (Vite, :5173) и api (Nest, :3000); Postgres 16 в compose; `pnpm test`/`lint`/`typecheck` зелёные. `@kopilka/shared` прилинкован в оба приложения, но в коде ещё не используется.
 
-Следующее: Prettier на всю монорепу → конфиг/env с валидацией → Prisma-схема.
+Prettier настроен на всю монорепу: один конфиг в корне (`.prettierrc.json`), `pnpm format` / `pnpm format:check`. `docs/planning-log.md` исключён — исторический лог.
+
+Следующее: конфиг/env с валидацией → Prisma-схема.
 
 История решений и исходные тексты конфигов — в [docs/planning-log.md](docs/planning-log.md).
 
 ## Windows-специфика
+
 - `mkdir -p` не работает в PowerShell — вместо него `mkdir apps, packages\shared\src`.
 - Docker Desktop должен быть запущен до `pnpm db:up`.
 - `.gitattributes` с `* text=auto eol=lf`, чтобы git не смешивал CRLF и LF.

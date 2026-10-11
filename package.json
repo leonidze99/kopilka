@@ -12,9 +12,12 @@
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "db:up": "docker compose up -d",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "prettier": "^3.9.10",
     "typescript": "^6.0.2"
   }
 }
