@@ -1,8 +1,8 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import {
-  createTransactionSchema,
-  type CreateTransactionDto,
+  transactionInputSchema,
+  type TransactionInputDto,
 } from '@kopilka/shared';
 import { readFileSync } from 'node:fs';
 import request from 'supertest';
@@ -85,9 +85,7 @@ describe('OpenAPI for date fields (e2e)', () => {
   @Controller('__dates')
   class DatesTestController {
     @Post()
-    create(
-      @Body({ schema: createTransactionSchema }) dto: CreateTransactionDto,
-    ) {
+    create(@Body({ schema: transactionInputSchema }) dto: TransactionInputDto) {
       return dto;
     }
   }
@@ -107,7 +105,7 @@ describe('OpenAPI for date fields (e2e)', () => {
   it('describes z.coerce.date() as an ISO 8601 string', () => {
     const doc = createOpenApiDocument(app);
     // Named schema (.meta({ id })): the body is a $ref to a component.
-    const body = doc.components?.schemas?.['CreateTransactionRequest'] as {
+    const body = doc.components?.schemas?.['CategorizedTransactionInput'] as {
       properties: Record<string, unknown>;
     };
 

@@ -10,6 +10,9 @@ interface DeleteTransactionButtonProps {
   onDeleted?: () => void;
 }
 
+const titleOf = (transaction: Transaction) =>
+  transaction.type === 'transfer' ? 'Перевод' : transaction.category.name;
+
 export function DeleteTransactionButton({
   transaction,
   onDeleted,
@@ -20,7 +23,7 @@ export function DeleteTransactionButton({
     <>
       <ConfirmButton
         look="text"
-        label={`Удалить операцию «${transaction.category.name}»`}
+        label={`Удалить операцию «${titleOf(transaction)}»`}
         loading={isLoading}
         onConfirm={async () => {
           const result = await deleteTransaction(transaction.id);
@@ -29,6 +32,7 @@ export function DeleteTransactionButton({
           onDeleted?.();
         }}
       />
+      {/* e.g. INSUFFICIENT_FUNDS: the balance relies on this income. */}
       <FormError message={error && errorMessage(error)} />
     </>
   );

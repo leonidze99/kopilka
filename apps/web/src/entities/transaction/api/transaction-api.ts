@@ -24,14 +24,22 @@ export interface Period {
   to: string;
 }
 
-/** What the list shows: a period, narrowed to a kind or a category. */
+export type TransactionType = Transaction['type'];
+
+/** What the list shows: a period, narrowed to a type, category or account. */
 export interface TransactionFilter extends Period {
-  kind?: 'income' | 'expense';
+  type?: TransactionType;
   categoryId?: string;
+  accountId?: string;
 }
 
+type TransactionInput = RequestBody<'/transactions', 'post'>;
+
+// Every write moves money: the balances of accounts change with it.
+const WRITE_TAGS = ['Transaction', 'Account'] as const;
+
 export const transactionApi = baseApi
-  .enhanceEndpoints({ addTagTypes: ['Transaction'] })
+  .enhanceEndpoints({ addTagTypes: ['Transaction', 'Account'] })
   .injectEndpoints({
     endpoints: (build) => ({
       /**
@@ -74,33 +82,31 @@ export const transactionApi = baseApi
         providesTags: ['Transaction'],
       }),
 
-      createTransaction: build.mutation<
-        Transaction,
-        RequestBody<'/transactions', 'post'>
-      >({
+      createTransaction: build.mutation<Transaction, TransactionInput>({
         query: (body) => ({
           url: '/transactions' satisfies ApiPath,
           method: 'POST',
           body,
         }),
-        invalidatesTags: ['Transaction'],
+        invalidatesTags: WRITE_TAGS,
       }),
 
-      updateTransaction: build.mutation<
+      /** The whole transaction: an edit may change its type too. */
+      replaceTransaction: build.mutation<
         Transaction,
-        { id: string } & RequestBody<'/transactions/{id}', 'patch'>
+        { id: string; body: TransactionInput }
       >({
-        query: ({ id, ...body }) => ({
+        query: ({ id, body }) => ({
           url: `/transactions/${id}`,
-          method: 'PATCH',
+          method: 'PUT',
           body,
         }),
-        invalidatesTags: ['Transaction'],
+        invalidatesTags: WRITE_TAGS,
       }),
 
       deleteTransaction: build.mutation<void, string>({
         query: (id) => ({ url: `/transactions/${id}`, method: 'DELETE' }),
-        invalidatesTags: ['Transaction'],
+        invalidatesTags: WRITE_TAGS,
       }),
     }),
   });
@@ -110,6 +116,6 @@ export const {
   useTransactionSummaryQuery,
   useCategoryTotalsQuery,
   useCreateTransactionMutation,
-  useUpdateTransactionMutation,
+  useReplaceTransactionMutation,
   useDeleteTransactionMutation,
 } = transactionApi;

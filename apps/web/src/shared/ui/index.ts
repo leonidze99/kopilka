@@ -15,3 +15,4 @@ export { Skeleton } from './skeleton/Skeleton';
 export { toast } from './toast/toast';
 export { Toaster } from './toast/Toaster';
 export { MonthSwitcher } from './month-switcher/MonthSwitcher';
+export { Switch } from './switch/Switch';

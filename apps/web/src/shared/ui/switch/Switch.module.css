@@ -1,0 +1,60 @@
+.switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.label {
+  font-weight: 550;
+}
+
+.description {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* The native checkbox, drawn as a track with a knob. */
+.input {
+  position: relative;
+  flex-shrink: 0;
+  width: 42px;
+  height: 24px;
+  margin: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-border-strong);
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.input::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-raised);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s;
+}
+
+.input:checked {
+  background: var(--color-accent);
+}
+
+.input:checked::after {
+  transform: translateX(18px);
+}

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { createMemoryRouter } from 'react-router';
@@ -51,5 +51,6 @@ export async function expectOperationsPage() {
   await screen.findByRole('heading', { level: 1, name: 'Операции' });
   await screen.findByText('Операций пока нет');
   // Income, expense and balance, once the summary has arrived.
-  expect(await screen.findAllByText(/^0,00/)).toHaveLength(3);
+  const summary = screen.getByRole('region', { name: /^Итоги/ });
+  expect(await within(summary).findAllByText(/^0,00/)).toHaveLength(3);
 }

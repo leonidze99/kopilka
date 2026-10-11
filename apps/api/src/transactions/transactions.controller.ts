@@ -7,8 +7,8 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
-  Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import {
@@ -23,8 +23,6 @@ import {
   type CategoryTotalsQuery,
   categoryTotalsQuerySchema,
   categoryTotalsSchema,
-  type CreateTransactionDto,
-  createTransactionSchema,
   type ListTransactionsQuery,
   listTransactionsQuerySchema,
   type Transaction,
@@ -35,8 +33,8 @@ import {
   type TransactionSummaryQuery,
   transactionSummaryQuerySchema,
   transactionSummarySchema,
-  type UpdateTransactionDto,
-  updateTransactionSchema,
+  type TransactionInputDto,
+  transactionInputSchema,
 } from '@kopilka/shared';
 import { type AuthUser, CurrentUser } from '../auth/current-user.decorator.js';
 import { ApiErrorResponses } from '../common/openapi/api-error-responses.decorator.js';
@@ -91,33 +89,45 @@ export class TransactionsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Record an income or an expense' })
+  @ApiOperation({
+    summary: 'Record an income, an expense or a transfer',
+    description:
+      'Refused with INSUFFICIENT_FUNDS if an account that must not go negative would end up below zero.',
+  })
   @ApiCreatedResponse({ standardSchema: transactionSchema })
-  @ApiErrorResponses(400)
+  @ApiErrorResponses(400, 409)
   create(
     @CurrentUser() user: AuthUser,
-    @Body({ schema: createTransactionSchema }) dto: CreateTransactionDto,
+    @Body({ schema: transactionInputSchema }) dto: TransactionInputDto,
   ): Promise<Transaction> {
     return this.transactions.create(user.id, dto);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Change a transaction' })
+  @Put(':id')
+  @ApiOperation({
+    summary: 'Replace a transaction',
+    description:
+      'The whole transaction, as on create: it may change its type too.',
+  })
   @ApiOkResponse({ standardSchema: transactionSchema })
-  @ApiErrorResponses(400, 404)
+  @ApiErrorResponses(400, 404, 409)
   update(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body({ schema: updateTransactionSchema }) dto: UpdateTransactionDto,
+    @Body({ schema: transactionInputSchema }) dto: TransactionInputDto,
   ): Promise<Transaction> {
     return this.transactions.update(user.id, id, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a transaction' })
+  @ApiOperation({
+    summary: 'Delete a transaction',
+    description:
+      'Refused with INSUFFICIENT_FUNDS if removing an income would take an account that must not go negative below zero.',
+  })
   @ApiNoContentResponse()
-  @ApiErrorResponses(404)
+  @ApiErrorResponses(404, 409)
   remove(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,

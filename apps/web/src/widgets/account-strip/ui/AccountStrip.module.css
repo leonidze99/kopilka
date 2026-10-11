@@ -1,0 +1,95 @@
+/* One row that scrolls sideways on narrow screens instead of wrapping. */
+.strip {
+  display: flex;
+  gap: 10px;
+  margin: 0 -24px;
+  padding: 2px 24px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.total,
+.account {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 10px 16px 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.total {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  padding-left: 16px;
+  background: var(--color-surface-2);
+  box-shadow: none;
+}
+
+.account {
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+
+.account:hover {
+  border-color: var(--color-border-strong);
+}
+
+.account[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  background: var(--color-accent-soft);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.amount {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.add {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 14px;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.add:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+@media (max-width: 640px) {
+  .strip {
+    margin: 0 -16px;
+    padding: 2px 16px 6px;
+  }
+}

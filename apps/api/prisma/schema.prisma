@@ -16,6 +16,14 @@ enum TransactionKind {
   @@map("transaction_kind")
 }
 
+enum AccountType {
+  card
+  cash
+  savings
+
+  @@map("account_type")
+}
+
 model User {
   id           String   @id @default(uuid(7)) @db.Uuid
   email        String   @unique
@@ -23,6 +31,7 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  accounts      Account[]
   categories    Category[]
   transactions  Transaction[]
   refreshTokens RefreshToken[]
@@ -49,24 +58,61 @@ model Category {
   @@map("categories")
 }
 
-model Transaction {
-  id         String   @id @default(uuid(7)) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  categoryId String   @map("category_id") @db.Uuid
-  amount     Decimal  @db.Decimal(14, 2)
-  comment    String?  @db.VarChar(280)
-  occurredAt DateTime @map("occurred_at") @db.Timestamptz(3)
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+/// Where the money is. The balance is not stored: it is the opening balance
+/// plus the transactions, summed on read (see AccountsService), so it can
+/// never drift from them.
+/// SQL-only: CHECK (allow_negative OR opening_balance >= 0).
+model Account {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  userId         String      @map("user_id") @db.Uuid
+  name           String      @db.VarChar(64)
+  type           AccountType
+  openingBalance Decimal     @default(0) @map("opening_balance") @db.Decimal(14, 2)
+  /// false: no write may take the balance below zero (cash, savings).
+  allowNegative  Boolean     @default(true) @map("allow_negative")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Composite key: the database itself guarantees that a transaction
-  // only references a category of the same user.
-  category Category @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[] @relation("TransactionAccount")
+  transfersIn  Transaction[] @relation("TransferTarget")
+
+  @@unique([userId, name])
+  // Target of the composite foreign keys from transactions.
+  @@unique([id, userId])
+  @@map("accounts")
+}
+
+/// Income or expense (with a category, the kind comes from it) or a
+/// transfer between two accounts (to_account_id, no category).
+/// SQL-only: CHECK (num_nonnulls(category_id, to_account_id) = 1)
+/// and CHECK (to_account_id <> account_id).
+model Transaction {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  categoryId  String?  @map("category_id") @db.Uuid
+  toAccountId String?  @map("to_account_id") @db.Uuid
+  amount      Decimal  @db.Decimal(14, 2)
+  comment     String?  @db.VarChar(280)
+  occurredAt  DateTime @map("occurred_at") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Composite keys: the database itself guarantees that a transaction only
+  // references a category and accounts of the same user. A NULL column
+  // (no category in a transfer) skips the check: MATCH SIMPLE.
+  account   Account   @relation("TransactionAccount", fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
+  toAccount Account?  @relation("TransferTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Restrict)
+  category  Category? @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
 
   // Keyset pagination: ORDER BY occurred_at DESC, id DESC within a user.
   @@index([userId, occurredAt(sort: Desc), id(sort: Desc)])
   @@index([categoryId])
+  // Balances and the account filter, from both sides of a transfer.
+  @@index([accountId])
+  @@index([toAccountId])
   @@map("transactions")
 }
 

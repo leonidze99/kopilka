@@ -132,11 +132,21 @@ describe('Categories (e2e)', () => {
       kind: 'expense',
       name: 'Продукты',
     }).expect(201);
+    const {
+      body: {
+        items: [account],
+      },
+    } = await http()
+      .get('/api/accounts')
+      .set('Authorization', alice.auth)
+      .expect(200);
     await http()
       .post('/api/transactions')
       .set('Authorization', alice.auth)
       .send({
+        type: 'expense',
         categoryId: category.id,
+        accountId: account.id,
         amount: '100',
         occurredAt: '2026-10-01T10:00:00Z',
       })

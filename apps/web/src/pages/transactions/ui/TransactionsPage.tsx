@@ -4,13 +4,16 @@ import { useSearchParams } from 'react-router';
 import { CreateTransactionForm } from '@/features/transaction-form';
 import { currentMonth, type Month, parseMonth } from '@/shared/lib';
 import { Dialog, MonthSwitcher, Panel } from '@/shared/ui';
+import { AccountStrip } from '@/widgets/account-strip';
 import { CategoryBreakdown } from '@/widgets/category-breakdown';
 import { MonthSummary } from '@/widgets/month-summary';
 import { type ListFilter, TransactionList } from '@/widgets/transaction-list';
 import styles from '../../page.module.css';
 
-const parseKind = (value: string | null) =>
-  value === 'income' || value === 'expense' ? value : undefined;
+const parseType = (value: string | null) =>
+  value === 'income' || value === 'expense' || value === 'transfer'
+    ? value
+    : undefined;
 
 /**
  * The month and the list filter live in the URL: they survive a reload and
@@ -20,8 +23,9 @@ function useOperationsView() {
   const [params, setParams] = useSearchParams();
   const month = parseMonth(params.get('month')) ?? currentMonth();
   const filter: ListFilter = {
-    kind: parseKind(params.get('kind')),
+    type: parseType(params.get('type')),
     categoryId: params.get('category') ?? undefined,
+    accountId: params.get('account') ?? undefined,
   };
 
   const update = (changes: Record<string, string | undefined>) =>
@@ -43,8 +47,8 @@ function useOperationsView() {
     setMonth: (next: Month) =>
       // The current month is the default: keep the URL clean.
       update({ month: next === currentMonth() ? undefined : next }),
-    setFilter: ({ kind, categoryId }: ListFilter) =>
-      update({ kind, category: categoryId }),
+    setFilter: ({ type, categoryId, accountId }: ListFilter) =>
+      update({ type, category: categoryId, account: accountId }),
   };
 }
 
@@ -59,6 +63,10 @@ export function TransactionsPage() {
         <MonthSwitcher value={month} onChange={setMonth} />
       </div>
       <MonthSummary month={month} />
+      <AccountStrip
+        selectedId={filter.accountId}
+        onSelect={(accountId) => setFilter({ accountId })}
+      />
       <div className={styles.columns}>
         <div className={styles.stack}>
           <CategoryBreakdown

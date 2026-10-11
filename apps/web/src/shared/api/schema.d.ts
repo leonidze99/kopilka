@@ -124,6 +124,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Accounts of the user with their balances, oldest first */
+        get: operations["AccountsController_list"];
+        put?: never;
+        /** Create an account */
+        post: operations["AccountsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an account
+         * @description Refused with ACCOUNT_IN_USE while transactions use it.
+         */
+        delete: operations["AccountsController_remove"];
+        options?: never;
+        head?: never;
+        /**
+         * Change an account
+         * @description Refused with INSUFFICIENT_FUNDS if an account that must not go negative would end up below zero.
+         */
+        patch: operations["AccountsController_update"];
+        trace?: never;
+    };
     "/categories": {
         parameters: {
             query?: never;
@@ -176,7 +218,10 @@ export interface paths {
          */
         get: operations["TransactionsController_list"];
         put?: never;
-        /** Record an income or an expense */
+        /**
+         * Record an income, an expense or a transfer
+         * @description Refused with INSUFFICIENT_FUNDS if an account that must not go negative would end up below zero.
+         */
         post: operations["TransactionsController_create"];
         delete?: never;
         options?: never;
@@ -229,14 +274,20 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /**
+         * Replace a transaction
+         * @description The whole transaction, as on create: it may change its type too.
+         */
+        put: operations["TransactionsController_update"];
         post?: never;
-        /** Delete a transaction */
+        /**
+         * Delete a transaction
+         * @description Refused with INSUFFICIENT_FUNDS if removing an income would take an account that must not go negative below zero.
+         */
         delete: operations["TransactionsController_remove"];
         options?: never;
         head?: never;
-        /** Change a transaction */
-        patch: operations["TransactionsController_update"];
+        patch?: never;
         trace?: never;
     };
 }
@@ -265,7 +316,7 @@ export interface components {
             details?: components["schemas"]["ErrorDetail"][];
         };
         /** @enum {string} */
-        ErrorCode: "BAD_REQUEST" | "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "CATEGORY_IN_USE" | "RATE_LIMITED" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "BAD_REQUEST" | "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "CATEGORY_IN_USE" | "ACCOUNT_IN_USE" | "INSUFFICIENT_FUNDS" | "RATE_LIMITED" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
         ErrorDetail: {
             field?: string;
             message: string;
@@ -273,6 +324,42 @@ export interface components {
         LoginRequest: {
             email: string;
             password: string;
+        };
+        AccountList: {
+            items: components["schemas"]["Account"][];
+            total: string;
+        };
+        Account: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: components["schemas"]["AccountType"];
+            openingBalance: string;
+            allowNegative: boolean;
+            balance: string;
+        };
+        /** @enum {string} */
+        AccountType: "card" | "cash" | "savings";
+        CreateAccountRequest: {
+            name: string;
+            type: components["schemas"]["AccountType"];
+            /**
+             * @description Decimal with up to 2 fraction digits, e.g. "-1234.56"
+             * @example -1234.56
+             */
+            openingBalance?: string;
+            /** @default true */
+            allowNegative: boolean;
+        };
+        UpdateAccountRequest: {
+            name?: string;
+            type?: components["schemas"]["AccountType"];
+            /**
+             * @description Decimal with up to 2 fraction digits, e.g. "-1234.56"
+             * @example -1234.56
+             */
+            openingBalance?: string;
+            allowNegative?: boolean;
         };
         Category: {
             /** Format: uuid */
@@ -289,11 +376,15 @@ export interface components {
         UpdateCategoryRequest: {
             name: string;
         };
+        /** @enum {string} */
+        TransactionType: "income" | "expense" | "transfer";
         TransactionPage: {
             items: components["schemas"]["Transaction"][];
             nextCursor: string | null;
         };
-        Transaction: {
+        Transaction: components["schemas"]["CategorizedTransaction"] | components["schemas"]["Transfer"];
+        CategorizedTransaction: {
+            type: components["schemas"]["TransactionKind"];
             /** Format: uuid */
             id: string;
             amount: string;
@@ -302,7 +393,28 @@ export interface components {
             occurredAt: string;
             /** Format: date-time */
             createdAt: string;
+            account: components["schemas"]["AccountRef"];
             category: components["schemas"]["Category"];
+        };
+        AccountRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: components["schemas"]["AccountType"];
+        };
+        Transfer: {
+            /** @enum {string} */
+            type: "transfer";
+            /** Format: uuid */
+            id: string;
+            amount: string;
+            comment: string | null;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            account: components["schemas"]["AccountRef"];
+            toAccount: components["schemas"]["AccountRef"];
         };
         TransactionSummary: {
             income: string;
@@ -314,9 +426,13 @@ export interface components {
             category: components["schemas"]["Category"];
             total: string;
         };
-        CreateTransactionRequest: {
+        TransactionInput: components["schemas"]["CategorizedTransactionInput"] | components["schemas"]["TransferInput"];
+        CategorizedTransactionInput: {
+            type: components["schemas"]["TransactionKind"];
             /** Format: uuid */
             categoryId: string;
+            /** Format: uuid */
+            accountId: string;
             /**
              * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
              * @example 1234.56
@@ -326,16 +442,20 @@ export interface components {
             occurredAt: string;
             comment?: string;
         };
-        UpdateTransactionRequest: {
+        TransferInput: {
+            /** @enum {string} */
+            type: "transfer";
             /** Format: uuid */
-            categoryId?: string;
+            toAccountId: string;
+            /** Format: uuid */
+            accountId: string;
             /**
              * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
              * @example 1234.56
              */
-            amount?: string;
+            amount: string;
             /** Format: date-time */
-            occurredAt?: string;
+            occurredAt: string;
             comment?: string;
         };
     };
@@ -820,6 +940,191 @@ export interface operations {
             };
         };
     };
+    AccountsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountList"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    AccountsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAccountRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    AccountsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    AccountsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAccountRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     CategoriesController_list: {
         parameters: {
             query?: never;
@@ -1013,7 +1318,8 @@ export interface operations {
                 from?: string;
                 to?: string;
                 categoryId?: string;
-                kind?: components["schemas"]["TransactionKind"];
+                accountId?: string;
+                type?: components["schemas"]["TransactionType"];
             };
             header?: never;
             path?: never;
@@ -1058,7 +1364,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateTransactionRequest"];
+                "application/json": components["schemas"]["TransactionInput"];
             };
         };
         responses: {
@@ -1081,6 +1387,15 @@ export interface operations {
             };
             /** @description UNAUTHORIZED: missing, invalid or expired credentials */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1171,6 +1486,67 @@ export interface operations {
             };
         };
     };
+    TransactionsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransactionInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     TransactionsController_remove: {
         parameters: {
             query?: never;
@@ -1206,51 +1582,8 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-        };
-    };
-    TransactionsController_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateTransactionRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Transaction"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
+            /** @description CONFLICT: clashes with existing data */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

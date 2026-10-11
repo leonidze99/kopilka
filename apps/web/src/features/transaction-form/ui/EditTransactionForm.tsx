@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import {
   type Transaction,
-  useUpdateTransactionMutation,
+  useReplaceTransactionMutation,
 } from '@/entities/transaction';
 import { toDateTimeLocal } from '@/shared/lib';
 import { toast } from '@/shared/ui';
@@ -18,24 +18,27 @@ export function EditTransactionForm({
   onSaved,
   footer,
 }: EditTransactionFormProps) {
-  const [updateTransaction] = useUpdateTransactionMutation();
+  const [replaceTransaction] = useReplaceTransactionMutation();
 
   return (
     <TransactionForm
       defaultValues={{
-        categoryId: transaction.category.id,
+        type: transaction.type,
+        categoryId:
+          transaction.type === 'transfer' ? '' : transaction.category.id,
+        accountId: transaction.account.id,
+        toAccountId:
+          transaction.type === 'transfer' ? transaction.toAccount.id : '',
         // "1234.50" as people write it here.
         amount: transaction.amount.replace('.', ','),
         occurredAt: toDateTimeLocal(new Date(transaction.occurredAt)),
         comment: transaction.comment ?? '',
       }}
-      defaultKind={transaction.category.kind}
       submitLabel="Сохранить"
       submit={(values) =>
-        updateTransaction({
+        replaceTransaction({
           id: transaction.id,
-          ...values,
-          occurredAt: values.occurredAt.toISOString(),
+          body: { ...values, occurredAt: values.occurredAt.toISOString() },
         })
       }
       onSuccess={() => {

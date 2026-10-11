@@ -38,6 +38,11 @@ export function errorMessage(error: unknown): string {
       return 'Сервис временно недоступен. Попробуйте позже.';
     case 'CATEGORY_IN_USE':
       return 'В категории есть операции. Сначала удалите их или перенесите в другую категорию.';
+    case 'ACCOUNT_IN_USE':
+      return 'По счёту есть операции. Сначала удалите их или перенесите на другой счёт.';
+    case 'INSUFFICIENT_FUNDS':
+      // The API names the account and the shortfall.
+      return apiError.details?.[0]?.message ?? 'На счёте не хватает денег';
     case 'NOT_FOUND':
       return 'Запись не найдена: возможно, её уже удалили.';
     case 'CONFLICT':

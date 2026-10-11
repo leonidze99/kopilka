@@ -13,6 +13,9 @@ export const errorCodeSchema = z
     'NOT_FOUND',
     'CONFLICT',
     'CATEGORY_IN_USE',
+    'ACCOUNT_IN_USE',
+    // A write would take an account that must not go negative below zero.
+    'INSUFFICIENT_FUNDS',
     'RATE_LIMITED',
     'SERVICE_UNAVAILABLE',
     'INTERNAL_ERROR',

@@ -1,13 +1,19 @@
-import { ChevronRight, ReceiptText, SearchX } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  ChevronRight,
+  ReceiptText,
+  SearchX,
+} from 'lucide-react';
 import { useState } from 'react';
+import { useListAccountsQuery } from '@/entities/account';
 import {
   CategoryAvatar,
   KIND_TITLES,
-  type TransactionKind,
   useListCategoriesQuery,
 } from '@/entities/category';
 import {
   type Transaction,
+  type TransactionType,
   useListTransactionsInfiniteQuery,
 } from '@/entities/transaction';
 import { DeleteTransactionButton } from '@/features/transaction-delete';
@@ -16,6 +22,7 @@ import {
   dayKey,
   errorMessage,
   formatDayHeading,
+  formatMoney,
   formatMonthIn,
   formatSignedMoney,
   formatTime,
@@ -33,10 +40,11 @@ import {
 } from '@/shared/ui';
 import styles from './TransactionList.module.css';
 
-/** Narrows the list: one kind, or one category. */
+/** Narrows the list: one type, one category or one account. */
 export interface ListFilter {
-  kind?: TransactionKind;
+  type?: TransactionType;
   categoryId?: string;
+  accountId?: string;
 }
 
 interface TransactionListProps {
@@ -82,7 +90,10 @@ export function TransactionList({
   } = useListTransactionsInfiniteQuery({ ...monthPeriod(month), ...filter });
   const transactions = data?.pages.flatMap((page) => page.items) ?? [];
   const [editing, setEditing] = useState<Transaction>();
-  const filtered = filter.kind !== undefined || filter.categoryId !== undefined;
+  const filtered = Object.values(filter).some((value) => value !== undefined);
+  // With one account, naming it on every row is noise.
+  const { data: accounts } = useListAccountsQuery();
+  const showAccount = (accounts?.items.length ?? 0) > 1;
   const closeEditor = () => setEditing(undefined);
 
   return (
@@ -125,36 +136,11 @@ export function TransactionList({
                   aria-haspopup="dialog"
                   onClick={() => setEditing(transaction)}
                 >
-                  <CategoryAvatar
-                    category={transaction.category}
-                    className={styles.avatar}
+                  <RowContent
+                    transaction={transaction}
+                    showAccount={showAccount}
+                    accountId={filter.accountId}
                   />
-                  <span className={styles.main}>
-                    <span className={styles.category}>
-                      {transaction.category.name}
-                    </span>
-                    {transaction.comment && (
-                      <span className={styles.comment}>
-                        {transaction.comment}
-                      </span>
-                    )}
-                  </span>
-                  <span className={styles.side}>
-                    <span
-                      className={`${styles.amount} ${styles[transaction.category.kind]}`}
-                    >
-                      {formatSignedMoney(
-                        transaction.amount,
-                        transaction.category.kind,
-                      )}
-                    </span>
-                    <time
-                      className={styles.time}
-                      dateTime={transaction.occurredAt}
-                    >
-                      {formatTime(transaction.occurredAt)}
-                    </time>
-                  </span>
                   <ChevronRight
                     className={styles.chevron}
                     size={18}
@@ -196,10 +182,87 @@ export function TransactionList({
   );
 }
 
-const ALL = '';
-const KIND_PREFIX = 'kind:';
+interface RowContentProps {
+  transaction: Transaction;
+  showAccount: boolean;
+  /** The account the list is narrowed to: a transfer is out of or into it. */
+  accountId?: string;
+}
 
-/** One control for "all / a kind / a category": the API ANDs them anyway. */
+/** What a row shows: a category with its amount, or a transfer between accounts. */
+function RowContent({ transaction, showAccount, accountId }: RowContentProps) {
+  const time = (
+    <time className={styles.time} dateTime={transaction.occurredAt}>
+      {showAccount && transaction.type !== 'transfer'
+        ? `${transaction.account.name} · `
+        : ''}
+      {formatTime(transaction.occurredAt)}
+    </time>
+  );
+
+  if (transaction.type === 'transfer') {
+    // Seen from one of its accounts a transfer has a direction; from all
+    // of them it only moves money inside and changes no total.
+    const direction =
+      accountId === transaction.account.id
+        ? 'expense'
+        : accountId === transaction.toAccount.id
+          ? 'income'
+          : undefined;
+    return (
+      <>
+        <span className={styles.transferIcon} aria-hidden>
+          <ArrowLeftRight size={18} />
+        </span>
+        <span className={styles.main}>
+          <span className={styles.category}>Перевод</span>
+          <span className={styles.comment}>
+            {transaction.account.name} → {transaction.toAccount.name}
+            {transaction.comment && ` · ${transaction.comment}`}
+          </span>
+        </span>
+        <span className={styles.side}>
+          <span className={`${styles.amount} ${styles.transfer}`}>
+            {direction
+              ? formatSignedMoney(transaction.amount, direction)
+              : formatMoney(transaction.amount)}
+          </span>
+          {time}
+        </span>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <CategoryAvatar
+        category={transaction.category}
+        className={styles.avatar}
+      />
+      <span className={styles.main}>
+        <span className={styles.category}>{transaction.category.name}</span>
+        {transaction.comment && (
+          <span className={styles.comment}>{transaction.comment}</span>
+        )}
+      </span>
+      <span className={styles.side}>
+        <span className={`${styles.amount} ${styles[transaction.type]}`}>
+          {formatSignedMoney(transaction.amount, transaction.type)}
+        </span>
+        {time}
+      </span>
+    </>
+  );
+}
+
+const ALL = '';
+const TYPE_PREFIX = 'type:';
+const ACCOUNT_PREFIX = 'account:';
+
+/**
+ * One control for "all / a type / an account / a category": the list
+ * shows one slice at a time, like the chart and the account strip set it.
+ */
 function FilterSelect({
   filter,
   onChange,
@@ -208,11 +271,14 @@ function FilterSelect({
   onChange: (filter: ListFilter) => void;
 }) {
   const { data: categories = [] } = useListCategoriesQuery();
+  const { data: accounts } = useListAccountsQuery();
   const value = filter.categoryId
     ? filter.categoryId
-    : filter.kind
-      ? `${KIND_PREFIX}${filter.kind}`
-      : ALL;
+    : filter.accountId
+      ? `${ACCOUNT_PREFIX}${filter.accountId}`
+      : filter.type
+        ? `${TYPE_PREFIX}${filter.type}`
+        : ALL;
 
   return (
     <div className={styles.filter}>
@@ -224,16 +290,28 @@ function FilterSelect({
         onChange={(event) => {
           const next = event.target.value;
           if (next === ALL) onChange({});
-          else if (next.startsWith(KIND_PREFIX))
+          else if (next.startsWith(TYPE_PREFIX))
             onChange({
-              kind: next.slice(KIND_PREFIX.length) as TransactionKind,
+              type: next.slice(TYPE_PREFIX.length) as TransactionType,
             });
+          else if (next.startsWith(ACCOUNT_PREFIX))
+            onChange({ accountId: next.slice(ACCOUNT_PREFIX.length) });
           else onChange({ categoryId: next });
         }}
       >
         <option value={ALL}>Все операции</option>
-        <option value={`${KIND_PREFIX}expense`}>Все расходы</option>
-        <option value={`${KIND_PREFIX}income`}>Все доходы</option>
+        <option value={`${TYPE_PREFIX}expense`}>Все расходы</option>
+        <option value={`${TYPE_PREFIX}income`}>Все доходы</option>
+        <option value={`${TYPE_PREFIX}transfer`}>Все переводы</option>
+        {accounts && accounts.items.length > 1 && (
+          <optgroup label="Счета">
+            {accounts.items.map((account) => (
+              <option key={account.id} value={`${ACCOUNT_PREFIX}${account.id}`}>
+                {account.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
         {(['expense', 'income'] as const).map((kind) => (
           <optgroup key={kind} label={KIND_TITLES[kind]}>
             {categories

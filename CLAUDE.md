@@ -57,7 +57,7 @@ Env в api: `@nestjs/config` (global, cache) + Zod-схема `apps/api/src/conf
 
 Prisma: первая миграция `init` — `users`, `categories`, `transactions` (enum `transaction_kind`, CHECK `amount > 0`, `RESTRICT` на удаление категории с транзакциями, каскад от пользователя). Глобальный `PrismaModule` / `PrismaService`.
 
-Отложено сознательно (решить при проектировании фич): счета (accounts) и переводы между ними, бюджеты, мультивалютность (сейчас одна валюта), тип категории (доход/расход) — сейчас `kind` только у транзакции. В `@kopilka/shared` `amount: z.number()`, а Prisma отдаёт `Decimal` (в JSON — строка): контракт суммы в API решить при фиче транзакций.
+Отложено сознательно (решить при проектировании фич): бюджеты, мультивалютность (сейчас одна валюта), архив счетов.
 
 Exception filter готов; `requestId` в теле ошибки совпадает с заголовком `X-Request-ID`. e2e-тесты — `apps/api/test/errors.e2e-spec.ts`.
 
@@ -158,21 +158,31 @@ CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, д
 
 - Сумма в API — десятичная строка (`"1234.56"`, ответы всегда с 2 знаками), `amountSchema` в shared принимает ввод `"1 234,5"`. Фронт деньги не считает; итоги — SQL `SUM` в numeric. `Number()` — только для отображения (`formatMoney`).
 - Тип (доход/расход) — у категории (`categories.kind`), у транзакции поля `kind` больше нет. Уникальность имени — `(user_id, kind, name)`.
-- Составной FK `transactions(category_id, user_id) → categories(id, user_id)`: чужую категорию отвергает сама БД (P2003 → 400 `categoryId`), проверки владельца в коде нет.
+- Составной FK `transactions(category_id, user_id) → categories(id, user_id)`: чужую категорию отвергает сама БД. Сервис всё же читает категорию — проверить, что её вид совпадает с `type` операции.
 - Курсорная (keyset) пагинация `GET /transactions` по `(occurred_at, id)`, индекс `(user_id, occurred_at DESC, id DESC)`, `take: limit + 1`, курсор — непрозрачный base64url.
 - Чужие записи → 404. Удаление категории с операциями → 409 `CATEGORY_IN_USE`.
 - `prisma migrate dev` не работает в неинтерактивной оболочке, если миграция удаляет данные: SQL генерировать через `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` в новую папку миграции, затем `pnpm --filter api db:deploy`.
 - Схемы ответов в shared используют `z.coerce.date()`, чтобы ими можно было разбирать JSON.
 
-- Фронт: страницы `/` (итоги месяца, форма операции, лента с «Показать ещё») и `/categories`, шапка с навигацией (`widgets/app-header`), макет `app/layouts/AppLayout`. Слой `widgets` FSD — составные блоки страниц. Удаление — двухшаговой `ConfirmButton` (без `window.confirm`).
-- Кэш RTK Query: теги объявляются в сущностях через `enhanceEndpoints({ addTagTypes })`; мутации операций инвалидируют `Transaction` (лента и итоги перезапрашиваются сами).
+- Фронт: страницы `/` (итоги месяца, счета, форма операции, лента с «Показать ещё»), `/accounts` и `/categories`, шапка с навигацией (`widgets/app-header`), макет `app/layouts/AppLayout`. Слой `widgets` FSD — составные блоки страниц. Удаление — двухшаговой `ConfirmButton` (без `window.confirm`).
+- Кэш RTK Query: теги объявляются в сущностях через `enhanceEndpoints({ addTagTypes })`; мутации операций инвалидируют `Transaction` и `Account` (лента, итоги и балансы перезапрашиваются сами); переименование категории или счёта — тоже `Transaction` (в операциях их имена).
 - Тесты фронта: `mockAccount()` (`src/test/account.ts`) — API в памяти, созданное/удалённое видно в следующем запросе; `expectOperationsPage()` ждёт полной загрузки стартовой страницы, иначе её запросы долетают в следующий тест.
 
 Не сделано: категории по умолчанию для нового пользователя.
 
 Аналитика: `GET /transactions/by-category?from&to&kind` (kind по умолчанию `expense`) — суммы по категориям одним `GROUP BY` в SQL, по убыванию, только категории с операциями за период. Фронт показывает долю от итога из `/transactions/summary` (тот же кэш RTK Query), сам деньги не складывает.
 
-Главная (`pages/transactions`): месяц и фильтр ленты — в URL (`?month=2026-10&kind=income` или `&category=<id>`; текущий месяц — без параметра). Месяц задаёт итоги, диаграмму и ленту. Клик по категории в диаграмме фильтрует ленту, повторный — сбрасывает.
+Главная (`pages/transactions`): месяц и фильтр ленты — в URL (`?month=2026-10` и одно из `&type=income|expense|transfer`, `&category=<id>`, `&account=<id>`; текущий месяц — без параметра). Месяц задаёт итоги, диаграмму и ленту. Клик по категории в диаграмме или по счёту в полосе счетов фильтрует ленту, повторный — сбрасывает.
+
+Счета и переводы (API `apps/api/src/accounts/`, e2e — `test/accounts.e2e-spec.ts`; фронт — `entities/account`, `features/account-form|account-delete`, `widgets/account-list|account-strip`, страница `/accounts`):
+
+- `accounts`: `name` (уникально у пользователя), `type` (`card | cash | savings` — только иконка), `opening_balance`, `allow_negative`. Новый пользователь получает «Основной счёт» при регистрации, в одной транзакции с созданием. Удалить счёт с операциями нельзя (`RESTRICT` → 409 `ACCOUNT_IN_USE`).
+- **Баланс не хранится**, считается при чтении: `opening_balance + доходы − расходы − переводы со счёта + переводы на счёт` (`balancesQuery` в `AccountsService`, два коррелированных `SUM` по индексам `account_id` / `to_account_id`). `GET /accounts` → `{ items, total }`: итог по всем счетам складывает сервер (`Decimal`), не фронт.
+- **Перевод — строка той же `transactions`** без категории и с `to_account_id`. Типа в БД нет: перевод ⇔ `to_account_id IS NOT NULL`, доход/расход — по `categories.kind`. В SQL: `CHECK (num_nonnulls(category_id, to_account_id) = 1)`, `CHECK (to_account_id <> account_id)`, у счетов `CHECK (allow_negative OR opening_balance >= 0)` — Prisma их не видит, `migrate diff` на них не ругается. Итоги и диаграмма делают `JOIN categories` — переводы туда не попадают сами.
+- В API операция — дискриминированное объединение по `type` (`income | expense | transfer`) и в запросе (`TransactionInput`), и в ответе (`CategorizedTransaction | Transfer`). Изменение — **`PUT /transactions/:id` целиком** (операция может стать переводом), не `PATCH`. `type` дохода/расхода должен совпадать с видом категории (400 `categoryId`).
+- **Запрет ухода в минус** (`allow_negative = false`): каждая запись (создание, замена, удаление операции, изменение счёта) — интерактивная транзакция Prisma на READ COMMITTED: `SELECT … FOR UPDATE` затронутых счетов одним запросом в порядке id (без дедлоков), запись, проверка итогового баланса (`assertNotNegative`), при минусе — исключение и откат: 409 `INSUFFICIENT_FUNDS` с `details[].field` (`amount` / `openingBalance` / `allowNegative`) и текстом «На счёте «X» не хватает N ₽». У замены и удаления сначала блокируется строка операции, потом счета — везде один порядок. Проверка «после записи» одинаково покрывает расход, перевод, перенос операции на другой счёт и удаление дохода.
+- e2e `lets concurrent expenses through only while there is money`: 10 параллельных расходов по 300 при 1000 → ровно 3 проходят. Без `FOR UPDATE` проходят 8–9 (проверено) — это write skew. Альтернатива — `SERIALIZABLE` с повтором при ошибке сериализации.
+- Миграция `accounts_and_transfers` — пример expand → backfill → contract в одном файле (nullable колонка → «Основной счёт» каждому пользователю и `UPDATE` операций → `SET NOT NULL`); в комментарии — как это разложить на релизы при zero-downtime.
 
 Дизайн интерфейса:
 

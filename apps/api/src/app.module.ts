@@ -6,6 +6,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
+import { AccountsModule } from './accounts/accounts.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { createValidationPipe } from './common/errors/validation.pipe.js';
@@ -39,6 +40,7 @@ import { TransactionsModule } from './transactions/transactions.module.js';
     PrismaModule,
     AuthModule,
     HealthModule,
+    AccountsModule,
     CategoriesModule,
     TransactionsModule,
   ],

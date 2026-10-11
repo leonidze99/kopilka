@@ -2,14 +2,20 @@ import { Plus } from 'lucide-react';
 import { useCreateTransactionMutation } from '@/entities/transaction';
 import { toDateTimeLocal } from '@/shared/lib';
 import { toast } from '@/shared/ui';
-import { TransactionForm } from './TransactionForm';
+import { TransactionForm, type TransactionFormValues } from './TransactionForm';
 
-const emptyValues = (categoryId = '') => ({
-  categoryId,
+const emptyValues = (
+  keep: Partial<TransactionFormValues> = {},
+): TransactionFormValues => ({
+  type: 'expense',
+  categoryId: '',
+  accountId: '',
+  toAccountId: '',
   amount: '',
   // Local time: <input type="datetime-local"> has no time zone.
   occurredAt: toDateTimeLocal(new Date()),
   comment: '',
+  ...keep,
 });
 
 interface CreateTransactionFormProps {
@@ -25,7 +31,6 @@ export function CreateTransactionForm({
   return (
     <TransactionForm
       defaultValues={emptyValues()}
-      defaultKind="expense"
       submitLabel={
         <>
           <Plus size={18} aria-hidden />
@@ -39,9 +44,21 @@ export function CreateTransactionForm({
         })
       }
       onSuccess={(values, reset) => {
-        toast('Операция добавлена');
-        // Keep the category: several expenses of a kind often come in a row.
-        reset(emptyValues(values.categoryId));
+        toast(
+          values.type === 'transfer'
+            ? 'Перевод сохранён'
+            : 'Операция добавлена',
+        );
+        // Keep type, category and accounts: entries of a kind come in a row.
+        reset(
+          emptyValues({
+            type: values.type,
+            accountId: values.accountId,
+            ...(values.type === 'transfer'
+              ? { toAccountId: values.toAccountId }
+              : { categoryId: values.categoryId }),
+          }),
+        );
         onCreated?.();
       }}
     />

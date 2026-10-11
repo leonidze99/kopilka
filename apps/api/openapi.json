@@ -695,6 +695,233 @@
         ]
       }
     },
+    "/accounts": {
+      "get": {
+        "operationId": "AccountsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Accounts of the user with their balances, oldest first",
+        "tags": [
+          "accounts"
+        ]
+      },
+      "post": {
+        "operationId": "AccountsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an account",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/accounts/{id}": {
+      "patch": {
+        "description": "Refused with INSUFFICIENT_FUNDS if an account that must not go negative would end up below zero.",
+        "operationId": "AccountsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Change an account",
+        "tags": [
+          "accounts"
+        ]
+      },
+      "delete": {
+        "description": "Refused with ACCOUNT_IN_USE while transactions use it.",
+        "operationId": "AccountsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete an account",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
     "/categories": {
       "get": {
         "operationId": "CategoriesController_list",
@@ -977,13 +1204,23 @@
             }
           },
           {
-            "name": "kind",
+            "name": "accountId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "type",
             "required": false,
             "in": "query",
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/components/schemas/TransactionKind"
+                  "$ref": "#/components/schemas/TransactionType"
                 }
               ]
             }
@@ -1027,6 +1264,7 @@
         ]
       },
       "post": {
+        "description": "Refused with INSUFFICIENT_FUNDS if an account that must not go negative would end up below zero.",
         "operationId": "TransactionsController_create",
         "parameters": [],
         "requestBody": {
@@ -1034,7 +1272,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateTransactionRequest"
+                "$ref": "#/components/schemas/TransactionInput"
               }
             }
           }
@@ -1069,9 +1307,19 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
           }
         },
-        "summary": "Record an income or an expense",
+        "summary": "Record an income, an expense or a transfer",
         "tags": [
           "transactions"
         ]
@@ -1214,7 +1462,8 @@
       }
     },
     "/transactions/{id}": {
-      "patch": {
+      "put": {
+        "description": "The whole transaction, as on create: it may change its type too.",
         "operationId": "TransactionsController_update",
         "parameters": [
           {
@@ -1231,7 +1480,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateTransactionRequest"
+                "$ref": "#/components/schemas/TransactionInput"
               }
             }
           }
@@ -1276,14 +1525,25 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
           }
         },
-        "summary": "Change a transaction",
+        "summary": "Replace a transaction",
         "tags": [
           "transactions"
         ]
       },
       "delete": {
+        "description": "Refused with INSUFFICIENT_FUNDS if removing an income would take an account that must not go negative below zero.",
         "operationId": "TransactionsController_remove",
         "parameters": [
           {
@@ -1311,6 +1571,16 @@
           },
           "404": {
             "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
             "content": {
               "application/json": {
                 "schema": {
@@ -1445,6 +1715,8 @@
           "NOT_FOUND",
           "CONFLICT",
           "CATEGORY_IN_USE",
+          "ACCOUNT_IN_USE",
+          "INSUFFICIENT_FUNDS",
           "RATE_LIMITED",
           "SERVICE_UNAVAILABLE",
           "INTERNAL_ERROR"
@@ -1482,6 +1754,118 @@
           "email",
           "password"
         ]
+      },
+      "AccountList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Account"
+            }
+          },
+          "total": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccountType"
+          },
+          "openingBalance": {
+            "type": "string"
+          },
+          "allowNegative": {
+            "type": "boolean"
+          },
+          "balance": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "openingBalance",
+          "allowNegative",
+          "balance"
+        ],
+        "additionalProperties": false
+      },
+      "AccountType": {
+        "type": "string",
+        "enum": [
+          "card",
+          "cash",
+          "savings"
+        ]
+      },
+      "CreateAccountRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccountType"
+          },
+          "openingBalance": {
+            "type": "string",
+            "description": "Decimal with up to 2 fraction digits, e.g. \"-1234.56\"",
+            "example": "-1234.56"
+          },
+          "allowNegative": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ]
+      },
+      "UpdateAccountRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountType"
+              }
+            ]
+          },
+          "openingBalance": {
+            "type": "string",
+            "description": "Decimal with up to 2 fraction digits, e.g. \"-1234.56\"",
+            "example": "-1234.56"
+          },
+          "allowNegative": {
+            "type": "boolean"
+          }
+        }
       },
       "Category": {
         "type": "object",
@@ -1542,6 +1926,14 @@
           "name"
         ]
       },
+      "TransactionType": {
+        "type": "string",
+        "enum": [
+          "income",
+          "expense",
+          "transfer"
+        ]
+      },
       "TransactionPage": {
         "type": "object",
         "properties": {
@@ -1563,8 +1955,21 @@
         "additionalProperties": false
       },
       "Transaction": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CategorizedTransaction"
+          },
+          {
+            "$ref": "#/components/schemas/Transfer"
+          }
+        ]
+      },
+      "CategorizedTransaction": {
         "type": "object",
         "properties": {
+          "type": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -1585,17 +1990,92 @@
             "type": "string",
             "format": "date-time"
           },
+          "account": {
+            "$ref": "#/components/schemas/AccountRef"
+          },
           "category": {
             "$ref": "#/components/schemas/Category"
           }
         },
         "required": [
+          "type",
           "id",
           "amount",
           "comment",
           "occurredAt",
           "createdAt",
+          "account",
           "category"
+        ],
+        "additionalProperties": false
+      },
+      "AccountRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccountType"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "Transfer": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "transfer"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "comment": {
+            "nullable": true,
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "account": {
+            "$ref": "#/components/schemas/AccountRef"
+          },
+          "toAccount": {
+            "$ref": "#/components/schemas/AccountRef"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "amount",
+          "comment",
+          "occurredAt",
+          "createdAt",
+          "account",
+          "toAccount"
         ],
         "additionalProperties": false
       },
@@ -1641,10 +2121,28 @@
         ],
         "additionalProperties": false
       },
-      "CreateTransactionRequest": {
+      "TransactionInput": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CategorizedTransactionInput"
+          },
+          {
+            "$ref": "#/components/schemas/TransferInput"
+          }
+        ]
+      },
+      "CategorizedTransactionInput": {
         "type": "object",
         "properties": {
+          "type": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
           "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "accountId": {
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -1664,15 +2162,28 @@
           }
         },
         "required": [
+          "type",
           "categoryId",
+          "accountId",
           "amount",
           "occurredAt"
         ]
       },
-      "UpdateTransactionRequest": {
+      "TransferInput": {
         "type": "object",
         "properties": {
-          "categoryId": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "transfer"
+            ]
+          },
+          "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "accountId": {
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -1690,7 +2201,14 @@
             "type": "string",
             "maxLength": 280
           }
-        }
+        },
+        "required": [
+          "type",
+          "toAccountId",
+          "accountId",
+          "amount",
+          "occurredAt"
+        ]
       }
     }
   },

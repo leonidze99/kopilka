@@ -1,4 +1,5 @@
 import { Navigate, type RouteObject } from 'react-router';
+import { AccountsPage } from '@/pages/accounts';
 import { CategoriesPage } from '@/pages/categories';
 import { LoginPage } from '@/pages/login';
 import { RegisterPage } from '@/pages/register';
@@ -14,6 +15,7 @@ export const routes: RouteObject[] = [
         element: <AppLayout />,
         children: [
           { path: '/', element: <TransactionsPage /> },
+          { path: '/accounts', element: <AccountsPage /> },
           { path: '/categories', element: <CategoriesPage /> },
         ],
       },

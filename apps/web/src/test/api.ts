@@ -27,8 +27,21 @@ export const apiError = (
     { status },
   );
 
+/** The account every new user starts with. */
+export const MAIN_ACCOUNT = {
+  id: '0199d0a4-0000-7000-8000-0000000acc01',
+  name: 'Основной счёт',
+  type: 'card',
+  openingBalance: '0.00',
+  allowNegative: true,
+  balance: '0.00',
+} as const;
+
 /** What the signed-in pages load, for an account without any data yet. */
 export const emptyAccount = () => [
+  http.get(apiUrl('/accounts'), () =>
+    HttpResponse.json({ items: [MAIN_ACCOUNT], total: '0.00' }),
+  ),
   http.get(apiUrl('/categories'), () => HttpResponse.json([])),
   http.get(apiUrl('/transactions'), () =>
     HttpResponse.json({ items: [], nextCursor: null }),
@@ -53,7 +66,13 @@ export const SALARY = {
 
 let nextId = 1;
 
-/** A transaction as the API returns it. */
+const accountRef = {
+  id: MAIN_ACCOUNT.id,
+  name: MAIN_ACCOUNT.name,
+  type: 'card',
+} as const;
+
+/** An income or an expense (by its category) as the API returns it. */
 export const transaction = (
   overrides: Partial<{
     amount: string;
@@ -61,12 +80,17 @@ export const transaction = (
     occurredAt: string;
     category: typeof FOOD | typeof SALARY;
   }> = {},
-) => ({
-  id: `0199d0a4-1111-7000-8000-${String(nextId++).padStart(12, '0')}`,
-  amount: '100.00',
-  comment: null,
-  occurredAt: '2026-10-05T12:00:00.000Z',
-  createdAt: '2026-10-05T12:00:00.000Z',
-  category: FOOD,
-  ...overrides,
-});
+) => {
+  const category = overrides.category ?? FOOD;
+  return {
+    id: `0199d0a4-1111-7000-8000-${String(nextId++).padStart(12, '0')}`,
+    type: category.kind,
+    amount: '100.00',
+    comment: null,
+    occurredAt: '2026-10-05T12:00:00.000Z',
+    createdAt: '2026-10-05T12:00:00.000Z',
+    account: accountRef,
+    ...overrides,
+    category,
+  };
+};

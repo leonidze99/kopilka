@@ -1,0 +1,32 @@
+.icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--icon-color) 16%, var(--color-surface));
+  color: color-mix(in srgb, var(--icon-color) 75%, var(--color-text));
+}
+
+/* Types, not categories: kept apart from the category palette on purpose. */
+.card {
+  --icon-color: var(--color-accent);
+}
+
+.cash {
+  --icon-color: var(--color-expense);
+}
+
+.savings {
+  --icon-color: var(--series-7);
+}
+
+.md {
+  width: 40px;
+  height: 40px;
+}
+
+.sm {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}

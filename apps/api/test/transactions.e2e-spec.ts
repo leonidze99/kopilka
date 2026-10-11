@@ -25,26 +25,50 @@ describe('Transactions (e2e)', () => {
 
   const http = () => request(app.getHttpServer());
 
-  /** A fresh user with one expense and one income category. */
+  // Kind of every category the tests create: add() derives the type from it.
+  const kinds = new Map<string, string>();
+
+  const createCategory = async (user: TestUser, kind: string, name: string) => {
+    const { body } = await http()
+      .post('/api/categories')
+      .set('Authorization', user.auth)
+      .send({ kind, name })
+      .expect(201);
+    kinds.set(body.id, kind);
+    return body as Category;
+  };
+
+  /**
+   * A fresh user with one expense and one income category; `account` is
+   * the main account every new user starts with.
+   */
   async function setUp() {
     const user = await users.signUp();
-    const category = async (kind: string, name: string) =>
-      (
-        await http()
-          .post('/api/categories')
-          .set('Authorization', user.auth)
-          .send({ kind, name })
-          .expect(201)
-      ).body as Category;
+    const { body: accounts } = await http()
+      .get('/api/accounts')
+      .set('Authorization', user.auth)
+      .expect(200);
+    const account = accounts.items[0] as { id: string; name: string };
     return {
-      user,
-      food: await category('expense', 'Продукты'),
-      salary: await category('income', 'Зарплата'),
+      user: { ...user, accountId: account.id },
+      account,
+      food: await createCategory(user, 'expense', 'Продукты'),
+      salary: await createCategory(user, 'income', 'Зарплата'),
     };
   }
 
-  const add = (user: TestUser, body: object) =>
-    http().post('/api/transactions').set('Authorization', user.auth).send(body);
+  type Owner = TestUser & { accountId: string };
+
+  /** POST a transaction; type and account default to the obvious ones. */
+  const add = (user: Owner, body: Record<string, unknown>) =>
+    http()
+      .post('/api/transactions')
+      .set('Authorization', user.auth)
+      .send({
+        type: kinds.get(body['categoryId'] as string),
+        accountId: user.accountId,
+        ...body,
+      });
 
   const list = (user: TestUser, query: Record<string, string | number> = {}) =>
     http()
@@ -174,7 +198,7 @@ describe('Transactions (e2e)', () => {
           (t: { amount: string }) => t.amount,
         );
 
-      expect(await amounts({ kind: 'income' })).toEqual(['500.00']);
+      expect(await amounts({ type: 'income' })).toEqual(['500.00']);
       expect(await amounts({ categoryId: food.id })).toEqual([
         '20.00',
         '10.00',
@@ -275,11 +299,7 @@ describe('Transactions (e2e)', () => {
 
     it('sums each category of a kind over the period, largest first', async () => {
       const { user, food, salary } = await setUp();
-      const { body: cafe } = await http()
-        .post('/api/categories')
-        .set('Authorization', user.auth)
-        .send({ kind: 'expense', name: 'Кафе' })
-        .expect(201);
+      const cafe = await createCategory(user, 'expense', 'Кафе');
       for (const [categoryId, amount, occurredAt] of [
         [food.id, '0.1', '2026-10-02T10:00:00Z'],
         [food.id, '0.2', '2026-10-03T10:00:00Z'],
@@ -341,8 +361,125 @@ describe('Transactions (e2e)', () => {
     });
   });
 
-  describe('update and delete', () => {
-    it('changes amount and category', async () => {
+  describe('category kind', () => {
+    it('refuses a type that differs from the kind of the category', async () => {
+      const { user, food } = await setUp();
+
+      const res = await add(user, {
+        type: 'income',
+        categoryId: food.id,
+        amount: '100',
+        occurredAt: '2026-10-05T12:00:00Z',
+      }).expect(400);
+
+      expect(res.body.details).toEqual([
+        { field: 'categoryId', message: 'Это категория расходов' },
+      ]);
+    });
+  });
+
+  describe('transfers', () => {
+    async function withSavings() {
+      const fixture = await setUp();
+      const { body: savings } = await http()
+        .post('/api/accounts')
+        .set('Authorization', fixture.user.auth)
+        .send({ name: 'Вклад', type: 'savings' })
+        .expect(201);
+      return { ...fixture, savings };
+    }
+
+    const transfer = (user: Owner, toAccountId: string, amount = '300') =>
+      add(user, {
+        type: 'transfer',
+        toAccountId,
+        amount,
+        occurredAt: '2026-10-05T12:00:00Z',
+      });
+
+    it('moves money between accounts without counting as income or expense', async () => {
+      const { user, account, savings } = await withSavings();
+
+      const res = await transfer(user, savings.id).expect(201);
+
+      expect(transactionSchema.parse(res.body)).toMatchObject({
+        type: 'transfer',
+        amount: '300.00',
+        account: { id: account.id, name: account.name, type: 'card' },
+        toAccount: { id: savings.id, name: 'Вклад', type: 'savings' },
+      });
+      const summary = await http()
+        .get('/api/transactions/summary')
+        .set('Authorization', user.auth)
+        .expect(200);
+      expect(summary.body).toEqual({
+        income: '0.00',
+        expense: '0.00',
+        balance: '0.00',
+      });
+    });
+
+    it('shows a transfer on both of its accounts and under its own type', async () => {
+      const { user, account, savings, food } = await withSavings();
+      await transfer(user, savings.id).expect(201);
+      await add(user, {
+        categoryId: food.id,
+        amount: '50',
+        occurredAt: '2026-10-06T12:00:00Z',
+      }).expect(201);
+
+      const types = async (query: Record<string, string>) =>
+        (await list(user, query).expect(200)).body.items.map(
+          (t: { type: string }) => t.type,
+        );
+
+      expect(await types({ accountId: savings.id })).toEqual(['transfer']);
+      expect(await types({ accountId: account.id })).toEqual([
+        'expense',
+        'transfer',
+      ]);
+      expect(await types({ type: 'transfer' })).toEqual(['transfer']);
+    });
+
+    it('refuses a transfer to the same account', async () => {
+      const { user } = await setUp();
+
+      const res = await transfer(user, user.accountId).expect(400);
+
+      expect(res.body.details).toEqual([
+        { field: 'toAccountId', message: 'Выберите другой счёт' },
+      ]);
+    });
+
+    it("refuses another user's account on either side", async () => {
+      const alice = await setUp();
+      const bob = await setUp();
+
+      const to = await transfer(bob.user, alice.user.accountId).expect(400);
+      const from = await add(bob.user, {
+        categoryId: bob.food.id,
+        accountId: alice.user.accountId,
+        amount: '1',
+        occurredAt: '2026-10-05T12:00:00Z',
+      }).expect(400);
+
+      expect(to.body.details).toEqual([
+        { field: 'toAccountId', message: 'Счёт не найден' },
+      ]);
+      expect(from.body.details).toEqual([
+        { field: 'accountId', message: 'Счёт не найден' },
+      ]);
+    });
+  });
+
+  describe('replace and delete', () => {
+    const replace = (user: TestUser, id: string, body: object) =>
+      http()
+        .put(`/api/transactions/${id}`)
+        .set('Authorization', user.auth)
+        .send(body);
+
+    it('replaces amount and category', async () => {
       const { user, food, salary } = await setUp();
       const { body: created } = await add(user, {
         categoryId: food.id,
@@ -350,13 +487,47 @@ describe('Transactions (e2e)', () => {
         occurredAt: '2026-10-05T12:00:00Z',
       }).expect(201);
 
-      const res = await http()
-        .patch(`/api/transactions/${created.id}`)
-        .set('Authorization', user.auth)
-        .send({ amount: '150,25', categoryId: salary.id })
-        .expect(200);
+      const res = await replace(user, created.id, {
+        type: 'income',
+        categoryId: salary.id,
+        accountId: user.accountId,
+        amount: '150,25',
+        occurredAt: '2026-10-05T12:00:00Z',
+      }).expect(200);
 
-      expect(res.body).toMatchObject({ amount: '150.25', category: salary });
+      expect(res.body).toMatchObject({
+        type: 'income',
+        amount: '150.25',
+        category: salary,
+      });
+    });
+
+    it('turns an expense into a transfer', async () => {
+      const { user, food } = await setUp();
+      const { body: savings } = await http()
+        .post('/api/accounts')
+        .set('Authorization', user.auth)
+        .send({ name: 'Вклад', type: 'savings' })
+        .expect(201);
+      const { body: created } = await add(user, {
+        categoryId: food.id,
+        amount: '100',
+        occurredAt: '2026-10-05T12:00:00Z',
+      }).expect(201);
+
+      const res = await replace(user, created.id, {
+        type: 'transfer',
+        accountId: user.accountId,
+        toAccountId: savings.id,
+        amount: '100',
+        occurredAt: '2026-10-05T12:00:00Z',
+      }).expect(200);
+
+      expect(res.body).toMatchObject({
+        type: 'transfer',
+        toAccount: { id: savings.id },
+      });
+      expect(res.body).not.toHaveProperty('category');
     });
 
     it("treats another user's transaction as missing", async () => {
@@ -368,11 +539,13 @@ describe('Transactions (e2e)', () => {
         occurredAt: '2026-10-05T12:00:00Z',
       }).expect(201);
 
-      await http()
-        .patch(`/api/transactions/${created.id}`)
-        .set('Authorization', bob.user.auth)
-        .send({ amount: '1' })
-        .expect(404);
+      await replace(bob.user, created.id, {
+        type: 'expense',
+        categoryId: bob.food.id,
+        accountId: bob.user.accountId,
+        amount: '1',
+        occurredAt: '2026-10-05T12:00:00Z',
+      }).expect(404);
       await http()
         .delete(`/api/transactions/${created.id}`)
         .set('Authorization', bob.user.auth)

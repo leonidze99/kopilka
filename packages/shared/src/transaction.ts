@@ -1,38 +1,19 @@
 import { z } from 'zod';
+import { accountRefSchema } from './account.js';
 import { categorySchema, transactionKindSchema } from './category.js';
+import { amountSchema } from './money.js';
 
 /**
- * Money travels as a decimal string ("1234.56"), never as a JS number:
- * binary floats cannot represent most decimal fractions exactly
- * (0.1 + 0.2 !== 0.3). Up to 12 integer digits: fits numeric(14,2).
+ * Income and expense take their kind from the category; a transfer moves
+ * money between two accounts of the user and has no category, so it never
+ * counts as income or expense.
  */
-const AMOUNT_PATTERN = /^\d{1,12}(\.\d{1,2})?$/;
+export const transactionTypeSchema = z
+  .enum(['income', 'expense', 'transfer'])
+  .meta({ id: 'TransactionType' });
 
-/**
- * Accepts what people type: "1 234,5" is read as "1234.5". `\s` also
- * matches the non-breaking space that number formatting inserts.
- */
-export const amountSchema = z
-  .string()
-  .meta({
-    description:
-      'Positive decimal with up to 2 fraction digits, e.g. "1234.56"',
-    example: '1234.56',
-  })
-  .transform((value) => value.replace(/\s/g, '').replace(',', '.'))
-  .pipe(
-    z
-      .string()
-      .regex(AMOUNT_PATTERN, {
-        message: 'Сумма — число, не больше двух знаков после запятой',
-        // Not a number at all: the "greater than zero" check would only add noise.
-        abort: true,
-      })
-      .refine((value) => Number(value) > 0, 'Сумма должна быть больше нуля'),
-  );
-
-const transactionFields = {
-  categoryId: z.uuid('Выберите категорию'),
+const inputFields = {
+  accountId: z.uuid('Выберите счёт'),
   amount: amountSchema,
   // Dates come over JSON as strings.
   occurredAt: z.coerce.date('Укажите дату'),
@@ -43,27 +24,65 @@ const transactionFields = {
     .optional(),
 };
 
-export const createTransactionSchema = z
-  .object(transactionFields)
-  .meta({ id: 'CreateTransactionRequest' });
+/**
+ * The whole transaction, for create (POST) and replace (PUT): an edit may
+ * turn an expense into a transfer, which a partial update cannot express
+ * without a field-by-field matrix of what may combine with what.
+ * `type` of income/expense must match the kind of the category.
+ */
+export const transactionInputSchema = z
+  .discriminatedUnion('type', [
+    z
+      .object({
+        type: transactionKindSchema,
+        categoryId: z.uuid('Выберите категорию'),
+        ...inputFields,
+      })
+      .meta({ id: 'CategorizedTransactionInput' }),
+    z
+      .object({
+        type: z.literal('transfer'),
+        toAccountId: z.uuid('Выберите счёт'),
+        ...inputFields,
+      })
+      .refine((transfer) => transfer.toAccountId !== transfer.accountId, {
+        message: 'Выберите другой счёт',
+        path: ['toAccountId'],
+      })
+      .meta({ id: 'TransferInput' }),
+  ])
+  .meta({ id: 'TransactionInput' });
 
-export const updateTransactionSchema = z
-  .object(transactionFields)
-  .partial()
-  .meta({ id: 'UpdateTransactionRequest' });
+const outputFields = {
+  id: z.uuid(),
+  /** Always positive, with 2 fraction digits, e.g. "1234.50". */
+  amount: z.string(),
+  comment: z.string().nullable(),
+  // coerce: in JSON a date is a string; the same schema must also
+  // parse a response on the client.
+  occurredAt: z.coerce.date(),
+  createdAt: z.coerce.date(),
+  /** For a transfer: the account the money left. */
+  account: accountRefSchema,
+};
 
 export const transactionSchema = z
-  .object({
-    id: z.uuid(),
-    /** Always with 2 fraction digits, e.g. "1234.50". */
-    amount: z.string(),
-    comment: z.string().nullable(),
-    // coerce: in JSON a date is a string; the same schema must also
-    // parse a response on the client.
-    occurredAt: z.coerce.date(),
-    createdAt: z.coerce.date(),
-    category: categorySchema,
-  })
+  .discriminatedUnion('type', [
+    z
+      .object({
+        type: transactionKindSchema,
+        ...outputFields,
+        category: categorySchema,
+      })
+      .meta({ id: 'CategorizedTransaction' }),
+    z
+      .object({
+        type: z.literal('transfer'),
+        ...outputFields,
+        toAccount: accountRefSchema,
+      })
+      .meta({ id: 'Transfer' }),
+  ])
   .meta({ id: 'Transaction' });
 
 export const listTransactionsQuerySchema = z.object({
@@ -75,7 +94,9 @@ export const listTransactionsQuerySchema = z.object({
   /** Exclusive. */
   to: z.coerce.date().optional(),
   categoryId: z.uuid().optional(),
-  kind: transactionKindSchema.optional(),
+  /** Money that left or reached the account: transfers count for both. */
+  accountId: z.uuid().optional(),
+  type: transactionTypeSchema.optional(),
 });
 
 export const transactionPageSchema = z
@@ -119,8 +140,8 @@ export const categoryTotalsSchema = z
   .array(categoryTotalSchema)
   .meta({ id: 'CategoryTotals' });
 
-export type CreateTransactionDto = z.infer<typeof createTransactionSchema>;
-export type UpdateTransactionDto = z.infer<typeof updateTransactionSchema>;
+export type TransactionType = z.infer<typeof transactionTypeSchema>;
+export type TransactionInputDto = z.infer<typeof transactionInputSchema>;
 export type Transaction = z.infer<typeof transactionSchema>;
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
 export type TransactionPage = z.infer<typeof transactionPageSchema>;

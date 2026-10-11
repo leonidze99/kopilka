@@ -106,6 +106,22 @@
   color: var(--color-text);
 }
 
+/* Money moved between own accounts: neither gained nor spent. */
+.transfer {
+  color: var(--color-text-muted);
+}
+
+.transferIcon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+}
+
 .time {
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
@@ -172,7 +188,8 @@
     padding: 10px 8px;
   }
 
-  .item .avatar {
+  .item .avatar,
+  .item .transferIcon {
     width: 36px;
     height: 36px;
   }

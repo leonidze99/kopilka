@@ -58,7 +58,12 @@ export class AuthService {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
-          data: { email, passwordHash },
+          data: {
+            email,
+            passwordHash,
+            // Every transaction needs an account: a new user starts with one.
+            accounts: { create: { name: 'Основной счёт', type: 'card' } },
+          },
           select: userSelect,
         });
         return this.session(user, await this.refreshTokens.issue(user.id, tx));

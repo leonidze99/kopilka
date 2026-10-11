@@ -5,10 +5,11 @@ export {
   transactionApi,
   type TransactionFilter,
   type TransactionSummary,
+  type TransactionType,
   useCategoryTotalsQuery,
   useCreateTransactionMutation,
   useDeleteTransactionMutation,
   useListTransactionsInfiniteQuery,
+  useReplaceTransactionMutation,
   useTransactionSummaryQuery,
-  useUpdateTransactionMutation,
 } from './api/transaction-api';

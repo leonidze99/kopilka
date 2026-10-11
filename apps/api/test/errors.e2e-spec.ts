@@ -10,8 +10,8 @@ import {
 } from '@nestjs/common';
 import {
   apiErrorSchema,
-  createTransactionSchema,
-  type CreateTransactionDto,
+  transactionInputSchema,
+  type TransactionInputDto,
 } from '@kopilka/shared';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
@@ -24,7 +24,7 @@ import { createTestApp } from './utils/create-test-app.js';
 @Controller('__test')
 class ErrorsTestController {
   @Post('transactions')
-  create(@Body({ schema: createTransactionSchema }) dto: CreateTransactionDto) {
+  create(@Body({ schema: transactionInputSchema }) dto: TransactionInputDto) {
     return { occurredAtIsDate: dto.occurredAt instanceof Date };
   }
 
@@ -71,6 +71,8 @@ class ErrorsTestController {
 }
 
 const validTransaction = {
+  type: 'expense',
+  accountId: '0199d0a4-5b6e-7c3d-8e9f-0a1b2c3d4e60',
   amount: '100',
   categoryId: '0199d0a4-5b6e-7c3d-8e9f-0a1b2c3d4e5f',
   occurredAt: '2026-10-11T10:00:00.000Z',
@@ -125,13 +127,14 @@ describe('Error format (e2e)', () => {
   it('reports every validation issue with its field', async () => {
     const res = await http()
       .post('/api/__test/transactions')
-      .send({ amount: '-1' })
+      .send({ type: 'expense', amount: '-1' })
       .expect(400);
 
     const body = apiErrorSchema.parse(res.body);
     expect(body.code).toBe('VALIDATION_FAILED');
     expect(body.details?.map((d) => d.field)).toEqual([
       'categoryId',
+      'accountId',
       'amount',
       'occurredAt',
     ]);

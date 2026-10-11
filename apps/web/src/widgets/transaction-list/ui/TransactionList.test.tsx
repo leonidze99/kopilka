@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { mockAccount } from '@/test/account';
-import { apiUrl, FOOD, SALARY, transaction } from '@/test/api';
+import { apiUrl, FOOD, MAIN_ACCOUNT, SALARY, transaction } from '@/test/api';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 
@@ -56,6 +56,41 @@ describe('TransactionList', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('shows a transfer between accounts, with a sign only from one of them', async () => {
+    const cash = {
+      id: '0199d0a4-0000-7000-8000-0000000acc02',
+      name: 'Наличные',
+      type: 'cash',
+      openingBalance: '0.00',
+      allowNegative: false,
+      balance: '300.00',
+    } as const;
+    const transfer = {
+      id: '0199d0a4-1111-7000-8000-0000000000aa',
+      type: 'transfer',
+      amount: '300.00',
+      comment: null,
+      occurredAt: '2026-10-05T12:00:00.000Z',
+      createdAt: '2026-10-05T12:00:00.000Z',
+      account: { id: MAIN_ACCOUNT.id, name: MAIN_ACCOUNT.name, type: 'card' },
+      toAccount: { id: cash.id, name: cash.name, type: 'cash' },
+    } as const;
+    mockAccount({ accounts: [MAIN_ACCOUNT, cash], transactions: [transfer] });
+    const { user } = renderApp('/', { session: 'authenticated' });
+
+    const row = await screen.findByRole('button', { name: /Перевод/ });
+    expect(row).toHaveTextContent(/Основной счёт → Наличные/);
+    // Inside the user's money: no sign, it is neither gained nor spent.
+    expect(row).toHaveTextContent(/300,00\s₽/);
+    expect(row).not.toHaveTextContent(/[+−]300/);
+
+    // From the cash account it is money in.
+    await user.click(screen.getByRole('button', { name: /^Наличные/ }));
+    expect(
+      await screen.findByRole('button', { name: /Перевод.*\+300,00/ }),
+    ).toBeInTheDocument();
+  });
+
   it('edits a transaction in a dialog opened from its row', async () => {
     const { sent } = mockAccount({
       categories: [FOOD, SALARY],
@@ -76,7 +111,14 @@ describe('TransactionList', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
 
     expect(await screen.findByText(/−99,00\s₽/)).toBeInTheDocument();
-    expect(sent.updates).toEqual([expect.objectContaining({ amount: '99' })]);
+    expect(sent.replacements).toEqual([
+      expect.objectContaining({
+        type: 'expense',
+        categoryId: FOOD.id,
+        accountId: MAIN_ACCOUNT.id,
+        amount: '99',
+      }),
+    ]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByText('Изменения сохранены')).toBeInTheDocument();
   });
@@ -129,14 +171,14 @@ describe('TransactionList', () => {
       await screen.findByRole('button', { name: 'Сбросить фильтр' }),
     ).toBeInTheDocument();
     const last = queries.at(-1);
-    expect(last?.get('kind')).toBe('income');
+    expect(last?.get('type')).toBe('income');
     expect(last?.get('from')).toBe(new Date(2026, 2, 1).toISOString());
     expect(last?.get('to')).toBe(new Date(2026, 3, 1).toISOString());
-    expect(router.state.location.search).toBe('?month=2026-03&kind=income');
+    expect(router.state.location.search).toBe('?month=2026-03&type=income');
 
     await user.click(screen.getByRole('button', { name: 'Следующий месяц' }));
 
     expect(await screen.findByText('Апрель 2026')).toBeInTheDocument();
-    expect(router.state.location.search).toBe('?month=2026-04&kind=income');
+    expect(router.state.location.search).toBe('?month=2026-04&type=income');
   });
 });
