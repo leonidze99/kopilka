@@ -95,8 +95,8 @@ describe('Recurring payments (e2e)', () => {
     ).expect(201);
     expect(rule).toMatchObject({ nextOn: today(), lastError: null });
 
-    await runner.runDue(at(today()));
-    await runner.runDue(at(today(), '23:00:00'));
+    await runner.runDue(at(today()), { userId: fixture.user.id });
+    await runner.runDue(at(today(), '23:00:00'), { userId: fixture.user.id });
 
     const made = await transactions(fixture.user);
     expect(made).toHaveLength(1);
@@ -115,7 +115,9 @@ describe('Recurring payments (e2e)', () => {
     const fixture = await setUp();
     await createRule(fixture.user, rentRule(fixture)).expect(201);
 
-    await runner.runDue(at(addDays(addMonths(today(), 3), 1)));
+    await runner.runDue(at(addDays(addMonths(today(), 3), 1)), {
+      userId: fixture.user.id,
+    });
 
     const dates = (await transactions(fixture.user)).map((t) =>
       t.occurredAt.toISOString().slice(0, 10),
@@ -134,10 +136,10 @@ describe('Recurring payments (e2e)', () => {
       rentRule(fixture, { startOn: tomorrow, timeZone: 'Pacific/Kiritimati' }),
     ).expect(201);
 
-    await runner.runDue(at(today(), '09:59:00'));
+    await runner.runDue(at(today(), '09:59:00'), { userId: fixture.user.id });
     expect(await transactions(fixture.user)).toHaveLength(0);
 
-    await runner.runDue(at(today(), '10:00:00'));
+    await runner.runDue(at(today(), '10:00:00'), { userId: fixture.user.id });
     const [made] = await transactions(fixture.user);
     expect(made?.occurredAt).toEqual(at(today(), '10:00:00'));
   });
@@ -159,7 +161,7 @@ describe('Recurring payments (e2e)', () => {
       rentRule(fixture, { accountId: cash.id }),
     ).expect(201);
 
-    await runner.runDue(at(today()));
+    await runner.runDue(at(today()), { userId: fixture.user.id });
 
     expect(await transactions(fixture.user)).toHaveLength(0);
     const [rule] = await rules(fixture.user);
@@ -180,7 +182,7 @@ describe('Recurring payments (e2e)', () => {
         occurredAt: at(today()).toISOString(),
       })
       .expect(201);
-    await runner.runDue(at(addMonths(today(), 1)));
+    await runner.runDue(at(addMonths(today(), 1)), { userId: fixture.user.id });
 
     expect(await transactions(fixture.user)).toHaveLength(2);
     expect((await rules(fixture.user))[0].lastError).toBeNull();
@@ -202,7 +204,7 @@ describe('Recurring payments (e2e)', () => {
       timeZone: 'UTC',
     }).expect(201);
 
-    await runner.runDue(at(today()));
+    await runner.runDue(at(today()), { userId: fixture.user.id });
 
     expect(await transactions(fixture.user)).toMatchObject([
       { type: 'transfer', toAccount: { id: savings.id }, amount: '5000.00' },
@@ -215,14 +217,14 @@ describe('Recurring payments (e2e)', () => {
       fixture.user,
       rentRule(fixture),
     ).expect(201);
-    await runner.runDue(at(today()));
+    await runner.runDue(at(today()), { userId: fixture.user.id });
 
     const { body: replaced } = await http()
       .put(`/api/recurring/${rule.id}`)
       .set('Authorization', fixture.user.auth)
       .send(rentRule(fixture, { amount: '40000' }))
       .expect(200);
-    await runner.runDue(at(today(), '23:00:00'));
+    await runner.runDue(at(today(), '23:00:00'), { userId: fixture.user.id });
 
     // Today's payment is not made a second time.
     expect(replaced.nextOn).toBe(addMonths(today(), 1));
@@ -235,8 +237,8 @@ describe('Recurring payments (e2e)', () => {
 
     // SKIP LOCKED: the second runner passes the rule the first one holds.
     await Promise.all([
-      runner.runDue(at(addMonths(today(), 2))),
-      runner.runDue(at(addMonths(today(), 2))),
+      runner.runDue(at(addMonths(today(), 2)), { userId: fixture.user.id }),
+      runner.runDue(at(addMonths(today(), 2)), { userId: fixture.user.id }),
     ]);
 
     expect(await transactions(fixture.user)).toHaveLength(3);
@@ -248,7 +250,7 @@ describe('Recurring payments (e2e)', () => {
       201,
     );
 
-    await runner.runDue(at(addMonths(today(), 1)));
+    await runner.runDue(at(addMonths(today(), 1)), { userId: fixture.user.id });
 
     expect(await transactions(fixture.user)).toHaveLength(0);
   });
@@ -259,7 +261,7 @@ describe('Recurring payments (e2e)', () => {
       fixture.user,
       rentRule(fixture),
     ).expect(201);
-    await runner.runDue(at(today()));
+    await runner.runDue(at(today()), { userId: fixture.user.id });
 
     await http()
       .delete(`/api/recurring/${rule.id}`)

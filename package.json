@@ -18,6 +18,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:migrate": "pnpm --filter api db:migrate",
+    "db:seed": "pnpm --filter api db:seed",
     "db:studio": "pnpm --filter api db:studio",
     "api:generate": "pnpm --filter api openapi:generate && pnpm --filter web api:types"
   },

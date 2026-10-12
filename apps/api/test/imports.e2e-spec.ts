@@ -397,7 +397,9 @@ describe('Imports (e2e)', () => {
     );
   });
 
-  it('numbers identical rows across batches', async () => {
+  // Thousands of rows through upload, parsing and import, twice: seconds,
+  // more with every other suite running alongside.
+  it('numbers identical rows across batches', { timeout: 30_000 }, async () => {
     const { user, accountId, cafe } = await setUp();
     // 2500 identical coffees: three parse batches, all distinct.
     const coffees = Array.from({ length: 2500 }, () => coffee());

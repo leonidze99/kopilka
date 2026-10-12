@@ -67,17 +67,23 @@ export class RecurringRunner {
    * Makes every payment due by `now` (a parameter, so tests can move the
    * clock), oldest first; a rule several months behind catches up one
    * month per loop. Returns how many payments were handled.
+   *
+   * `scope.userId`: only that user's rules. For tests, which share one
+   * database: a suite moving the clock months ahead must not make the
+   * payments of rules other suites (or the demo seed) created.
    */
-  async runDue(now: Date): Promise<number> {
+  async runDue(now: Date, scope: { userId?: string } = {}): Promise<number> {
     let handled = 0;
-    while (handled < BATCH && (await this.runOne(now))) handled++;
+    while (handled < BATCH && (await this.runOne(now, scope.userId))) {
+      handled++;
+    }
     if (handled > 0) this.logger.log({ handled }, 'Recurring payments made');
     return handled;
   }
 
-  private runOne(now: Date): Promise<boolean> {
+  private runOne(now: Date, userId?: string): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
-      const rule = await this.claimDue(tx, now);
+      const rule = await this.claimDue(tx, now, userId);
       if (!rule) return false;
 
       const accounts = [rule.account_id, rule.to_account_id].filter(
@@ -114,7 +120,11 @@ export class RecurringRunner {
    * first condition is an index range (no zone is more than 14 hours ahead
    * of UTC), the second the exact per-zone check.
    */
-  private async claimDue(tx: Tx, now: Date): Promise<DueRule | undefined> {
+  private async claimDue(
+    tx: Tx,
+    now: Date,
+    userId?: string,
+  ): Promise<DueRule | undefined> {
     const [rule] = await tx.$queryRaw<DueRule[]>`
       SELECT r.id, r.user_id, r.account_id, r.category_id, r.to_account_id,
              r.amount, r.comment, r.start_on, r.next_on, r.next_index,
@@ -125,6 +135,7 @@ export class RecurringRunner {
       WHERE r.active
         AND r.next_on <= ((${now}::timestamptz + interval '14 hours') AT TIME ZONE 'UTC')::date
         AND r.next_on <= (${now}::timestamptz AT TIME ZONE r.time_zone)::date
+        ${userId ? Prisma.sql`AND r.user_id = ${userId}::uuid` : Prisma.empty}
       ORDER BY r.next_on, r.id
       LIMIT 1
       FOR UPDATE OF r SKIP LOCKED

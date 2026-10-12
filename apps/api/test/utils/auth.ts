@@ -4,6 +4,7 @@ import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
 
 export interface TestUser {
+  id: string;
   email: string;
   /** Ready-to-use `Authorization` header value. */
   auth: string;
@@ -25,7 +26,11 @@ export function testUsers(app: INestApplication) {
         .post('/api/auth/register')
         .send({ email, password: 'correct horse battery' })
         .expect(201);
-      return { email, auth: `Bearer ${res.body.accessToken as string}` };
+      return {
+        id: res.body.user.id as string,
+        email,
+        auth: `Bearer ${res.body.accessToken as string}`,
+      };
     },
 
     async cleanup(): Promise<void> {

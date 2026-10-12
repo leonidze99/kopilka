@@ -24,6 +24,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
+    "db:seed": "nest build && node dist/scripts/seed-demo.js",
     "db:studio": "prisma studio",
     "openapi:generate": "nest build && node dist/scripts/generate-openapi.js",
     "typecheck": "tsc --noEmit -p tsconfig.json"
