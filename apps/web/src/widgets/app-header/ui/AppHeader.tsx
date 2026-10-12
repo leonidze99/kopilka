@@ -41,12 +41,17 @@ export function AppHeader() {
         <div className={styles.user}>
           <ThemeToggle />
           {user && (
-            <span className={styles.account} title={user.email}>
+            <Link
+              to="/settings"
+              className={styles.account}
+              title={`${user.email}: устройства и пароль`}
+              aria-label="Безопасность аккаунта"
+            >
               <span className={styles.initial} aria-hidden>
                 {user.email.charAt(0).toUpperCase()}
               </span>
               <span className={styles.email}>{user.email}</span>
-            </span>
+            </Link>
           )}
           <LogoutButton />
         </div>

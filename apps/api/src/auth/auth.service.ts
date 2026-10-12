@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type {
   AuthResponse,
+  ChangePasswordDto,
   LoginDto,
   RegisterDto,
   User,
@@ -14,12 +15,15 @@ import type { Env } from '../config/env.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
+  type ClientInfo,
   type IssuedRefreshToken,
   RefreshTokenService,
 } from './refresh-token.service.js';
 
 export interface AccessTokenPayload {
   sub: string;
+  /** The session: JwtAuthGuard checks it is still going. */
+  sid: string;
 }
 
 export interface Session {
@@ -53,7 +57,10 @@ export class AuthService {
     });
   }
 
-  async register({ email, password }: RegisterDto): Promise<Session> {
+  async register(
+    { email, password }: RegisterDto,
+    client: ClientInfo,
+  ): Promise<Session> {
     const passwordHash = await hash(password);
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -66,7 +73,10 @@ export class AuthService {
           },
           select: userSelect,
         });
-        return this.session(user, await this.refreshTokens.issue(user.id, tx));
+        return this.session(
+          user,
+          await this.refreshTokens.issue(user.id, client, tx),
+        );
       });
     } catch (error) {
       // The unique index is the source of truth. Checking "is this email
@@ -87,7 +97,10 @@ export class AuthService {
     }
   }
 
-  async login({ email, password }: LoginDto): Promise<Session> {
+  async login(
+    { email, password }: LoginDto,
+    client: ClientInfo,
+  ): Promise<Session> {
     const user = await this.prisma.user.findUnique({ where: { email } });
     const valid = user
       ? await verify(user.passwordHash, password)
@@ -101,18 +114,21 @@ export class AuthService {
         HttpStatus.UNAUTHORIZED,
       );
     }
-    return this.session(user, await this.refreshTokens.issue(user.id));
+    return this.session(user, await this.refreshTokens.issue(user.id, client));
   }
 
-  async refresh(presented: string | undefined): Promise<Session> {
+  async refresh(
+    presented: string | undefined,
+    client: ClientInfo,
+  ): Promise<Session> {
     if (!presented) throw unauthorized('Missing refresh token');
 
-    const result = await this.refreshTokens.rotate(presented);
+    const result = await this.refreshTokens.rotate(presented, client);
     if (result.status === 'reused') {
       this.logger.warn({
         msg: 'Refresh token reuse detected, session revoked',
         userId: result.userId,
-        familyId: result.familyId,
+        sessionId: result.sessionId,
       });
     }
     if (result.status !== 'rotated') {
@@ -127,7 +143,41 @@ export class AuthService {
   }
 
   async logout(presented: string | undefined): Promise<void> {
-    if (presented) await this.refreshTokens.revokeFamily(presented);
+    if (presented) await this.refreshTokens.revokeSessionOf(presented);
+  }
+
+  /**
+   * Needs the current password even though the user is signed in: an
+   * unattended unlocked device must not be enough to take the account.
+   * Ends every other session in the same transaction: whoever learned the
+   * old password is signed out with it. This session stays.
+   */
+  async changePassword(
+    userId: string,
+    sessionId: string,
+    { currentPassword, newPassword }: ChangePasswordDto,
+  ): Promise<{ endedSessions: number }> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+    if (!(await verify(user.passwordHash, currentPassword))) {
+      throw new AppException(
+        'VALIDATION_FAILED',
+        'Current password is wrong',
+        HttpStatus.BAD_REQUEST,
+        [{ field: 'currentPassword', message: 'Неверный пароль' }],
+      );
+    }
+    // Hashed before the transaction: argon2 takes tens of milliseconds of
+    // CPU, no reason to hold a connection meanwhile.
+    const passwordHash = await hash(newPassword);
+    const endedSessions = await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { passwordHash } });
+      return this.refreshTokens.end(tx, { userId, id: { not: sessionId } });
+    });
+    this.logger.log({ userId, endedSessions }, 'Password changed');
+    return { endedSessions };
   }
 
   async me(userId: string): Promise<User> {
@@ -144,7 +194,10 @@ export class AuthService {
     user: User,
     refreshToken: IssuedRefreshToken,
   ): Promise<Session> {
-    const payload: AccessTokenPayload = { sub: user.id };
+    const payload: AccessTokenPayload = {
+      sub: user.id,
+      sid: refreshToken.sessionId,
+    };
     return {
       auth: {
         accessToken: await this.jwt.signAsync(payload),

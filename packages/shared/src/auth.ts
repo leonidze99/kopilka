@@ -53,7 +53,44 @@ export const authResponseSchema = z
   })
   .meta({ id: 'AuthResponse' });
 
+export const changePasswordSchema = z
+  .object({
+    // Not the policy: it may have changed since the password was set.
+    currentPassword: z
+      .string()
+      .min(1, 'Введите текущий пароль')
+      .max(128, 'Пароль должен быть не длиннее 128 символов'),
+    newPassword: newPasswordSchema,
+  })
+  .refine((dto) => dto.newPassword !== dto.currentPassword, {
+    message: 'Новый пароль совпадает с текущим',
+    path: ['newPassword'],
+  })
+  .meta({ id: 'ChangePasswordRequest' });
+
+/** A signed-in device. */
+export const authSessionSchema = z
+  .object({
+    id: z.uuid(),
+    /** "Chrome, Windows"; "Неизвестное устройство" if the browser did not say. */
+    device: z.string(),
+    /** Where the last sign-in or refresh came from; null if unknown. */
+    ip: z.string().nullable(),
+    createdAt: z.coerce.date(),
+    lastUsedAt: z.coerce.date(),
+    /** The session of this request. */
+    current: z.boolean(),
+  })
+  .meta({ id: 'AuthSession' });
+
+/** Active sessions: the current one first, then by last activity. */
+export const authSessionListSchema = z
+  .array(authSessionSchema)
+  .meta({ id: 'AuthSessionList' });
+
 export type RegisterDto = z.infer<typeof registerSchema>;
+export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;
+export type AuthSession = z.infer<typeof authSessionSchema>;
 export type LoginDto = z.infer<typeof loginSchema>;
 export type User = z.infer<typeof userSchema>;
 export type AuthResponse = z.infer<typeof authResponseSchema>;

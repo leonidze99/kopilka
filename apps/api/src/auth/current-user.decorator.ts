@@ -3,6 +3,8 @@ import type { Request } from 'express';
 
 export interface AuthUser {
   id: string;
+  /** The session the access token belongs to. */
+  sessionId: string;
 }
 
 export interface AuthenticatedRequest extends Request {

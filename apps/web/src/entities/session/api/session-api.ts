@@ -67,6 +67,46 @@ export const sessionApi = baseApi.injectEndpoints({
   }),
 });
 
+export type AuthSession = ResponseBody<'/auth/sessions', 'get', 200>[number];
+
+/** The signed-in devices and the password: account security. */
+export const securityApi = sessionApi
+  .enhanceEndpoints({ addTagTypes: ['AuthSession'] })
+  .injectEndpoints({
+    endpoints: (build) => ({
+      listSessions: build.query<AuthSession[], void>({
+        query: () => '/auth/sessions' satisfies ApiPath,
+        providesTags: ['AuthSession'],
+      }),
+
+      endSession: build.mutation<void, string>({
+        query: (id) => ({ url: `/auth/sessions/${id}`, method: 'DELETE' }),
+        invalidatesTags: ['AuthSession'],
+      }),
+
+      endOtherSessions: build.mutation<void, void>({
+        query: () => ({
+          url: '/auth/sessions' satisfies ApiPath,
+          method: 'DELETE',
+        }),
+        invalidatesTags: ['AuthSession'],
+      }),
+
+      /** Ends the other sessions too: the list changes. */
+      changePassword: build.mutation<
+        void,
+        RequestBody<'/auth/password', 'post'>
+      >({
+        query: (body) => ({
+          url: '/auth/password' satisfies ApiPath,
+          method: 'POST',
+          body,
+        }),
+        invalidatesTags: ['AuthSession'],
+      }),
+    }),
+  });
+
 export const {
   useLoginMutation,
   useRegisterMutation,
@@ -74,3 +114,10 @@ export const {
   useLogoutMutation,
   useMeQuery,
 } = sessionApi;
+
+export const {
+  useListSessionsQuery,
+  useEndSessionMutation,
+  useEndOtherSessionsMutation,
+  useChangePasswordMutation,
+} = securityApi;

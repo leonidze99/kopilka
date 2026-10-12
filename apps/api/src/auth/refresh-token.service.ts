@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import type { Env } from '../config/env.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -8,11 +8,19 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export interface IssuedRefreshToken {
   token: string;
   expiresAt: Date;
+  /** The session it keeps alive; goes into the access token as sid. */
+  sessionId: string;
+}
+
+/** Who is signing in, as the request tells: shown in the session list. */
+export interface ClientInfo {
+  userAgent: string | null;
+  ip: string | null;
 }
 
 export type RotationResult =
   | { status: 'rotated'; userId: string; refreshToken: IssuedRefreshToken }
-  | { status: 'reused'; userId: string; familyId: string }
+  | { status: 'reused'; userId: string; sessionId: string }
   | { status: 'invalid' };
 
 type Db = Prisma.TransactionClient;
@@ -21,6 +29,12 @@ type Db = Prisma.TransactionClient;
 // SHA-256 is enough to store it (unlike a password) and lets us look it up.
 const hashToken = (token: string) =>
   createHash('sha256').update(token).digest('hex');
+
+/** Column sizes: a header is whatever the client sends. */
+const clientColumns = ({ userAgent, ip }: ClientInfo) => ({
+  userAgent: userAgent?.slice(0, 512) ?? null,
+  ip: ip?.slice(0, 64) ?? null,
+});
 
 @Injectable()
 export class RefreshTokenService {
@@ -34,17 +48,27 @@ export class RefreshTokenService {
       config.get('REFRESH_TOKEN_TTL_DAYS', { infer: true }) * 24 * 3600 * 1000;
   }
 
-  /** Starts a new family, i.e. a new session (login, registration). */
-  issue(userId: string, db: Db = this.prisma): Promise<IssuedRefreshToken> {
-    return this.create(db, userId, randomUUID());
+  /** Starts a session (login, registration) and its first token. */
+  async issue(
+    userId: string,
+    client: ClientInfo,
+    db: Db = this.prisma,
+  ): Promise<IssuedRefreshToken> {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + this.ttlMs);
+    const session = await db.session.create({
+      data: { userId, ...clientColumns(client), lastUsedAt: now, expiresAt },
+      select: { id: true },
+    });
+    return this.create(db, userId, session.id, expiresAt);
   }
 
   /**
-   * Exchanges a refresh token for a new one in the same family.
+   * Exchanges a refresh token for a new one in the same session.
    * A token can be exchanged once; presenting it again means it leaked,
-   * so the whole family (the session) is revoked.
+   * so the whole session is ended.
    */
-  rotate(presented: string): Promise<RotationResult> {
+  rotate(presented: string, client: ClientInfo): Promise<RotationResult> {
     const now = new Date();
 
     // One transaction: consuming the old token and issuing the new one
@@ -52,8 +76,11 @@ export class RefreshTokenService {
     return this.prisma.$transaction(async (tx): Promise<RotationResult> => {
       const current = await tx.refreshToken.findUnique({
         where: { tokenHash: hashToken(presented) },
+        include: { session: { select: { revokedAt: true } } },
       });
-      if (!current) return { status: 'invalid' };
+      // An ended session: its tokens are dead, but presenting one is not
+      // theft (a device signed out from elsewhere refreshes as usual).
+      if (!current || current.session.revokedAt) return { status: 'invalid' };
 
       // Compare-and-set. UPDATE locks the row and re-checks the WHERE
       // clause after any concurrent writer commits, so of two requests
@@ -66,50 +93,74 @@ export class RefreshTokenService {
 
       if (count === 0) {
         if (current.expiresAt <= now) return { status: 'invalid' };
-        // Already consumed: earlier, or by a concurrent request just now.
-        await tx.refreshToken.updateMany({
-          where: { familyId: current.familyId, revokedAt: null },
-          data: { revokedAt: now },
-        });
+        // Already used: earlier, or by a concurrent request just now.
+        await this.end(tx, { id: current.familyId }, now);
         return {
           status: 'reused',
           userId: current.userId,
-          familyId: current.familyId,
+          sessionId: current.familyId,
         };
       }
 
+      const expiresAt = new Date(now.getTime() + this.ttlMs);
+      await tx.session.update({
+        where: { id: current.familyId },
+        data: { ...clientColumns(client), lastUsedAt: now, expiresAt },
+      });
       return {
         status: 'rotated',
         userId: current.userId,
-        refreshToken: await this.create(tx, current.userId, current.familyId),
+        refreshToken: await this.create(
+          tx,
+          current.userId,
+          current.familyId,
+          expiresAt,
+        ),
       };
     });
   }
 
   /** Ends the session the token belongs to. Unknown tokens are ignored. */
-  async revokeFamily(presented: string): Promise<void> {
+  async revokeSessionOf(presented: string): Promise<void> {
     const current = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: hashToken(presented) },
       select: { familyId: true },
     });
-    if (!current) return;
+    if (current) await this.end(this.prisma, { id: current.familyId });
+  }
 
-    await this.prisma.refreshToken.updateMany({
-      where: { familyId: current.familyId, revokedAt: null },
-      data: { revokedAt: new Date() },
+  /**
+   * Ends the sessions matching `where` that are still going; how many.
+   * The guard reads revoked_at on every request: the access tokens of an
+   * ended session stop working at once.
+   */
+  async end(
+    db: Db,
+    where: Prisma.SessionWhereInput,
+    now = new Date(),
+  ): Promise<number> {
+    const { count } = await db.session.updateMany({
+      where: { ...where, revokedAt: null },
+      data: { revokedAt: now },
     });
+    return count;
   }
 
   private async create(
     db: Db,
     userId: string,
-    familyId: string,
+    sessionId: string,
+    expiresAt: Date,
   ): Promise<IssuedRefreshToken> {
     const token = randomBytes(32).toString('base64url');
-    const expiresAt = new Date(Date.now() + this.ttlMs);
     await db.refreshToken.create({
-      data: { userId, familyId, tokenHash: hashToken(token), expiresAt },
+      data: {
+        userId,
+        familyId: sessionId,
+        tokenHash: hashToken(token),
+        expiresAt,
+      },
     });
-    return { token, expiresAt };
+    return { token, expiresAt, sessionId };
   }
 }

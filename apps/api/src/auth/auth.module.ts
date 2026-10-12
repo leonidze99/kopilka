@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { RefreshTokenService } from './refresh-token.service.js';
+import { SessionsService } from './sessions.service.js';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { RefreshTokenService } from './refresh-token.service.js';
   providers: [
     AuthService,
     RefreshTokenService,
+    SessionsService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })

@@ -1,5 +1,11 @@
 export {
+  type AuthSession,
+  securityApi,
   sessionApi,
+  useChangePasswordMutation,
+  useEndOtherSessionsMutation,
+  useEndSessionMutation,
+  useListSessionsQuery,
   useLoginMutation,
   useLogoutMutation,
   useMeQuery,

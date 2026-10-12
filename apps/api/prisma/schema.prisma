@@ -38,6 +38,7 @@ model User {
   categories     Category[]
   transactions   Transaction[]
   refreshTokens  RefreshToken[]
+  sessions       Session[]
 
   @@map("users")
 }
@@ -347,19 +348,47 @@ model ImportCategoryRule {
   @@map("import_category_rules")
 }
 
+/// A signed-in device: one login, kept alive by refresh tokens. The access
+/// token carries its id (sid) and JwtAuthGuard checks it on every request,
+/// so ending a session takes effect at once, not when the token expires.
+model Session {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  /// As the browser sent it at the last sign-in or refresh.
+  userAgent  String?   @map("user_agent") @db.VarChar(512)
+  ip         String?   @db.VarChar(64)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// The last refresh: about every 15 minutes while the app is open.
+  lastUsedAt DateTime  @map("last_used_at") @db.Timestamptz(3)
+  /// When its newest refresh token expires: the session dies with it.
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(3)
+  /// Ended: signed out, ended from another device, a password change, or a
+  /// stolen refresh token presented. The one source of truth for that.
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(3)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@map("sessions")
+}
+
 /// Opaque refresh tokens; only a SHA-256 hash is stored, never the token itself.
-/// Every login starts a family; each refresh rotates the token within it.
-/// Presenting an already rotated token means it was stolen: the whole family is revoked.
+/// Every login starts a session (family_id); each refresh rotates the token
+/// within it. revoked_at here means used: presenting a used token means it
+/// was stolen, and the whole session is ended.
 model RefreshToken {
   id        String    @id @default(uuid(7)) @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   familyId  String    @map("family_id") @db.Uuid
   tokenHash String    @unique @map("token_hash") @db.Char(64)
   expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  /// Used by a rotation (exchanged for the next token).
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
   @@index([userId])

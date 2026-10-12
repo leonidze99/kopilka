@@ -5,6 +5,7 @@ import { ImportDetailsPage, ImportPage } from '@/pages/import';
 import { LoginPage } from '@/pages/login';
 import { RecurringPage } from '@/pages/recurring';
 import { RegisterPage } from '@/pages/register';
+import { SettingsPage } from '@/pages/settings';
 import { TransactionsPage } from '@/pages/transactions';
 import { AppLayout } from '../layouts/AppLayout';
 import { GuestOnly, RequireAuth } from './guards';
@@ -22,6 +23,7 @@ export const routes: RouteObject[] = [
           { path: '/recurring', element: <RecurringPage /> },
           { path: '/import', element: <ImportPage /> },
           { path: '/import/:id', element: <ImportDetailsPage /> },
+          { path: '/settings', element: <SettingsPage /> },
         ],
       },
     ],
