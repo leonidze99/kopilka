@@ -1,4 +1,5 @@
 export { Button } from './button/Button';
+export { ButtonLink } from './button/ButtonLink';
 export { FormError } from './form-error/FormError';
 export { PageLoader } from './page-loader/PageLoader';
 export { TextField } from './text-field/TextField';

@@ -10,6 +10,8 @@
   font: inherit;
   font-weight: 600;
   white-space: nowrap;
+  /* Also on ButtonLink. */
+  text-decoration: none;
   cursor: pointer;
   transition:
     background-color 0.15s,
@@ -39,6 +41,8 @@
 
 .primary:hover:not(:disabled) {
   background: var(--color-accent-hover);
+  /* Over the global a:hover color, for ButtonLink. */
+  color: var(--color-on-accent);
 }
 
 .secondary {
@@ -49,6 +53,7 @@
 
 .secondary:hover:not(:disabled) {
   background: var(--color-surface-hover);
+  color: var(--color-text);
 }
 
 .ghost {

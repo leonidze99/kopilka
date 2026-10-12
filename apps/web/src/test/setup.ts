@@ -2,6 +2,18 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { server } from './server';
 
+// jsdom brings its own FormData and File, but fetch here is Node's
+// (undici), which cannot read them: an upload fails with "reading
+// '_buffer'". Browsers have one implementation of both. Node's classes are
+// not globals under jsdom; a multipart body parsed by Node's Response
+// gives an instance of each.
+const nodeForm = await new Response(
+  '--b\r\nContent-Disposition: form-data; name="f"; filename="f"\r\n\r\n\r\n--b--\r\n',
+  { headers: { 'content-type': 'multipart/form-data; boundary=b' } },
+).formData();
+globalThis.FormData = nodeForm.constructor as typeof FormData;
+globalThis.File = (nodeForm.get('f') as File).constructor as typeof File;
+
 // jsdom has <dialog> but not its methods. The attribute is enough for tests:
 // an open dialog is in the accessibility tree, a closed one is not.
 HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {

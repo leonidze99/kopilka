@@ -1,6 +1,7 @@
 import { Navigate, type RouteObject } from 'react-router';
 import { AccountsPage } from '@/pages/accounts';
 import { CategoriesPage } from '@/pages/categories';
+import { ImportDetailsPage, ImportPage } from '@/pages/import';
 import { LoginPage } from '@/pages/login';
 import { RecurringPage } from '@/pages/recurring';
 import { RegisterPage } from '@/pages/register';
@@ -19,6 +20,8 @@ export const routes: RouteObject[] = [
           { path: '/accounts', element: <AccountsPage /> },
           { path: '/categories', element: <CategoriesPage /> },
           { path: '/recurring', element: <RecurringPage /> },
+          { path: '/import', element: <ImportPage /> },
+          { path: '/import/:id', element: <ImportDetailsPage /> },
         ],
       },
     ],

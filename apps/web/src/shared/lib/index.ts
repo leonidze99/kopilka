@@ -16,4 +16,5 @@ export {
   shiftMonth,
 } from './month';
 export { formatMoney, formatSignedMoney } from './money';
+export { pluralize } from './plural';
 export { type Theme, useTheme } from './theme';
