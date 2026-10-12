@@ -72,6 +72,7 @@ describe('TransactionList', () => {
       comment: null,
       occurredAt: '2026-10-05T12:00:00.000Z',
       createdAt: '2026-10-05T12:00:00.000Z',
+      recurringRuleId: null,
       account: { id: MAIN_ACCOUNT.id, name: MAIN_ACCOUNT.name, type: 'card' },
       toAccount: { id: cash.id, name: cash.name, type: 'cash' },
     } as const;

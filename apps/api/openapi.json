@@ -922,6 +922,141 @@
         ]
       }
     },
+    "/budgets": {
+      "get": {
+        "description": "`from`/`to` are the bounds of `month` in the user’s time zone.",
+        "operationId": "BudgetsController_list",
+        "parameters": [
+          {
+            "name": "month",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Month"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Limits that apply in a month, with what was spent",
+        "tags": [
+          "budgets"
+        ]
+      }
+    },
+    "/budgets/{categoryId}": {
+      "put": {
+        "description": "Applies until the next change; earlier months keep their limits. `amount: null` stops the budget from that month.",
+        "operationId": "BudgetsController_set",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetBudgetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Set the limit of a category from a month on",
+        "tags": [
+          "budgets"
+        ]
+      }
+    },
     "/categories": {
       "get": {
         "operationId": "CategoriesController_list",
@@ -1148,6 +1283,204 @@
         "summary": "Delete a category",
         "tags": [
           "categories"
+        ]
+      }
+    },
+    "/recurring": {
+      "get": {
+        "operationId": "RecurringController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringRuleList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Recurring rules: active first, by next payment",
+        "tags": [
+          "recurring"
+        ]
+      },
+      "post": {
+        "description": "The server makes each payment once its day begins in `timeZone`. Dates before today are not filled in.",
+        "operationId": "RecurringController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurringInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringRule"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a monthly income, expense or transfer",
+        "tags": [
+          "recurring"
+        ]
+      }
+    },
+    "/recurring/{id}": {
+      "put": {
+        "description": "The schedule restarts from today, after the last payment already made.",
+        "operationId": "RecurringController_replace",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurringInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringRule"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Replace a recurring rule",
+        "tags": [
+          "recurring"
+        ]
+      },
+      "delete": {
+        "description": "Transactions it already made stay.",
+        "operationId": "RecurringController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete a recurring rule",
+        "tags": [
+          "recurring"
         ]
       }
     },
@@ -1867,6 +2200,75 @@
           }
         }
       },
+      "Month": {
+        "type": "string",
+        "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+        "example": "2026-10"
+      },
+      "BudgetList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Budget"
+            }
+          },
+          "total": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "string"
+              },
+              "spent": {
+                "type": "string"
+              },
+              "remaining": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "limit",
+              "spent",
+              "remaining"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "Budget": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "limit": {
+            "type": "string"
+          },
+          "spent": {
+            "type": "string"
+          },
+          "remaining": {
+            "type": "string"
+          },
+          "since": {
+            "$ref": "#/components/schemas/Month"
+          }
+        },
+        "required": [
+          "category",
+          "limit",
+          "spent",
+          "remaining",
+          "since"
+        ],
+        "additionalProperties": false
+      },
       "Category": {
         "type": "object",
         "properties": {
@@ -1894,6 +2296,24 @@
         "enum": [
           "income",
           "expense"
+        ]
+      },
+      "SetBudgetRequest": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "$ref": "#/components/schemas/Month"
+          },
+          "amount": {
+            "nullable": true,
+            "type": "string",
+            "description": "Positive decimal with up to 2 fraction digits, e.g. \"1234.56\"",
+            "example": "1234.56"
+          }
+        },
+        "required": [
+          "month",
+          "amount"
         ]
       },
       "CreateCategoryRequest": {
@@ -1924,6 +2344,270 @@
         },
         "required": [
           "name"
+        ]
+      },
+      "RecurringRuleList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RecurringRule"
+        }
+      },
+      "RecurringRule": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CategorizedRecurringRule"
+          },
+          {
+            "$ref": "#/components/schemas/RecurringTransferRule"
+          }
+        ]
+      },
+      "CategorizedRecurringRule": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "comment": {
+            "nullable": true,
+            "type": "string"
+          },
+          "account": {
+            "$ref": "#/components/schemas/AccountRef"
+          },
+          "startOn": {
+            "$ref": "#/components/schemas/CalendarDate"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "nextOn": {
+            "$ref": "#/components/schemas/CalendarDate"
+          },
+          "lastError": {
+            "nullable": true,
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "amount",
+          "comment",
+          "account",
+          "startOn",
+          "timeZone",
+          "active",
+          "nextOn",
+          "lastError",
+          "category"
+        ],
+        "additionalProperties": false
+      },
+      "AccountRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccountType"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "CalendarDate": {
+        "type": "string",
+        "format": "date",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+        "example": "2026-10-05"
+      },
+      "RecurringTransferRule": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "transfer"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "comment": {
+            "nullable": true,
+            "type": "string"
+          },
+          "account": {
+            "$ref": "#/components/schemas/AccountRef"
+          },
+          "startOn": {
+            "$ref": "#/components/schemas/CalendarDate"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "nextOn": {
+            "$ref": "#/components/schemas/CalendarDate"
+          },
+          "lastError": {
+            "nullable": true,
+            "type": "string"
+          },
+          "toAccount": {
+            "$ref": "#/components/schemas/AccountRef"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "amount",
+          "comment",
+          "account",
+          "startOn",
+          "timeZone",
+          "active",
+          "nextOn",
+          "lastError",
+          "toAccount"
+        ],
+        "additionalProperties": false
+      },
+      "RecurringInput": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CategorizedRecurringInput"
+          },
+          {
+            "$ref": "#/components/schemas/RecurringTransferInput"
+          }
+        ]
+      },
+      "CategorizedRecurringInput": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "amount": {
+            "type": "string",
+            "description": "Positive decimal with up to 2 fraction digits, e.g. \"1234.56\"",
+            "example": "1234.56"
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 280
+          },
+          "startOn": {
+            "$ref": "#/components/schemas/CalendarDate"
+          },
+          "timeZone": {
+            "type": "string",
+            "example": "Europe/Moscow"
+          },
+          "active": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "type",
+          "categoryId",
+          "accountId",
+          "amount",
+          "startOn",
+          "timeZone"
+        ]
+      },
+      "RecurringTransferInput": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "transfer"
+            ]
+          },
+          "toAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "amount": {
+            "type": "string",
+            "description": "Positive decimal with up to 2 fraction digits, e.g. \"1234.56\"",
+            "example": "1234.56"
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 280
+          },
+          "startOn": {
+            "$ref": "#/components/schemas/CalendarDate"
+          },
+          "timeZone": {
+            "type": "string",
+            "example": "Europe/Moscow"
+          },
+          "active": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "type",
+          "toAccountId",
+          "accountId",
+          "amount",
+          "startOn",
+          "timeZone"
         ]
       },
       "TransactionType": {
@@ -1993,6 +2677,12 @@
           "account": {
             "$ref": "#/components/schemas/AccountRef"
           },
+          "recurringRuleId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
           "category": {
             "$ref": "#/components/schemas/Category"
           }
@@ -2005,29 +2695,8 @@
           "occurredAt",
           "createdAt",
           "account",
+          "recurringRuleId",
           "category"
-        ],
-        "additionalProperties": false
-      },
-      "AccountRef": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-          },
-          "name": {
-            "type": "string"
-          },
-          "type": {
-            "$ref": "#/components/schemas/AccountType"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "type"
         ],
         "additionalProperties": false
       },
@@ -2063,6 +2732,12 @@
           "account": {
             "$ref": "#/components/schemas/AccountRef"
           },
+          "recurringRuleId": {
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
           "toAccount": {
             "$ref": "#/components/schemas/AccountRef"
           }
@@ -2075,6 +2750,7 @@
           "occurredAt",
           "createdAt",
           "account",
+          "recurringRuleId",
           "toAccount"
         ],
         "additionalProperties": false

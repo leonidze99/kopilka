@@ -78,6 +78,13 @@
   text-overflow: ellipsis;
 }
 
+.recurring {
+  display: inline-flex;
+  margin-left: 6px;
+  vertical-align: -1px;
+  color: var(--color-text-subtle);
+}
+
 .comment {
   overflow: hidden;
   font-size: var(--text-sm);

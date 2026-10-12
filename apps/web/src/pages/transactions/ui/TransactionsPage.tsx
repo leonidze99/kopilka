@@ -5,6 +5,7 @@ import { CreateTransactionForm } from '@/features/transaction-form';
 import { currentMonth, type Month, parseMonth } from '@/shared/lib';
 import { Dialog, MonthSwitcher, Panel } from '@/shared/ui';
 import { AccountStrip } from '@/widgets/account-strip';
+import { BudgetPanel } from '@/widgets/budget-panel';
 import { CategoryBreakdown } from '@/widgets/category-breakdown';
 import { MonthSummary } from '@/widgets/month-summary';
 import { type ListFilter, TransactionList } from '@/widgets/transaction-list';
@@ -74,6 +75,7 @@ export function TransactionsPage() {
             selectedId={filter.categoryId}
             onSelect={(categoryId) => setFilter({ categoryId })}
           />
+          <BudgetPanel month={month} />
           <TransactionList
             month={month}
             filter={filter}

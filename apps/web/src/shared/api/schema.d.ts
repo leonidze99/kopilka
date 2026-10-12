@@ -166,6 +166,46 @@ export interface paths {
         patch: operations["AccountsController_update"];
         trace?: never;
     };
+    "/budgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Limits that apply in a month, with what was spent
+         * @description `from`/`to` are the bounds of `month` in the user’s time zone.
+         */
+        get: operations["BudgetsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/budgets/{categoryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the limit of a category from a month on
+         * @description Applies until the next change; earlier months keep their limits. `amount: null` stops the budget from that month.
+         */
+        put: operations["BudgetsController_set"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/categories": {
         parameters: {
             query?: never;
@@ -203,6 +243,51 @@ export interface paths {
         head?: never;
         /** Rename a category (its kind is fixed) */
         patch: operations["CategoriesController_rename"];
+        trace?: never;
+    };
+    "/recurring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recurring rules: active first, by next payment */
+        get: operations["RecurringController_list"];
+        put?: never;
+        /**
+         * Create a monthly income, expense or transfer
+         * @description The server makes each payment once its day begins in `timeZone`. Dates before today are not filled in.
+         */
+        post: operations["RecurringController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recurring/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace a recurring rule
+         * @description The schedule restarts from today, after the last payment already made.
+         */
+        put: operations["RecurringController_replace"];
+        post?: never;
+        /**
+         * Delete a recurring rule
+         * @description Transactions it already made stay.
+         */
+        delete: operations["RecurringController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/transactions": {
@@ -361,6 +446,23 @@ export interface components {
             openingBalance?: string;
             allowNegative?: boolean;
         };
+        /** @example 2026-10 */
+        Month: string;
+        BudgetList: {
+            items: components["schemas"]["Budget"][];
+            total: {
+                limit: string;
+                spent: string;
+                remaining: string;
+            };
+        };
+        Budget: {
+            category: components["schemas"]["Category"];
+            limit: string;
+            spent: string;
+            remaining: string;
+            since: components["schemas"]["Month"];
+        };
         Category: {
             /** Format: uuid */
             id: string;
@@ -369,12 +471,100 @@ export interface components {
         };
         /** @enum {string} */
         TransactionKind: "income" | "expense";
+        SetBudgetRequest: {
+            month: components["schemas"]["Month"];
+            /**
+             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+             * @example 1234.56
+             */
+            amount: string | null;
+        };
         CreateCategoryRequest: {
             kind: components["schemas"]["TransactionKind"];
             name: string;
         };
         UpdateCategoryRequest: {
             name: string;
+        };
+        RecurringRuleList: components["schemas"]["RecurringRule"][];
+        RecurringRule: components["schemas"]["CategorizedRecurringRule"] | components["schemas"]["RecurringTransferRule"];
+        CategorizedRecurringRule: {
+            type: components["schemas"]["TransactionKind"];
+            /** Format: uuid */
+            id: string;
+            amount: string;
+            comment: string | null;
+            account: components["schemas"]["AccountRef"];
+            startOn: components["schemas"]["CalendarDate"];
+            timeZone: string;
+            active: boolean;
+            nextOn: components["schemas"]["CalendarDate"];
+            lastError: string | null;
+            category: components["schemas"]["Category"];
+        };
+        AccountRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: components["schemas"]["AccountType"];
+        };
+        /**
+         * Format: date
+         * @example 2026-10-05
+         */
+        CalendarDate: string;
+        RecurringTransferRule: {
+            /** @enum {string} */
+            type: "transfer";
+            /** Format: uuid */
+            id: string;
+            amount: string;
+            comment: string | null;
+            account: components["schemas"]["AccountRef"];
+            startOn: components["schemas"]["CalendarDate"];
+            timeZone: string;
+            active: boolean;
+            nextOn: components["schemas"]["CalendarDate"];
+            lastError: string | null;
+            toAccount: components["schemas"]["AccountRef"];
+        };
+        RecurringInput: components["schemas"]["CategorizedRecurringInput"] | components["schemas"]["RecurringTransferInput"];
+        CategorizedRecurringInput: {
+            type: components["schemas"]["TransactionKind"];
+            /** Format: uuid */
+            categoryId: string;
+            /** Format: uuid */
+            accountId: string;
+            /**
+             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+             * @example 1234.56
+             */
+            amount: string;
+            comment?: string;
+            startOn: components["schemas"]["CalendarDate"];
+            /** @example Europe/Moscow */
+            timeZone: string;
+            /** @default true */
+            active: boolean;
+        };
+        RecurringTransferInput: {
+            /** @enum {string} */
+            type: "transfer";
+            /** Format: uuid */
+            toAccountId: string;
+            /** Format: uuid */
+            accountId: string;
+            /**
+             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+             * @example 1234.56
+             */
+            amount: string;
+            comment?: string;
+            startOn: components["schemas"]["CalendarDate"];
+            /** @example Europe/Moscow */
+            timeZone: string;
+            /** @default true */
+            active: boolean;
         };
         /** @enum {string} */
         TransactionType: "income" | "expense" | "transfer";
@@ -394,13 +584,9 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             account: components["schemas"]["AccountRef"];
-            category: components["schemas"]["Category"];
-        };
-        AccountRef: {
             /** Format: uuid */
-            id: string;
-            name: string;
-            type: components["schemas"]["AccountType"];
+            recurringRuleId: string | null;
+            category: components["schemas"]["Category"];
         };
         Transfer: {
             /** @enum {string} */
@@ -414,6 +600,8 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             account: components["schemas"]["AccountRef"];
+            /** Format: uuid */
+            recurringRuleId: string | null;
             toAccount: components["schemas"]["AccountRef"];
         };
         TransactionSummary: {
@@ -1125,6 +1313,97 @@ export interface operations {
             };
         };
     };
+    BudgetsController_list: {
+        parameters: {
+            query: {
+                month: components["schemas"]["Month"];
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetList"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    BudgetsController_set: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     CategoriesController_list: {
         parameters: {
             query?: never;
@@ -1301,6 +1580,164 @@ export interface operations {
             };
             /** @description CONFLICT: clashes with existing data */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    RecurringController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringRuleList"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    RecurringController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecurringInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringRule"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    RecurringController_replace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecurringInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringRule"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    RecurringController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -50,7 +50,13 @@ export const emptyAccount = () => [
     HttpResponse.json({ income: '0.00', expense: '0.00', balance: '0.00' }),
   ),
   http.get(apiUrl('/transactions/by-category'), () => HttpResponse.json([])),
+  http.get(apiUrl('/budgets'), () => HttpResponse.json(NO_BUDGETS)),
 ];
+
+const NO_BUDGETS = {
+  items: [],
+  total: { limit: '0.00', spent: '0.00', remaining: '0.00' },
+};
 
 export const FOOD = {
   id: '0199d0a4-0000-7000-8000-00000000f00d',
@@ -90,6 +96,7 @@ export const transaction = (
     occurredAt: '2026-10-05T12:00:00.000Z',
     createdAt: '2026-10-05T12:00:00.000Z',
     account: accountRef,
+    recurringRuleId: null,
     ...overrides,
     category,
   };

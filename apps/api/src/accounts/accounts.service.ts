@@ -234,6 +234,30 @@ export class AccountsService {
     );
   }
 
+  /**
+   * Before a write that takes `amount` off an account, inside its
+   * transaction and after lock(): what the account would lack, or null if
+   * it may go there (it allows negative or has enough). For callers that
+   * skip rather than fail, like the recurring runner.
+   */
+  async shortfall(
+    tx: Tx,
+    userId: string,
+    accountId: string,
+    amount: Prisma.Decimal,
+  ): Promise<{ account: string; missing: string } | null> {
+    const [row] = await tx.$queryRaw<BalanceRow[]>(
+      balancesQuery(userId, [accountId]),
+    );
+    if (!row || row.allow_negative) return null;
+    const after = new Prisma.Decimal(row.balance).minus(amount);
+    if (!after.isNegative()) return null;
+    return {
+      account: row.name,
+      missing: rubles.format(after.negated().toNumber()),
+    };
+  }
+
   private async get(
     client: Tx | PrismaService,
     userId: string,

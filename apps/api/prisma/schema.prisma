@@ -31,10 +31,11 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  accounts      Account[]
-  categories    Category[]
-  transactions  Transaction[]
-  refreshTokens RefreshToken[]
+  accounts       Account[]
+  recurringRules RecurringRule[]
+  categories     Category[]
+  transactions   Transaction[]
+  refreshTokens  RefreshToken[]
 
   @@map("users")
 }
@@ -48,8 +49,10 @@ model Category {
   createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  budgets      Budget[]
+  recurring    RecurringRule[]
 
   // "Подарки" may exist both as income and as expense.
   @@unique([userId, kind, name])
@@ -73,9 +76,11 @@ model Account {
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[] @relation("TransactionAccount")
-  transfersIn  Transaction[] @relation("TransferTarget")
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]   @relation("TransactionAccount")
+  transfersIn  Transaction[]   @relation("TransferTarget")
+  recurring    RecurringRule[] @relation("RecurringAccount")
+  recurringIn  RecurringRule[] @relation("RecurringTarget")
 
   @@unique([userId, name])
   // Target of the composite foreign keys from transactions.
@@ -88,25 +93,33 @@ model Account {
 /// SQL-only: CHECK (num_nonnulls(category_id, to_account_id) = 1)
 /// and CHECK (to_account_id <> account_id).
 model Transaction {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  accountId   String   @map("account_id") @db.Uuid
-  categoryId  String?  @map("category_id") @db.Uuid
-  toAccountId String?  @map("to_account_id") @db.Uuid
-  amount      Decimal  @db.Decimal(14, 2)
-  comment     String?  @db.VarChar(280)
-  occurredAt  DateTime @map("occurred_at") @db.Timestamptz(3)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id              String    @id @default(uuid(7)) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  accountId       String    @map("account_id") @db.Uuid
+  categoryId      String?   @map("category_id") @db.Uuid
+  toAccountId     String?   @map("to_account_id") @db.Uuid
+  amount          Decimal   @db.Decimal(14, 2)
+  comment         String?   @db.VarChar(280)
+  occurredAt      DateTime  @map("occurred_at") @db.Timestamptz(3)
+  /// Made by a recurring rule, for its occurrence on recurring_on.
+  recurringRuleId String?   @map("recurring_rule_id") @db.Uuid
+  recurringOn     DateTime? @map("recurring_on") @db.Date
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Composite keys: the database itself guarantees that a transaction only
   // references a category and accounts of the same user. A NULL column
   // (no category in a transfer) skips the check: MATCH SIMPLE.
-  account   Account   @relation("TransactionAccount", fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
-  toAccount Account?  @relation("TransferTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Restrict)
-  category  Category? @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+  account       Account        @relation("TransactionAccount", fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
+  toAccount     Account?       @relation("TransferTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Restrict)
+  category      Category?      @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+  // The transactions stay when their rule is deleted.
+  recurringRule RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
 
+  // Idempotency key: one transaction per occurrence of a rule, whatever
+  // retries or a second runner do.
+  @@unique([recurringRuleId, recurringOn])
   // Keyset pagination: ORDER BY occurred_at DESC, id DESC within a user.
   @@index([userId, occurredAt(sort: Desc), id(sort: Desc)])
   @@index([categoryId])
@@ -114,6 +127,67 @@ model Transaction {
   @@index([accountId])
   @@index([toAccountId])
   @@map("transactions")
+}
+
+/// A monthly income, expense or transfer the server creates on its day
+/// (RecurringRunner). Occurrence n falls on start_on + n months: counted
+/// from the anchor, so the 31st stays the 31st (or the month's last day)
+/// instead of drifting to the 28th after February. next_on/next_index point
+/// at the next one; a payment is due once that day begins in time_zone.
+/// SQL-only: the same CHECKs as on transactions (category or target account).
+model RecurringRule {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  categoryId  String?  @map("category_id") @db.Uuid
+  toAccountId String?  @map("to_account_id") @db.Uuid
+  amount      Decimal  @db.Decimal(14, 2)
+  comment     String?  @db.VarChar(280)
+  startOn     DateTime @map("start_on") @db.Date
+  timeZone    String   @map("time_zone") @db.VarChar(64)
+  active      Boolean  @default(true)
+  nextOn      DateTime @map("next_on") @db.Date
+  nextIndex   Int      @map("next_index")
+  /// Why the latest payment was skipped; cleared by the next one made.
+  lastError   String?  @map("last_error") @db.VarChar(280)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // A rule is a setting: it goes away with its account or category.
+  account      Account       @relation("RecurringAccount", fields: [accountId, userId], references: [id, userId], onDelete: Cascade)
+  toAccount    Account?      @relation("RecurringTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Cascade)
+  category     Category?     @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId])
+  // The runner looks for active rules due by a date.
+  @@index([nextOn], map: "recurring_rules_due_idx")
+  @@map("recurring_rules")
+}
+
+/// A monthly spending limit of an expense category, as versions: each row
+/// applies from its month until the next row of the category. Raising the
+/// limit in October leaves September as it was. amount NULL: no limit from
+/// that month on.
+/// SQL-only: CHECK (extract(day FROM effective_from) = 1).
+model Budget {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  categoryId    String   @map("category_id") @db.Uuid
+  amount        Decimal? @db.Decimal(14, 2)
+  /// The first day of the month the version starts.
+  effectiveFrom DateTime @map("effective_from") @db.Date
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // A limit dies with its category; the composite key keeps it the user's own.
+  category Category @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
+
+  // One version per month; also serves "the latest version of a category".
+  @@unique([categoryId, effectiveFrom])
+  @@index([userId])
+  @@map("budgets")
 }
 
 /// Opaque refresh tokens; only a SHA-256 hash is stored, never the token itself.

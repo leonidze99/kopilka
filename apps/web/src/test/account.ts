@@ -19,7 +19,20 @@ interface AccountData {
   summary?: Schemas['TransactionSummary'];
   /** What GET /transactions/by-category answers, whatever the query. */
   categoryTotals?: Schemas['CategoryTotal'][];
+  /** Limits of the month, whatever the month asked. */
+  budgets?: Budget[];
+  recurring?: RecurringRule[];
 }
+
+type RecurringRule = Schemas['RecurringRule'];
+type RecurringInput = Schemas['RecurringInput'];
+
+type Budget = Schemas['Budget'];
+type SetBudget = Schemas['SetBudgetRequest'] & { categoryId: string };
+
+// Test data only: the real API sums money exactly in the database.
+const sum = (values: string[]) =>
+  values.reduce((total, value) => total + Number(value), 0).toFixed(2);
 
 let nextId = 1;
 const newId = () =>
@@ -38,14 +51,20 @@ export function mockAccount({
   transactions = [],
   summary = { income: '0.00', expense: '0.00', balance: '0.00' },
   categoryTotals = [],
+  budgets = [],
+  recurring = [],
 }: AccountData = {}) {
   const state = {
+    budgets: [...budgets],
+    recurring: [...recurring],
     accounts: accounts.map((account) => ({ ...account })),
     categories: categories.map((category) => ({ ...category })),
     transactions: [...transactions],
   };
   const sent = {
     accounts: [] as CreateAccount[],
+    budgets: [] as SetBudget[],
+    recurring: [] as RecurringInput[],
     categories: [] as CreateCategory[],
     transactions: [] as TransactionInput[],
     replacements: [] as TransactionInput[],
@@ -63,6 +82,7 @@ export function mockAccount({
       occurredAt: body.occurredAt,
       createdAt: new Date().toISOString(),
       account: ref(account),
+      recurringRuleId: null,
     };
     if (body.type === 'transfer') {
       const to = state.accounts.find((a) => a.id === body.toAccountId);
@@ -167,6 +187,67 @@ export function mockAccount({
     http.get(apiUrl('/transactions/by-category'), () =>
       HttpResponse.json(categoryTotals),
     ),
+
+    http.get(apiUrl('/recurring'), () => HttpResponse.json(state.recurring)),
+    http.post(apiUrl('/recurring'), async ({ request }) => {
+      const body = (await request.json()) as RecurringInput;
+      sent.recurring.push(body);
+      const account = state.accounts.find((a) => a.id === body.accountId);
+      if (!account) throw new Error(`unknown account ${body.accountId}`);
+      const common = {
+        id: newId(),
+        amount: Number(body.amount).toFixed(2),
+        comment: body.comment || null,
+        account: ref(account),
+        startOn: body.startOn,
+        timeZone: body.timeZone,
+        active: body.active ?? true,
+        nextOn: body.startOn,
+        lastError: null,
+      };
+      let created: RecurringRule;
+      if (body.type === 'transfer') {
+        const to = state.accounts.find((a) => a.id === body.toAccountId);
+        if (!to) throw new Error(`unknown account ${body.toAccountId}`);
+        created = { ...common, type: 'transfer', toAccount: ref(to) };
+      } else {
+        const category = state.categories.find((c) => c.id === body.categoryId);
+        if (!category) throw new Error(`unknown category ${body.categoryId}`);
+        created = { ...common, type: body.type, category };
+      }
+      state.recurring.push(created);
+      return HttpResponse.json(created, { status: 201 });
+    }),
+
+    http.get(apiUrl('/budgets'), () => {
+      const limit = sum(state.budgets.map((budget) => budget.limit));
+      const spent = sum(state.budgets.map((budget) => budget.spent));
+      return HttpResponse.json({
+        items: state.budgets,
+        total: { limit, spent, remaining: (+limit - +spent).toFixed(2) },
+      });
+    }),
+    http.put(`${API_URL}/budgets/:categoryId`, async ({ params, request }) => {
+      const body = (await request.json()) as Schemas['SetBudgetRequest'];
+      const categoryId = String(params.categoryId);
+      sent.budgets.push({ categoryId, ...body });
+      const existing = state.budgets.find((b) => b.category.id === categoryId);
+      state.budgets = state.budgets.filter((b) => b !== existing);
+      if (body.amount !== null) {
+        const category = state.categories.find((c) => c.id === categoryId);
+        if (!category) return new HttpResponse(null, { status: 404 });
+        const limit = Number(body.amount).toFixed(2);
+        const spent = existing?.spent ?? '0.00';
+        state.budgets.push({
+          category,
+          limit,
+          spent,
+          remaining: (+limit - +spent).toFixed(2),
+          since: body.month,
+        });
+      }
+      return new HttpResponse(null, { status: 204 });
+    }),
   );
 
   return { state, sent };

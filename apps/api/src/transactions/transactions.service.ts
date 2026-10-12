@@ -28,6 +28,7 @@ const transactionSelect = {
   comment: true,
   occurredAt: true,
   createdAt: true,
+  recurringRuleId: true,
   account: { select: accountRefSelect },
   toAccount: { select: accountRefSelect },
   category: { select: categorySelect },

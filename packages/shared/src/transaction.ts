@@ -64,6 +64,8 @@ const outputFields = {
   createdAt: z.coerce.date(),
   /** For a transfer: the account the money left. */
   account: accountRefSchema,
+  /** Made by this recurring rule; null for one entered by hand. */
+  recurringRuleId: z.uuid().nullable(),
 };
 
 export const transactionSchema = z

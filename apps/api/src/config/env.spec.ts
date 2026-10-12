@@ -19,7 +19,18 @@ describe('envSchema', () => {
       TRUST_PROXY_HOPS: 0,
       JWT_ACCESS_TTL_SECONDS: 900,
       REFRESH_TOKEN_TTL_DAYS: 30,
+      JOBS_ENABLED: true,
     });
+  });
+
+  it.each([
+    ['false', false],
+    ['0', false],
+    ['true', true],
+  ])('reads JOBS_ENABLED=%s as %s', (value, expected) => {
+    expect(envSchema.parse({ ...base, JOBS_ENABLED: value }).JOBS_ENABLED).toBe(
+      expected,
+    );
   });
 
   it('coerces numbers from strings', () => {

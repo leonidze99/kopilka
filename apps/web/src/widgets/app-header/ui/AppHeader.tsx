@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Tags, Wallet } from 'lucide-react';
+import { ArrowLeftRight, Repeat, Tags, Wallet } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { Link, NavLink } from 'react-router';
 import { selectCurrentUser } from '@/entities/session';
@@ -28,6 +28,10 @@ export function AppHeader() {
           <NavLink to="/accounts" className={navClass}>
             <Wallet size={18} aria-hidden />
             Счета
+          </NavLink>
+          <NavLink to="/recurring" className={navClass}>
+            <Repeat size={18} aria-hidden />
+            Регулярные
           </NavLink>
           <NavLink to="/categories" className={navClass}>
             <Tags size={18} aria-hidden />

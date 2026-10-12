@@ -35,11 +35,11 @@ export interface TransactionFilter extends Period {
 
 type TransactionInput = RequestBody<'/transactions', 'post'>;
 
-// Every write moves money: the balances of accounts change with it.
-const WRITE_TAGS = ['Transaction', 'Account'] as const;
+// Every write moves money: account balances and budget spending change too.
+const WRITE_TAGS = ['Transaction', 'Account', 'Budget'] as const;
 
 export const transactionApi = baseApi
-  .enhanceEndpoints({ addTagTypes: ['Transaction', 'Account'] })
+  .enhanceEndpoints({ addTagTypes: ['Transaction', 'Account', 'Budget'] })
   .injectEndpoints({
     endpoints: (build) => ({
       /**

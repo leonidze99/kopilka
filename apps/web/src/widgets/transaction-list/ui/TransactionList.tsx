@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   ChevronRight,
   ReceiptText,
+  Repeat,
   SearchX,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -182,6 +183,17 @@ export function TransactionList({
   );
 }
 
+/** Made by a recurring rule, not by hand. */
+function RecurringMark({ transaction }: { transaction: Transaction }) {
+  if (!transaction.recurringRuleId) return null;
+  return (
+    <span className={styles.recurring} title="Регулярная операция">
+      <Repeat size={13} aria-hidden />
+      <span className="visually-hidden">регулярная</span>
+    </span>
+  );
+}
+
 interface RowContentProps {
   transaction: Transaction;
   showAccount: boolean;
@@ -215,7 +227,10 @@ function RowContent({ transaction, showAccount, accountId }: RowContentProps) {
           <ArrowLeftRight size={18} />
         </span>
         <span className={styles.main}>
-          <span className={styles.category}>Перевод</span>
+          <span className={styles.category}>
+            Перевод
+            <RecurringMark transaction={transaction} />
+          </span>
           <span className={styles.comment}>
             {transaction.account.name} → {transaction.toAccount.name}
             {transaction.comment && ` · ${transaction.comment}`}
@@ -240,7 +255,10 @@ function RowContent({ transaction, showAccount, accountId }: RowContentProps) {
         className={styles.avatar}
       />
       <span className={styles.main}>
-        <span className={styles.category}>{transaction.category.name}</span>
+        <span className={styles.category}>
+          {transaction.category.name}
+          <RecurringMark transaction={transaction} />
+        </span>
         {transaction.comment && (
           <span className={styles.comment}>{transaction.comment}</span>
         )}

@@ -1,0 +1,12 @@
+/* Side by side where there is room (the dialog), stacked in the aside. */
+.row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.hint {
+  margin: -4px 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

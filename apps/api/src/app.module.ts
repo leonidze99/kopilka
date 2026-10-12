@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { minutes, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
@@ -7,7 +8,9 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { AccountsModule } from './accounts/accounts.module.js';
+import { BudgetsModule } from './budgets/budgets.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
+import { RecurringModule } from './recurring/recurring.module.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { createValidationPipe } from './common/errors/validation.pipe.js';
 import { createLoggerParams } from './common/logging/logger.config.js';
@@ -37,11 +40,15 @@ import { TransactionsModule } from './transactions/transactions.module.js';
       throttlers: [{ ttl: minutes(1), limit: 100 }],
       errorMessage: 'Too many requests, try again later',
     }),
+    // Cron jobs; each job checks JOBS_ENABLED itself.
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     HealthModule,
     AccountsModule,
+    BudgetsModule,
     CategoriesModule,
+    RecurringModule,
     TransactionsModule,
   ],
   controllers: [AppController],

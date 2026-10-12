@@ -1,0 +1,202 @@
+import { HttpStatus, Injectable } from '@nestjs/common';
+import type { RecurringInputDto, RecurringRule } from '@kopilka/shared';
+import { accountRefSelect } from '../accounts/accounts.service.js';
+import { categorySelect } from '../categories/categories.service.js';
+import { AppException } from '../common/errors/app.exception.js';
+import type { Prisma } from '../generated/prisma/client.js';
+import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  addDays,
+  dateOf,
+  firstOnOrAfter,
+  toDateColumn,
+  todayIn,
+} from './schedule.js';
+
+const ruleSelect = {
+  id: true,
+  amount: true,
+  comment: true,
+  startOn: true,
+  timeZone: true,
+  active: true,
+  nextOn: true,
+  lastError: true,
+  account: { select: accountRefSelect },
+  toAccount: { select: accountRefSelect },
+  category: { select: categorySelect },
+} satisfies Prisma.RecurringRuleSelect;
+
+type RuleRow = Prisma.RecurringRuleGetPayload<{ select: typeof ruleSelect }>;
+
+function toRule({ toAccount, category, ...row }: RuleRow): RecurringRule {
+  const common = {
+    ...row,
+    amount: row.amount.toFixed(2),
+    startOn: dateOf(row.startOn),
+    nextOn: dateOf(row.nextOn),
+  };
+  if (toAccount) return { type: 'transfer', ...common, toAccount };
+  // CHECK (num_nonnulls(category_id, to_account_id) = 1) rules this out.
+  if (!category) throw new Error(`Recurring rule ${row.id} has no category`);
+  return { type: category.kind, ...common, category };
+}
+
+const notFound = () =>
+  new AppException(
+    'NOT_FOUND',
+    'Recurring rule not found',
+    HttpStatus.NOT_FOUND,
+  );
+
+const invalid = (field: string, message: string, detail: string) =>
+  new AppException('VALIDATION_FAILED', message, HttpStatus.BAD_REQUEST, [
+    { field, message: detail },
+  ]);
+
+@Injectable()
+export class RecurringService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async list(userId: string): Promise<RecurringRule[]> {
+    const rows = await this.prisma.recurringRule.findMany({
+      where: { userId },
+      select: ruleSelect,
+      orderBy: [{ active: 'desc' }, { nextOn: 'asc' }, { id: 'asc' }],
+    });
+    return rows.map(toRule);
+  }
+
+  async create(userId: string, dto: RecurringInputDto): Promise<RecurringRule> {
+    await this.checkRefs(userId, dto);
+    const row = await this.write(() =>
+      this.prisma.recurringRule.create({
+        data: { userId, ...this.columnsOf(dto, this.scheduleOf(dto)) },
+        select: ruleSelect,
+      }),
+    );
+    return toRule(row);
+  }
+
+  /**
+   * Replaces the rule. The schedule restarts from today, after the last
+   * payment it already made: an edit never makes one twice.
+   */
+  async replace(
+    userId: string,
+    id: string,
+    dto: RecurringInputDto,
+  ): Promise<RecurringRule> {
+    await this.checkRefs(userId, dto);
+    const last = await this.prisma.transaction.findFirst({
+      where: { recurringRuleId: id, userId },
+      orderBy: { recurringOn: 'desc' },
+      select: { recurringOn: true },
+    });
+    const schedule = this.scheduleOf(
+      dto,
+      last?.recurringOn ? addDays(dateOf(last.recurringOn), 1) : undefined,
+    );
+    const row = await this.write(() =>
+      this.prisma.recurringRule.update({
+        where: { id, userId },
+        // A fresh start: the last error was about the old settings.
+        data: { ...this.columnsOf(dto, schedule), lastError: null },
+        select: ruleSelect,
+      }),
+    );
+    return toRule(row);
+  }
+
+  async remove(userId: string, id: string): Promise<void> {
+    // Transactions it made stay: their link is set to NULL.
+    await this.write(() =>
+      this.prisma.recurringRule.delete({ where: { id, userId } }),
+    );
+  }
+
+  /**
+   * The next payment: the first on or after today in the rule's zone (past
+   * dates are not filled in: they may have been entered by hand), and after
+   * `notBefore` if given.
+   */
+  private scheduleOf(dto: RecurringInputDto, notBefore?: string) {
+    const today = todayIn(dto.timeZone, new Date());
+    const from = [dto.startOn, today, notBefore ?? ''].sort().at(-1) as string;
+    const { index, on } = firstOnOrAfter(dto.startOn, from);
+    return { nextIndex: index, nextOn: toDateColumn(on) };
+  }
+
+  private columnsOf(
+    dto: RecurringInputDto,
+    schedule: { nextIndex: number; nextOn: Date },
+  ) {
+    return {
+      accountId: dto.accountId,
+      categoryId: dto.type === 'transfer' ? null : dto.categoryId,
+      toAccountId: dto.type === 'transfer' ? dto.toAccountId : null,
+      amount: dto.amount,
+      comment: dto.comment || null,
+      startOn: toDateColumn(dto.startOn),
+      timeZone: dto.timeZone,
+      active: dto.active,
+      ...schedule,
+    };
+  }
+
+  /**
+   * The user's own accounts and a category of the right kind, each error
+   * under its field. The composite foreign keys would refuse another
+   * user's ids too, but without telling which one.
+   */
+  private async checkRefs(userId: string, dto: RecurringInputDto) {
+    const accountIds = [
+      dto.accountId,
+      ...(dto.type === 'transfer' ? [dto.toAccountId] : []),
+    ];
+    const owned = await this.prisma.account.findMany({
+      where: { userId, id: { in: accountIds } },
+      select: { id: true },
+    });
+    const found = new Set(owned.map((account) => account.id));
+    if (!found.has(dto.accountId)) {
+      throw invalid('accountId', 'Account not found', 'Счёт не найден');
+    }
+    if (dto.type === 'transfer') {
+      if (!found.has(dto.toAccountId)) {
+        throw invalid('toAccountId', 'Account not found', 'Счёт не найден');
+      }
+      return;
+    }
+    const category = await this.prisma.category.findUnique({
+      where: { id_userId: { id: dto.categoryId, userId } },
+      select: { kind: true },
+    });
+    if (!category) {
+      throw invalid('categoryId', 'Category not found', 'Категория не найдена');
+    }
+    if (category.kind !== dto.type) {
+      throw invalid(
+        'categoryId',
+        'Category of another kind',
+        dto.type === 'income'
+          ? 'Это категория расходов'
+          : 'Это категория доходов',
+      );
+    }
+  }
+
+  private async write<T>(work: () => Promise<T>): Promise<T> {
+    try {
+      return await work();
+    } catch (error) {
+      if (isPrismaError(error, PrismaCode.NotFound)) throw notFound();
+      // An account or the category was deleted after the check.
+      if (isPrismaError(error, PrismaCode.ForeignKeyViolation)) {
+        throw invalid('accountId', 'Account not found', 'Счёт не найден');
+      }
+      throw error;
+    }
+  }
+}
