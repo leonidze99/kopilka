@@ -118,11 +118,28 @@ export class ImportsController {
     return this.imports.commit(user.id, id, dto);
   }
 
+  @Post(':id/undo')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Undo an import',
+    description:
+      'Deletes the transactions it created, edited ones included, all or none (`done` → `undone`). INSUFFICIENT_FUNDS if removing its income would take an account that must not go negative below zero. The same file may then be imported again.',
+  })
+  @ApiOkResponse({ standardSchema: importSchema })
+  @ApiErrorResponses(404, 409)
+  undo(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Import> {
+    return this.imports.undo(user.id, id);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Discard an import',
-    description: 'Not once it is importing or done.',
+    description:
+      'Not while importing, and not once done: undo it first, then it may go.',
   })
   @ApiNoContentResponse()
   @ApiErrorResponses(404, 409)

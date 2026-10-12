@@ -119,6 +119,25 @@ export const importApi = baseApi
         },
       }),
 
+      /** Deletes the transactions it made: lists, totals and budgets change. */
+      undoImport: build.mutation<Import, string>({
+        query: (id) => ({ url: `/imports/${id}/undo`, method: 'POST' }),
+        invalidatesTags: [
+          'Transaction',
+          'Account',
+          'Budget',
+          { type: 'Import', id: 'LIST' },
+        ],
+        async onQueryStarted(id, { dispatch, queryFulfilled }) {
+          const result = await queryFulfilled.catch(() => undefined);
+          if (result) {
+            dispatch(
+              importApi.util.upsertQueryData('getImport', id, result.data),
+            );
+          }
+        },
+      }),
+
       deleteImport: build.mutation<void, string>({
         query: (id) => ({ url: `/imports/${id}`, method: 'DELETE' }),
         invalidatesTags: [{ type: 'Import', id: 'LIST' }],
@@ -130,6 +149,7 @@ export const {
   useListImportsQuery,
   useGetImportQuery,
   useUploadImportMutation,
+  useUndoImportMutation,
   useSetImportMappingMutation,
   useCommitImportMutation,
   useDeleteImportMutation,

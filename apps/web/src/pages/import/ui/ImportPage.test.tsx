@@ -29,7 +29,14 @@ const uploaded = (overrides: Partial<Import> = {}): Import => ({
   createdAt: '2026-10-12T09:00:00.000Z',
   account: null,
   totalRows: 6,
-  counts: { new: 0, duplicate: 0, invalid: 0, skipped: 0, imported: 0 },
+  counts: {
+    new: 0,
+    duplicate: 0,
+    invalid: 0,
+    skipped: 0,
+    imported: 0,
+    undone: 0,
+  },
   timeZone: null,
   headers: [
     'Дата операции',
@@ -44,6 +51,7 @@ const uploaded = (overrides: Partial<Import> = {}): Import => ({
   processed: 0,
   errors: [],
   categories: [],
+  possibleDuplicates: [],
   error: null,
   ...overrides,
 });
@@ -59,7 +67,14 @@ const parsed = (current: Import): Import => ({
   ...current,
   status: 'ready',
   processed: 6,
-  counts: { new: 4, duplicate: 0, invalid: 1, skipped: 1, imported: 0 },
+  counts: {
+    new: 4,
+    duplicate: 0,
+    invalid: 1,
+    skipped: 1,
+    imported: 0,
+    undone: 0,
+  },
   errors: [{ line: 7, message: 'Не дата: «вчера»' }],
   categories: [
     {
@@ -273,6 +288,7 @@ describe('ImportPage', () => {
             { kind: 'expense', source: 'Супермаркеты', categoryId: FOOD.id },
             { kind: 'income', source: 'Зарплата', categoryId: SALARY.id },
           ],
+          skipLines: [],
         },
       ]);
 
@@ -346,5 +362,117 @@ describe('ImportPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'На счёте «Наличные» не хватает 100,00 ₽',
     );
+  });
+
+  it('leaves out possible duplicates unless told otherwise', async () => {
+    mockAccount({ categories: [FOOD, SALARY] });
+    const ready: Import = {
+      ...parsed(uploaded({ account: accountRef })),
+      possibleDuplicates: [
+        {
+          line: 5,
+          kind: 'expense',
+          amount: '1840.50',
+          occurredAt: '2026-10-06T16:40:00.000Z',
+          description: 'Пятёрочка',
+          source: 'Супермаркеты',
+          similar: {
+            id: '0199d0a4-1111-7000-8000-000000000999',
+            occurredAt: '2026-10-06T18:00:00.000Z',
+            comment: 'Продукты на неделю',
+            label: 'Продукты',
+          },
+        },
+      ],
+    };
+    const commits: Commit[] = [];
+    server.use(
+      http.get(`${API_URL}/imports/:id`, () => HttpResponse.json(ready)),
+      http.post(`${API_URL}/imports/:id/commit`, async ({ request }) => {
+        commits.push((await request.json()) as Commit);
+        return HttpResponse.json({ ...ready, status: 'importing' });
+      }),
+    );
+    const { user } = renderApp(`/import/${ID}`, { session: 'authenticated' });
+
+    const duplicates = await screen.findByRole('list', {
+      name: 'Возможные дубли',
+    });
+    expect(duplicates).toHaveTextContent(
+      /−1\s840,50\s₽ · Пятёрочка.*Похоже на: Продукты «Продукты на неделю»/,
+    );
+    const skip = within(duplicates).getByRole('checkbox', {
+      name: 'Пропустить',
+    });
+    expect(skip).toBeChecked();
+    // Its group had only that row: no category to choose for it.
+    expect(
+      screen.queryByRole('combobox', { name: 'Категория для «Супермаркеты»' }),
+    ).not.toBeInTheDocument();
+
+    // Imported after all: the group is back, with its suggestion.
+    await user.click(skip);
+    expect(
+      screen.getByRole('combobox', { name: 'Категория для «Супермаркеты»' }),
+    ).toHaveValue(FOOD.id);
+    await user.click(skip);
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Категория для «Кафе»' }),
+      FOOD.id,
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Импортировать 3 операции' }),
+    );
+
+    await vi.waitFor(() => expect(commits).toHaveLength(1));
+    expect(commits[0]).toEqual({
+      categories: [
+        { kind: 'expense', source: 'Кафе', categoryId: FOOD.id },
+        { kind: 'income', source: 'Зарплата', categoryId: SALARY.id },
+      ],
+      skipLines: [5],
+    });
+  });
+
+  it('undoes a finished import, saying how much goes', async () => {
+    mockAccount();
+    const done: Import = {
+      ...uploaded({ account: accountRef }),
+      status: 'done',
+      counts: {
+        new: 4,
+        duplicate: 0,
+        invalid: 0,
+        skipped: 0,
+        imported: 4,
+        undone: 0,
+      },
+    };
+    let undone = 0;
+    server.use(
+      http.get(`${API_URL}/imports/:id`, () => HttpResponse.json(done)),
+      http.post(`${API_URL}/imports/:id/undo`, () => {
+        undone++;
+        return HttpResponse.json({
+          ...done,
+          status: 'undone',
+          counts: { ...done.counts, undone: 4 },
+        });
+      }),
+    );
+    const { user } = renderApp(`/import/${ID}`, { session: 'authenticated' });
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Отменить импорт' }),
+    );
+    expect(undone).toBe(0);
+    await user.click(
+      screen.getByRole('button', { name: 'Удалить 4 операции?' }),
+    );
+
+    expect(await screen.findByText('Импорт отменён')).toBeInTheDocument();
+    expect(screen.getByText(/Удалено 4 операции\./)).toBeInTheDocument();
+    expect(undone).toBe(1);
   });
 });

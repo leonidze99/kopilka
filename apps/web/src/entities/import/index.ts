@@ -10,6 +10,7 @@ export {
   useGetImportQuery,
   useListImportsQuery,
   useSetImportMappingMutation,
+  useUndoImportMutation,
   useUploadImportMutation,
 } from './api/import-api';
 export { useImport } from './api/use-import';

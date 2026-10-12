@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { importColumnsSchema } from '@kopilka/shared';
-import { AccountsService } from '../accounts/accounts.service.js';
+import { AccountsService, type Tx } from '../accounts/accounts.service.js';
 import { AppException } from '../common/errors/app.exception.js';
 import type { Env } from '../config/env.js';
 import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
@@ -211,6 +211,7 @@ export class ImportWorker {
           AND t.account_id = ${job.account_id}::uuid
           AND t.import_fingerprint = r.fingerprint
       `;
+      await this.findSimilar(tx, job);
       await tx.$executeRaw`
         UPDATE imports i SET
           status = 'ready',
@@ -232,6 +233,55 @@ export class ImportWorker {
         WHERE i.id = ${job.id}::uuid
       `;
     });
+  }
+
+  /**
+   * Possible duplicates: a new row and a transaction of the account that
+   * was not imported (entered by hand, or made by a recurring rule) with
+   * the same direction and amount, at most two days apart (a purchase
+   * entered the evening it happened, posted by the bank the next day).
+   * Fingerprints cannot find these: a hand-entered one has none.
+   *
+   * Each transaction explains at most one row: two coffees in the file and
+   * one entered by hand are one duplicate, not two. Pairs are kept when
+   * each is the other's nearest (window functions rank candidates both
+   * ways): an approximation of a one-to-one matching, cheap and right in
+   * the usual case of a few candidates.
+   *
+   * Direction relative to the account: an income, or a transfer into it,
+   * is money in; an expense, or a transfer out, money out.
+   */
+  private findSimilar(tx: Tx, job: Job): Promise<number> {
+    return tx.$executeRaw`
+      WITH candidates AS (
+        SELECT r.line, t.id AS transaction_id,
+               abs(extract(epoch FROM t.occurred_at - r.occurred_at)) AS distance
+        FROM import_rows r
+        JOIN transactions t
+          ON (t.account_id = ${job.account_id}::uuid OR t.to_account_id = ${job.account_id}::uuid)
+         AND t.import_fingerprint IS NULL
+         AND t.amount = r.amount
+         AND t.occurred_at BETWEEN r.occurred_at - interval '2 days'
+                               AND r.occurred_at + interval '2 days'
+        LEFT JOIN categories c ON c.id = t.category_id
+        WHERE r.import_id = ${job.id}::uuid AND r.status = 'new'
+          AND r.kind = CASE
+                WHEN t.to_account_id = ${job.account_id}::uuid THEN 'income'
+                WHEN c.kind = 'income' THEN 'income'
+                ELSE 'expense'
+              END::transaction_kind
+      ),
+      ranked AS (
+        SELECT line, transaction_id,
+               row_number() OVER (PARTITION BY line ORDER BY distance, transaction_id) AS for_row,
+               row_number() OVER (PARTITION BY transaction_id ORDER BY distance, line) AS for_transaction
+        FROM candidates
+      )
+      UPDATE import_rows r SET similar_transaction_id = ranked.transaction_id
+      FROM ranked
+      WHERE r.import_id = ${job.id}::uuid AND r.line = ranked.line
+        AND ranked.for_row = 1 AND ranked.for_transaction = 1
+    `;
   }
 
   /**

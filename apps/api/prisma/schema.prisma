@@ -122,16 +122,17 @@ model Transaction {
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Composite keys: the database itself guarantees that a transaction only
   // references a category and accounts of the same user. A NULL column
   // (no category in a transfer) skips the check: MATCH SIMPLE.
-  account       Account        @relation("TransactionAccount", fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
-  toAccount     Account?       @relation("TransferTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Restrict)
-  category      Category?      @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+  account           Account        @relation("TransactionAccount", fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
+  toAccount         Account?       @relation("TransferTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Restrict)
+  category          Category?      @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
   // The transactions stay when their rule is deleted.
-  recurringRule RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
-  import        Import?        @relation(fields: [importId], references: [id], onDelete: SetNull)
+  recurringRule     RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
+  import            Import?        @relation(fields: [importId], references: [id], onDelete: SetNull)
+  similarImportRows ImportRow[]    @relation("SimilarImportRows")
 
   // Idempotency key: one transaction per occurrence of a rule, whatever
   // retries or a second runner do.
@@ -225,6 +226,8 @@ enum ImportStatus {
   importing
   done
   failed
+  /// Its transactions deleted again (undo); the file may be imported anew.
+  undone
 
   @@map("import_status")
 }
@@ -273,6 +276,8 @@ model Import {
   invalidRows   Int          @default(0) @map("invalid_rows")
   skippedRows   Int          @default(0) @map("skipped_rows")
   importedRows  Int          @default(0) @map("imported_rows")
+  /// Transactions deleted by the undo (some may have been deleted by hand).
+  undoneRows    Int          @default(0) @map("undone_rows")
   /// Why the import failed, for the user.
   error         String?      @db.VarChar(280)
   /// Lease of the worker processing it; expired = free to take over.
@@ -301,29 +306,38 @@ model Import {
 /// No foreign key on category_id: a scratch value, checked when the
 /// transactions are created (their own foreign key).
 model ImportRow {
-  importId       String           @map("import_id") @db.Uuid
+  importId             String           @map("import_id") @db.Uuid
   /// Line number in the file, the header being line 1: what the user sees
   /// in a spreadsheet.
-  line           Int
-  cells          String[]
+  line                 Int
+  cells                String[]
   /// NULL: not parsed yet.
-  status         ImportRowStatus?
+  status               ImportRowStatus?
   /// Date and time as written in the statement, no zone: the fingerprint
   /// does not change with the zone the user picks.
-  localAt        DateTime?        @map("local_at") @db.Timestamp(0)
-  occurredAt     DateTime?        @map("occurred_at") @db.Timestamptz(3)
-  amount         Decimal?         @db.Decimal(14, 2)
-  kind           TransactionKind?
-  description    String?          @db.VarChar(280)
+  localAt              DateTime?        @map("local_at") @db.Timestamp(0)
+  occurredAt           DateTime?        @map("occurred_at") @db.Timestamptz(3)
+  amount               Decimal?         @db.Decimal(14, 2)
+  kind                 TransactionKind?
+  description          String?          @db.VarChar(280)
   /// The bank's category, '' if none: what the user maps to a category.
-  sourceCategory String?          @map("source_category") @db.VarChar(64)
-  categoryId     String?          @map("category_id") @db.Uuid
-  fingerprint    String?          @db.Char(64)
-  error          String?          @db.VarChar(280)
+  sourceCategory       String?          @map("source_category") @db.VarChar(64)
+  categoryId           String?          @map("category_id") @db.Uuid
+  fingerprint          String?          @db.Char(64)
+  error                String?          @db.VarChar(280)
+  /// A transaction entered by hand (or by a recurring rule) that looks like
+  /// this row: same account, direction and amount, a day or two apart.
+  /// Shown as a possible duplicate; the user decides.
+  similarTransactionId String?          @map("similar_transaction_id") @db.Uuid
 
-  import Import @relation(fields: [importId], references: [id], onDelete: Cascade)
+  import             Import       @relation(fields: [importId], references: [id], onDelete: Cascade)
+  similarTransaction Transaction? @relation("SimilarImportRows", fields: [similarTransactionId], references: [id], onDelete: SetNull)
 
   @@id([importId, line])
+  // Deleting a transaction looks up the rows pointing at it (ON DELETE SET
+  // NULL): without an index, a scan of import_rows per deleted transaction,
+  // and an undo deletes thousands at once.
+  @@index([similarTransactionId])
   @@map("import_rows")
 }
 

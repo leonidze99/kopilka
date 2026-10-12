@@ -12,6 +12,9 @@ import styles from './ImportHistory.module.css';
 
 /** What came of an import, in a few words. */
 function outcome({ status, counts }: ImportSummary): string {
+  if (status === 'undone') {
+    return `Отменена, удалено ${pluralize(counts.undone, OPERATIONS)}`;
+  }
   if (status !== 'done') return IMPORT_STATUS_LABELS[status];
   const imported = `Добавлено ${pluralize(counts.imported, OPERATIONS)}`;
   return counts.duplicate > 0
@@ -54,7 +57,9 @@ export function ImportHistory() {
               <span
                 className={[
                   styles.status,
-                  item.status !== 'done' && styles.pending,
+                  item.status !== 'done' &&
+                    item.status !== 'undone' &&
+                    styles.pending,
                 ]
                   .filter(Boolean)
                   .join(' ')}

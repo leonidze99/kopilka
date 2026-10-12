@@ -1,4 +1,4 @@
-import { ArrowLeft, CircleCheck, FileQuestion } from 'lucide-react';
+import { ArrowLeft, CircleCheck, FileQuestion, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/entities/import';
 import { ImportCategoriesForm } from '@/features/import-commit';
 import { DiscardImportButton } from '@/features/import-discard';
+import { UndoImportButton } from '@/features/import-undo';
 import { ImportColumnsForm } from '@/features/import-mapping';
 import { errorMessage, pluralize } from '@/shared/lib';
 import {
@@ -30,7 +31,7 @@ const STEPS = ['Колонки', 'Проверка', 'Готово'] as const;
 const stepOf = (status: Import['status']) =>
   status === 'uploaded' || status === 'parsing' || status === 'failed'
     ? 0
-    : status === 'done'
+    : status === 'done' || status === 'undone'
       ? 2
       : 1;
 
@@ -121,6 +122,34 @@ function Done({ imported }: { imported: Import }) {
             К операциям
           </ButtonLink>
           <ButtonLink to="/import">Загрузить ещё</ButtonLink>
+          {counts.imported > 0 && (
+            <UndoImportButton importId={imported.id} count={counts.imported} />
+          )}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function Undone({ imported }: { imported: Import }) {
+  const { counts } = imported;
+  return (
+    <Panel>
+      <div className={own.done}>
+        <p className={own.doneTitle}>
+          <Undo2 size={22} aria-hidden />
+          Импорт отменён
+        </p>
+        <p className={own.doneText}>
+          {counts.undone > 0
+            ? `Удалено ${pluralize(counts.undone, OPERATIONS)}.`
+            : 'Операций этого импорта уже не было.'}{' '}
+          Тот же файл можно загрузить снова.
+        </p>
+        <div className={own.actions}>
+          <ButtonLink variant="primary" to="/import">
+            Загрузить файл
+          </ButtonLink>
         </div>
       </div>
     </Panel>
@@ -246,6 +275,7 @@ export function ImportDetailsPage() {
       )}
 
       {status === 'done' && <Done imported={imported} />}
+      {status === 'undone' && <Undone imported={imported} />}
     </div>
   );
 }

@@ -209,11 +209,16 @@ describe('Imports (e2e)', () => {
         group.category?.id ?? fallback[`${group.kind}:${group.source}`],
     }));
 
-  const commit = (user: TestUser, id: string, categories: object[]) =>
+  const commit = (
+    user: TestUser,
+    id: string,
+    categories: object[],
+    skipLines?: number[],
+  ) =>
     http()
       .post(`/api/imports/${id}/commit`)
       .set('Authorization', user.auth)
-      .send({ categories });
+      .send({ categories, ...(skipLines && { skipLines }) });
 
   const transactions = async (user: TestUser): Promise<Transaction[]> =>
     transactionPageSchema.parse(
@@ -530,6 +535,228 @@ describe('Imports (e2e)', () => {
       await map(user, imported, accountId).expect(200);
       await worker.runPending();
       expect((await get(user, imported.id)).status).toBe('ready');
+    });
+  });
+
+  describe('undo', () => {
+    const undo = (user: TestUser, id: string) =>
+      http().post(`/api/imports/${id}/undo`).set('Authorization', user.auth);
+
+    it('deletes what the import made, edited or not, and lets the file in again', async () => {
+      const { user, accountId, groceries, cafe } = await setUp();
+      const first = await ready(user, tbank(STATEMENT), accountId);
+      await commit(
+        user,
+        first.id,
+        choices(first, { 'expense:Супермаркеты': groceries }),
+      ).expect(200);
+      await worker.runPending();
+      // A manual transaction stays; an imported one gets a new category.
+      await http()
+        .post('/api/transactions')
+        .set('Authorization', user.auth)
+        .send({
+          type: 'expense',
+          accountId,
+          categoryId: cafe,
+          amount: '1',
+          occurredAt: new Date(),
+        })
+        .expect(201);
+      const [edited] = (await transactions(user)).filter(
+        (t) => t.comment === 'Пятёрочка',
+      );
+      await http()
+        .put(`/api/transactions/${edited?.id}`)
+        .set('Authorization', user.auth)
+        .send({
+          type: 'expense',
+          accountId,
+          categoryId: cafe,
+          amount: '1840.50',
+          occurredAt: edited?.occurredAt,
+          comment: 'Пятёрочка',
+        })
+        .expect(200);
+
+      const { body } = await undo(user, first.id).expect(200);
+
+      expect(importSchema.parse(body)).toMatchObject({
+        status: 'undone',
+        counts: { imported: 4, undone: 4 },
+      });
+      expect((await transactions(user)).map((t) => t.amount)).toEqual(['1.00']);
+      // The fingerprints went with the rows: the same file is new again.
+      const again = await ready(user, tbank(STATEMENT), accountId);
+      expect(again.counts).toMatchObject({ new: 4, duplicate: 0 });
+      // Undone, it may leave the history; a done one may not.
+      await http()
+        .delete(`/api/imports/${first.id}`)
+        .set('Authorization', user.auth)
+        .expect(204);
+      await undo(user, again.id).expect(409);
+    });
+
+    it('refuses, deleting nothing, if an account would go below zero', async () => {
+      const { user, salary } = await setUp();
+      const { body: cash } = await http()
+        .post('/api/accounts')
+        .set('Authorization', user.auth)
+        .send({ name: 'Наличные', type: 'cash', allowNegative: false })
+        .expect(201);
+      const imported = await ready(
+        user,
+        tbank([
+          {
+            at: '01.10.2026 10:00:00',
+            amount: '1 000,00',
+            category: 'Зарплата',
+          },
+        ]),
+        cash.id,
+      );
+      await commit(user, imported.id, choices(imported)).expect(200);
+      await worker.runPending();
+      // Spent most of the imported income meanwhile.
+      await http()
+        .post('/api/transactions')
+        .set('Authorization', user.auth)
+        .send({
+          type: 'income',
+          accountId: cash.id,
+          categoryId: salary,
+          amount: '1',
+          occurredAt: new Date(),
+        })
+        .expect(201);
+      const { body: food } = await http()
+        .post('/api/categories')
+        .set('Authorization', user.auth)
+        .send({ kind: 'expense', name: 'Еда' })
+        .expect(201);
+      await http()
+        .post('/api/transactions')
+        .set('Authorization', user.auth)
+        .send({
+          type: 'expense',
+          accountId: cash.id,
+          categoryId: food.id,
+          amount: '800',
+          occurredAt: new Date(),
+        })
+        .expect(201);
+
+      await undo(user, imported.id)
+        .expect(409)
+        .expect(({ body }) =>
+          expect(body).toMatchObject({
+            code: 'INSUFFICIENT_FUNDS',
+            details: [
+              { message: expect.stringContaining('не хватает 799,00') },
+            ],
+          }),
+        );
+      expect(await transactions(user)).toHaveLength(3);
+      expect((await get(user, imported.id)).status).toBe('done');
+    });
+  });
+
+  describe('possible duplicates', () => {
+    const manual = (user: TestUser, body: object) =>
+      http()
+        .post('/api/transactions')
+        .set('Authorization', user.auth)
+        .send(body)
+        .expect(201);
+
+    it('pairs a row with a transaction entered by hand, one to one, and skips it on request', async () => {
+      const { user, accountId, cafe, groceries } = await setUp();
+      // Entered by hand: one coffee at lunch (09:15 Moscow in the file is
+      // 06:15 UTC), a far older one, and one of another amount.
+      await manual(user, {
+        type: 'expense',
+        accountId,
+        categoryId: cafe,
+        amount: '250',
+        comment: 'Кофе',
+        occurredAt: '2026-10-05T09:00:00Z',
+      });
+      await manual(user, {
+        type: 'expense',
+        accountId,
+        categoryId: cafe,
+        amount: '250',
+        occurredAt: '2026-09-28T09:00:00Z',
+      });
+      await manual(user, {
+        type: 'expense',
+        accountId,
+        categoryId: cafe,
+        amount: '251',
+        occurredAt: '2026-10-05T09:00:00Z',
+      });
+      // Money moved to savings by hand: the bank shows it as an expense.
+      const { body: savings } = await http()
+        .post('/api/accounts')
+        .set('Authorization', user.auth)
+        .send({ name: 'Вклад', type: 'savings' })
+        .expect(201);
+      await manual(user, {
+        type: 'transfer',
+        accountId,
+        toAccountId: savings.id,
+        amount: '15000',
+        occurredAt: '2026-10-06T12:00:00Z',
+      });
+
+      const imported = await ready(
+        user,
+        tbank([
+          ...STATEMENT,
+          {
+            at: '07.10.2026 09:00:00',
+            amount: '-15 000,00',
+            category: 'Переводы',
+            description: 'На вклад',
+          },
+        ]),
+        accountId,
+      );
+
+      // Two coffees in the file, one by hand: one pair, not two.
+      expect(imported.possibleDuplicates).toEqual([
+        expect.objectContaining({
+          line: 3,
+          amount: '250.00',
+          kind: 'expense',
+          similar: expect.objectContaining({ comment: 'Кофе', label: 'Кафе' }),
+        }),
+        expect.objectContaining({
+          line: 8,
+          amount: '15000.00',
+          similar: expect.objectContaining({ label: 'Перевод' }),
+        }),
+      ]);
+
+      // Both skipped: "Переводы" then needs no category.
+      await commit(
+        user,
+        imported.id,
+        choices(imported, { 'expense:Супермаркеты': groceries }).filter(
+          (c) => c.source !== 'Переводы',
+        ),
+        [3, 8],
+      ).expect(200);
+      await worker.runPending();
+
+      expect((await get(user, imported.id)).counts).toMatchObject({
+        new: 3,
+        imported: 3,
+        skipped: 3,
+      });
+      expect(
+        (await transactions(user)).filter((t) => t.comment === 'Кофейня'),
+      ).toHaveLength(1);
     });
   });
 

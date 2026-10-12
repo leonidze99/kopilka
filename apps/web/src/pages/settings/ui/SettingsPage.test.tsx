@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import type { Schemas } from '@/shared/api';
 import { API_URL } from '@/shared/config/env';
@@ -104,7 +104,10 @@ describe('SettingsPage', () => {
 
     expect(sent.ended).toEqual([PHONE.id]);
     expect(await screen.findByText('Сеанс завершён')).toBeInTheDocument();
-    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    // Refetched after the toast: wait for it.
+    await waitFor(() =>
+      expect(within(list).getAllByRole('listitem')).toHaveLength(1),
+    );
     // Nothing else to sign out of.
     expect(
       screen.queryByRole('button', {
@@ -168,11 +171,13 @@ describe('SettingsPage', () => {
       currentPassword: 'old secret 1',
       newPassword: 'brand new secret',
     });
-    // The other device left the list with the old password.
-    expect(
-      within(
-        screen.getByRole('list', { name: 'Активные сеансы' }),
-      ).getAllByRole('listitem'),
-    ).toHaveLength(1);
+    // The other device left the list with the old password (refetched).
+    await waitFor(() =>
+      expect(
+        within(
+          screen.getByRole('list', { name: 'Активные сеансы' }),
+        ).getAllByRole('listitem'),
+      ).toHaveLength(1),
+    );
   });
 });

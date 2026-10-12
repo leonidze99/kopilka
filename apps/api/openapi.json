@@ -1608,7 +1608,7 @@
         ]
       },
       "delete": {
-        "description": "Not once it is importing or done.",
+        "description": "Not while importing, and not once done: undo it first, then it may go.",
         "operationId": "ImportsController_remove",
         "parameters": [
           {
@@ -1820,6 +1820,68 @@
           }
         },
         "summary": "Choose the categories and import",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/imports/{id}/undo": {
+      "post": {
+        "description": "Deletes the transactions it created, edited ones included, all or none (`done` → `undone`). INSUFFICIENT_FUNDS if removing its income would take an account that must not go negative below zero. The same file may then be imported again.",
+        "operationId": "ImportsController_undo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Import"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Undo an import",
         "tags": [
           "imports"
         ]
@@ -3087,7 +3149,8 @@
           "ready",
           "importing",
           "done",
-          "failed"
+          "failed",
+          "undone"
         ]
       },
       "AccountRef": {
@@ -3139,6 +3202,11 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
+          },
+          "undone": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
           }
         },
         "required": [
@@ -3146,7 +3214,8 @@
           "duplicate",
           "invalid",
           "skipped",
-          "imported"
+          "imported",
+          "undone"
         ],
         "additionalProperties": false
       },
@@ -3247,6 +3316,12 @@
               "$ref": "#/components/schemas/ImportCategoryGroup"
             }
           },
+          "possibleDuplicates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PossibleDuplicate"
+            }
+          },
           "error": {
             "nullable": true,
             "type": "string"
@@ -3268,6 +3343,7 @@
           "processed",
           "errors",
           "categories",
+          "possibleDuplicates",
           "error"
         ],
         "additionalProperties": false
@@ -3422,6 +3498,72 @@
         ],
         "additionalProperties": false
       },
+      "PossibleDuplicate": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "source": {
+            "nullable": true,
+            "type": "string"
+          },
+          "similar": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "comment": {
+                "nullable": true,
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "occurredAt",
+              "comment",
+              "label"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "line",
+          "kind",
+          "amount",
+          "occurredAt",
+          "description",
+          "source",
+          "similar"
+        ],
+        "additionalProperties": false
+      },
       "ImportMappingRequest": {
         "type": "object",
         "properties": {
@@ -3470,6 +3612,16 @@
                 "source",
                 "categoryId"
               ]
+            }
+          },
+          "skipLines": {
+            "default": [],
+            "maxItems": 50000,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 9007199254740991
             }
           }
         },

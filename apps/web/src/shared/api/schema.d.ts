@@ -346,7 +346,7 @@ export interface paths {
         post?: never;
         /**
          * Discard an import
-         * @description Not once it is importing or done.
+         * @description Not while importing, and not once done: undo it first, then it may go.
          */
         delete: operations["ImportsController_remove"];
         options?: never;
@@ -388,6 +388,26 @@ export interface paths {
          * @description Creates the transactions in the background (`importing` → `done`), all or none. If the account must not go negative and would, the import goes back to `ready` with `error`. The categories are remembered for the next import.
          */
         post: operations["ImportsController_commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/{id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo an import
+         * @description Deletes the transactions it created, edited ones included, all or none (`done` → `undone`). INSUFFICIENT_FUNDS if removing its income would take an account that must not go negative below zero. The same file may then be imported again.
+         */
+        post: operations["ImportsController_undo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -684,7 +704,7 @@ export interface components {
             counts: components["schemas"]["ImportCounts"];
         };
         /** @enum {string} */
-        ImportStatus: "uploading" | "uploaded" | "parsing" | "ready" | "importing" | "done" | "failed";
+        ImportStatus: "uploading" | "uploaded" | "parsing" | "ready" | "importing" | "done" | "failed" | "undone";
         AccountRef: {
             /** Format: uuid */
             id: string;
@@ -697,6 +717,7 @@ export interface components {
             invalid: number;
             skipped: number;
             imported: number;
+            undone: number;
         };
         Import: {
             /** Format: uuid */
@@ -719,6 +740,7 @@ export interface components {
                 message: string;
             }[];
             categories: components["schemas"]["ImportCategoryGroup"][];
+            possibleDuplicates: components["schemas"]["PossibleDuplicate"][];
             error: string | null;
         };
         ImportColumns: {
@@ -750,6 +772,23 @@ export interface components {
             total: string;
             category: components["schemas"]["Category"] | null;
         };
+        PossibleDuplicate: {
+            line: number;
+            kind: components["schemas"]["TransactionKind"];
+            amount: string;
+            /** Format: date-time */
+            occurredAt: string;
+            description: string | null;
+            source: string | null;
+            similar: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date-time */
+                occurredAt: string;
+                comment: string | null;
+                label: string;
+            };
+        };
         ImportMappingRequest: {
             /** Format: uuid */
             accountId: string;
@@ -764,6 +803,8 @@ export interface components {
                 /** Format: uuid */
                 categoryId: string;
             }[];
+            /** @default [] */
+            skipLines: number[];
         };
         RecurringRuleList: components["schemas"]["RecurringRule"][];
         RecurringRule: components["schemas"]["CategorizedRecurringRule"] | components["schemas"]["RecurringTransferRule"];
@@ -2274,6 +2315,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    ImportsController_undo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Import"];
                 };
             };
             /** @description UNAUTHORIZED: missing, invalid or expired credentials */

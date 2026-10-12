@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import {
   type Category,
   KIND_OPTIONS,
@@ -11,7 +11,15 @@ import {
   ROWS,
   useCommitImportMutation,
 } from '@/entities/import';
-import { errorMessage, formatMoney, pluralize, toApiError } from '@/shared/lib';
+import {
+  errorMessage,
+  formatDay,
+  formatMoney,
+  formatSignedMoney,
+  formatTime,
+  pluralize,
+  toApiError,
+} from '@/shared/lib';
 import { Button, Form, FormError, SelectField, Skeleton } from '@/shared/ui';
 import styles from './ImportCategoriesForm.module.css';
 
@@ -21,20 +29,27 @@ const NEW = 'new';
 interface CategoriesFormValues {
   /** Per group: a category id, NEW, or '' (not chosen). */
   groups: string[];
+  /** Per possible duplicate: leave it out of the import. */
+  skip: boolean[];
 }
 
 const kindLabel = (kind: string) =>
   KIND_OPTIONS.find((option) => option.value === kind)?.label;
 
+const groupKey = (kind: string, source: string | null) => `${kind}:${source}`;
+
 const GROUP_FIELD = /^categories\.(\d+)\.categoryId$/;
+
+const when = (iso: string) => `${formatDay(iso)}, ${formatTime(iso)}`;
 
 interface ImportCategoriesFormProps {
   imported: Import;
 }
 
 /**
- * A category for every bank category among the new rows, then the
- * go-ahead. Suggestions (remembered or same-named) are filled in.
+ * The go-ahead: possible duplicates to leave out, and a category for every
+ * bank category among the rows that go in. Suggestions (remembered or
+ * same-named categories; skipping a duplicate) are filled in.
  */
 export function ImportCategoriesForm({ imported }: ImportCategoriesFormProps) {
   const { data: categories } = useListCategoriesQuery();
@@ -52,22 +67,41 @@ function CategoriesForm({
 }: ImportCategoriesFormProps & { categories: Category[] }) {
   const [createCategory] = useCreateCategoryMutation();
   const [commit] = useCommitImportMutation();
-  const groups = imported.categories;
+  const { categories: groups, possibleDuplicates: duplicates } = imported;
 
   const {
     register,
+    control,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<CategoriesFormValues>({
-    defaultValues: { groups: groups.map((group) => group.category?.id ?? '') },
+    defaultValues: {
+      groups: groups.map((group) => group.category?.id ?? ''),
+      // Entered by hand already: leaving it out is the safe default.
+      skip: duplicates.map(() => true),
+    },
   });
+
+  // Rows left out per group: a group with none left needs no category.
+  const skip = useWatch({ control, name: 'skip' });
+  const skippedLines = duplicates
+    .filter((_, index) => skip[index])
+    .map((duplicate) => duplicate.line);
+  const skippedPerGroup = new Map<string, number>();
+  duplicates.forEach((duplicate, index) => {
+    if (!skip[index]) return;
+    const key = groupKey(duplicate.kind, duplicate.source);
+    skippedPerGroup.set(key, (skippedPerGroup.get(key) ?? 0) + 1);
+  });
+  const remaining = (group: (typeof groups)[number]) =>
+    group.rows - (skippedPerGroup.get(groupKey(group.kind, group.source)) ?? 0);
 
   const onSubmit = handleSubmit(async ({ groups: chosen }) => {
     const ids: string[] = [];
     for (const [index, group] of groups.entries()) {
       const value = chosen[index] ?? '';
-      if (value !== NEW) {
+      if (value !== NEW || remaining(group) === 0) {
         ids.push(value);
         continue;
       }
@@ -90,23 +124,32 @@ function CategoriesForm({
     const result = await commit({
       id: imported.id,
       body: {
-        categories: groups.map((group, index) => ({
-          kind: group.kind,
-          source: group.source,
-          categoryId: ids[index] ?? '',
-        })),
+        // The groups still going in, each still at its index: categories.N
+        // in an error is group N.
+        categories: groups.flatMap((group, index) =>
+          remaining(group) > 0
+            ? [
+                {
+                  kind: group.kind,
+                  source: group.source,
+                  categoryId: ids[index] ?? '',
+                },
+              ]
+            : [],
+        ),
+        skipLines: skippedLines,
       },
     });
     if (!result.error) return;
-    // The request lists the groups in their order: categories.N is group N.
+    const sent = groups
+      .map((group, index) => ({ group, index }))
+      .filter(({ group }) => remaining(group) > 0);
     let placed = false;
     for (const detail of toApiError(result.error)?.details ?? []) {
-      const index = GROUP_FIELD.exec(detail.field ?? '')?.[1];
+      const at = GROUP_FIELD.exec(detail.field ?? '')?.[1];
+      const index = at === undefined ? undefined : sent[Number(at)]?.index;
       if (index === undefined) continue;
-      setError(`groups.${Number(index)}`, {
-        type: 'server',
-        message: detail.message,
-      });
+      setError(`groups.${index}`, { type: 'server', message: detail.message });
       placed = true;
     }
     if (!placed) {
@@ -117,7 +160,7 @@ function CategoriesForm({
     }
   });
 
-  const total = imported.counts.new;
+  const total = imported.counts.new - skippedLines.length;
 
   return (
     <Form onSubmit={onSubmit}>
@@ -125,9 +168,48 @@ function CategoriesForm({
       <FormError
         message={errors.root?.server?.message ?? imported.error ?? undefined}
       />
-      {groups.length > 0 && (
+
+      {duplicates.length > 0 && (
+        <section className={styles.duplicates}>
+          <h3 className={styles.subtitle}>Возможно, уже есть на счёте</h3>
+          <p className={styles.hint}>
+            Похожие операции внесены вручную или регулярным платежом: та же
+            сумма, разница не больше двух дней.
+          </p>
+          <ul className={styles.duplicateList} aria-label="Возможные дубли">
+            {duplicates.map((duplicate, index) => (
+              <li key={duplicate.line} className={styles.duplicate}>
+                <label className={styles.check}>
+                  <input type="checkbox" {...register(`skip.${index}`)} />
+                  Пропустить
+                </label>
+                <span className={styles.pair}>
+                  <span>
+                    <strong>
+                      {formatSignedMoney(duplicate.amount, duplicate.kind)}
+                    </strong>
+                    {' · '}
+                    {duplicate.description ?? 'Без описания'} ·{' '}
+                    {when(duplicate.occurredAt)}
+                  </span>
+                  <span className={styles.meta}>
+                    Похоже на: {duplicate.similar.label}
+                    {duplicate.similar.comment &&
+                      ` «${duplicate.similar.comment}»`}{' '}
+                    · {when(duplicate.similar.occurredAt)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {groups.some((group) => remaining(group) > 0) && (
         <ul className={styles.groups} aria-label="Категории из выписки">
           {groups.map((group, index) => {
+            const rows = remaining(group);
+            if (rows === 0) return null;
             const name = group.source ?? 'Без категории';
             const ofKind = categories.filter((c) => c.kind === group.kind);
             // A same-named category is the suggestion already; creating
@@ -138,14 +220,14 @@ function CategoriesForm({
               !ofKind.some((c) => c.name.toLowerCase() === source);
             return (
               <li
-                key={`${group.kind}:${group.source}`}
+                key={groupKey(group.kind, group.source)}
                 className={styles.group}
               >
                 <div className={styles.source}>
                   <span className={styles.name}>{name}</span>
                   <span className={styles.meta}>
-                    {kindLabel(group.kind)} · {pluralize(group.rows, ROWS)} ·{' '}
-                    {formatMoney(group.total)}
+                    {kindLabel(group.kind)} · {pluralize(rows, ROWS)}
+                    {rows === group.rows && ` · ${formatMoney(group.total)}`}
                   </span>
                 </div>
                 <SelectField

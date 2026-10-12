@@ -8,6 +8,7 @@ export const IMPORT_STATUS_LABELS: Record<Import['status'], string> = {
   importing: 'Импортируем',
   done: 'Импортирована',
   failed: 'Не удалось обработать',
+  undone: 'Отменена',
 };
 
 /** Bank formats the API recognises by the headers. */

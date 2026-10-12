@@ -19,6 +19,8 @@ export const importStatusSchema = z
     'importing',
     'done',
     'failed',
+    // The transactions deleted again; the file may be imported anew.
+    'undone',
   ])
   .meta({ id: 'ImportStatus' });
 
@@ -82,6 +84,8 @@ export const importCommitSchema = z
         categoryId: z.uuid('Выберите категорию'),
       }),
     ),
+    /** Rows not to import: possible duplicates the user chose to skip. */
+    skipLines: z.array(z.int().min(2)).max(50_000).default([]),
   })
   .meta({ id: 'ImportCommitRequest' });
 
@@ -97,6 +101,8 @@ const importCountsSchema = z
     skipped: z.int(),
     /** Created by the import. */
     imported: z.int(),
+    /** Deleted by undoing the import. */
+    undone: z.int(),
   })
   .meta({ id: 'ImportCounts' });
 
@@ -121,6 +127,30 @@ const importSummaryFields = {
   totalRows: z.int(),
   counts: importCountsSchema,
 };
+
+/**
+ * A new row that looks like a transaction already in the account but not
+ * imported (entered by hand, or made by a recurring rule): same direction
+ * and amount, a day or two apart.
+ */
+export const possibleDuplicateSchema = z
+  .object({
+    line: z.int(),
+    kind: transactionKindSchema,
+    amount: z.string(),
+    occurredAt: z.coerce.date(),
+    description: z.string().nullable(),
+    /** The bank's category; null for rows without one. */
+    source: z.string().nullable(),
+    similar: z.object({
+      id: z.uuid(),
+      occurredAt: z.coerce.date(),
+      comment: z.string().nullable(),
+      /** Its category, or "Перевод" for a transfer. */
+      label: z.string(),
+    }),
+  })
+  .meta({ id: 'PossibleDuplicate' });
 
 export const importSummarySchema = z
   .object(importSummaryFields)
@@ -147,6 +177,8 @@ export const importSchema = z
     errors: z.array(z.object({ line: z.int(), message: z.string() })),
     /** While ready: the new rows by kind and bank category. */
     categories: z.array(importCategoryGroupSchema),
+    /** While ready: new rows like a transaction already there. */
+    possibleDuplicates: z.array(possibleDuplicateSchema),
     /** Why the last attempt failed, for the user. */
     error: z.string().nullable(),
   })
@@ -160,3 +192,4 @@ export type ImportCommitDto = z.infer<typeof importCommitSchema>;
 export type ImportCategoryGroup = z.infer<typeof importCategoryGroupSchema>;
 export type ImportSummary = z.infer<typeof importSummarySchema>;
 export type Import = z.infer<typeof importSchema>;
+export type PossibleDuplicate = z.infer<typeof possibleDuplicateSchema>;

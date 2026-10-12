@@ -9,6 +9,7 @@ import {
   type ImportSummary,
   IMPORT_MAX_COLUMNS,
   importColumnsSchema,
+  type PossibleDuplicate,
   type TransactionKind,
 } from '@kopilka/shared';
 import type { Request } from 'express';
@@ -42,6 +43,7 @@ const summarySelect = {
   invalidRows: true,
   skippedRows: true,
   importedRows: true,
+  undoneRows: true,
   account: { select: accountRefSelect },
 } satisfies Prisma.ImportSelect;
 
@@ -63,6 +65,7 @@ const toSummary = ({
   invalidRows,
   skippedRows,
   importedRows,
+  undoneRows,
   ...row
 }: SummaryRow): ImportSummary => ({
   ...row,
@@ -72,6 +75,7 @@ const toSummary = ({
     invalid: invalidRows,
     skipped: skippedRows,
     imported: importedRows,
+    undone: undoneRows,
   },
 });
 
@@ -216,7 +220,8 @@ export class ImportsService {
     const { timeZone, headers, preset, columns, processed, error, ...summary } =
       row;
 
-    const [sample, errors, categories] = await Promise.all([
+    const ready = row.status === 'ready';
+    const [sample, errors, categories, possibleDuplicates] = await Promise.all([
       this.prisma.importRow.findMany({
         where: { importId: id },
         orderBy: { line: 'asc' },
@@ -229,7 +234,8 @@ export class ImportsService {
         take: SHOWN_ERRORS,
         select: { line: true, error: true },
       }),
-      row.status === 'ready' ? this.categoryGroups(userId, id) : [],
+      ready ? this.categoryGroups(userId, id) : [],
+      ready ? this.possibleDuplicates(id) : [],
     ]);
 
     return {
@@ -243,6 +249,7 @@ export class ImportsService {
       sample: sample.map((r) => r.cells),
       errors: errors.map((r) => ({ line: r.line, message: r.error ?? '' })),
       categories,
+      possibleDuplicates,
       error,
     };
   }
@@ -299,6 +306,7 @@ export class ImportsService {
           categoryId: null,
           fingerprint: null,
           error: null,
+          similarTransactionId: null,
         },
       });
       await tx.import.update({
@@ -344,6 +352,23 @@ export class ImportsService {
       `;
       if (!current) throw notFound();
       if (current.status !== 'ready') throw wrongStatus(current.status);
+
+      // Possible duplicates the user leaves out, first: they need no
+      // category and do not count in the balance check. In this transaction,
+      // so a refused commit skips nothing.
+      if (dto.skipLines.length > 0) {
+        const { count } = await tx.importRow.updateMany({
+          where: { importId: id, status: 'new', line: { in: dto.skipLines } },
+          data: { status: 'skipped', error: 'Уже есть на счёте' },
+        });
+        await tx.import.update({
+          where: { id },
+          data: {
+            newRows: { decrement: count },
+            skippedRows: { increment: count },
+          },
+        });
+      }
 
       const groups = await tx.$queryRaw<
         { kind: TransactionKind; source: string; net: Prisma.Decimal }[]
@@ -464,8 +489,60 @@ export class ImportsService {
   }
 
   /**
-   * Drops an import that has not made transactions. One in progress is
-   * left to finish; undoing a finished one is a separate feature.
+   * Deletes the transactions of a finished import, edited ones included
+   * (a category fixed after the import is the usual edit). One write, as
+   * deleting by hand: an income gone may take an account that must not go
+   * negative below zero, and then nothing is deleted.
+   *
+   * Locks as every other write does, the transaction rows first and the
+   * accounts after: an edit of one of these transactions running at the
+   * same time waits instead of deadlocking.
+   */
+  async undo(userId: string, id: string): Promise<Import> {
+    await this.prisma.$transaction(async (tx) => {
+      const [current] = await tx.$queryRaw<{ status: string }[]>`
+        SELECT status FROM imports
+        WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
+        FOR UPDATE
+      `;
+      if (!current) throw notFound();
+      if (current.status !== 'done') throw wrongStatus(current.status);
+
+      // The accounts as they are now: an imported expense may have been
+      // moved to another account or turned into a transfer since.
+      const rows = await tx.$queryRaw<
+        { account_id: string; to_account_id: string | null }[]
+      >`
+        SELECT account_id, to_account_id FROM transactions
+        WHERE import_id = ${id}::uuid AND user_id = ${userId}::uuid
+        FOR UPDATE
+      `;
+      const accounts = [
+        ...new Set(rows.flatMap((r) => [r.account_id, r.to_account_id])),
+      ].filter((account): account is string => account !== null);
+      await this.accounts.lock(
+        tx,
+        userId,
+        accounts.map((account) => ({ id: account, field: 'id' })),
+        () => new Error(`Accounts of import ${id} are gone`),
+      );
+
+      const { count } = await tx.transaction.deleteMany({
+        where: { importId: id, userId },
+      });
+      await this.accounts.assertNotNegative(tx, userId, accounts, 'id');
+      await tx.import.update({
+        where: { id },
+        data: { status: 'undone', undoneRows: count },
+      });
+    });
+    return this.get(userId, id);
+  }
+
+  /**
+   * Drops an import from the history: one that made no transactions, or
+   * whose transactions were undone. One in progress is left to finish; a
+   * finished one is undone first.
    */
   async remove(userId: string, id: string): Promise<void> {
     const { count } = await this.prisma.import.deleteMany({
@@ -478,6 +555,50 @@ export class ImportsService {
     });
     if (!existing) throw notFound();
     throw wrongStatus(existing.status);
+  }
+
+  /** The rows the worker paired with a similar transaction, in file order. */
+  private async possibleDuplicates(id: string): Promise<PossibleDuplicate[]> {
+    const rows = await this.prisma.$queryRaw<
+      {
+        line: number;
+        kind: TransactionKind;
+        amount: Prisma.Decimal;
+        occurred_at: Date;
+        description: string | null;
+        source: string;
+        similar_id: string;
+        similar_at: Date;
+        similar_comment: string | null;
+        similar_label: string;
+      }[]
+    >`
+      SELECT r.line, r.kind, r.amount, r.occurred_at, r.description,
+             r.source_category AS source,
+             t.id AS similar_id, t.occurred_at AS similar_at,
+             t.comment AS similar_comment,
+             COALESCE(c.name, 'Перевод') AS similar_label
+      FROM import_rows r
+      JOIN transactions t ON t.id = r.similar_transaction_id
+      LEFT JOIN categories c ON c.id = t.category_id
+      WHERE r.import_id = ${id}::uuid AND r.status = 'new'
+      ORDER BY r.line
+      LIMIT 200
+    `;
+    return rows.map((row) => ({
+      line: row.line,
+      kind: row.kind,
+      amount: new Prisma.Decimal(row.amount).toFixed(2),
+      occurredAt: row.occurred_at,
+      description: row.description,
+      source: sourceOut(row.source),
+      similar: {
+        id: row.similar_id,
+        occurredAt: row.similar_at,
+        comment: row.similar_comment,
+        label: row.similar_label,
+      },
+    }));
   }
 
   /**
