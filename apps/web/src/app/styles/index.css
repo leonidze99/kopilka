@@ -58,6 +58,15 @@
   --series-8: light-dark(#e34948, #e66767);
   --series-none: light-dark(#9aa39b, #59625b);
 
+  /*
+   * Income and expense as chart marks: the same green and orange as in the
+   * rest of the app, but the dark steps sit inside the chart lightness band
+   * and apart enough for protanopes (OKLab ΔE 8.9 light / 8+ dark, checked
+   * with the dataviz validator). Marks only: text keeps text colors.
+   */
+  --chart-income: light-dark(#1b7a50, #0b7643);
+  --chart-expense: light-dark(#c2410c, #db7431);
+
   --shadow-color: light-dark(rgb(21 33 25 / 0.07), rgb(0 0 0 / 0.45));
   --shadow-sm: 0 1px 2px var(--shadow-color);
   --shadow-md:

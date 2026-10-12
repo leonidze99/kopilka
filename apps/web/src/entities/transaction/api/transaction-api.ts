@@ -18,6 +18,18 @@ export type CategoryTotal = ResponseBody<
   200
 >[number];
 
+export type MonthlyTotal = ResponseBody<
+  '/transactions/monthly',
+  'get',
+  200
+>[number];
+
+export interface MonthlyTotalsParams {
+  from: string;
+  to: string;
+  timeZone: string;
+}
+
 /** Dates as ISO strings: what goes into the query string. */
 export interface Period {
   from: string;
@@ -82,6 +94,15 @@ export const transactionApi = baseApi
         providesTags: ['Transaction'],
       }),
 
+      /** Every month of [from, to], empty ones as zeros; months of `timeZone`. */
+      monthlyTotals: build.query<MonthlyTotal[], MonthlyTotalsParams>({
+        query: (params) => ({
+          url: '/transactions/monthly' satisfies ApiPath,
+          params,
+        }),
+        providesTags: ['Transaction'],
+      }),
+
       createTransaction: build.mutation<Transaction, TransactionInput>({
         query: (body) => ({
           url: '/transactions' satisfies ApiPath,
@@ -115,6 +136,7 @@ export const {
   useListTransactionsInfiniteQuery,
   useTransactionSummaryQuery,
   useCategoryTotalsQuery,
+  useMonthlyTotalsQuery,
   useCreateTransactionMutation,
   useReplaceTransactionMutation,
   useDeleteTransactionMutation,

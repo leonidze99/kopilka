@@ -14,13 +14,13 @@ describe('buildDemoData', () => {
     expect(buildDemoData(now)).toEqual(data);
   });
 
-  it('covers three months back and nothing after now', () => {
+  it('covers a year up to now and nothing after it', () => {
     const times = data.transactions.map((t) => t.occurredAt.getTime());
     expect(Math.max(...times)).toBeLessThanOrEqual(now.getTime());
     expect(new Date(Math.min(...times)).toISOString().slice(0, 7)).toBe(
-      '2026-07',
+      '2025-11',
     );
-    expect(data.transactions.length).toBeGreaterThan(150);
+    expect(data.transactions.length).toBeGreaterThan(500);
   });
 
   it('never takes an account that must not go negative below zero', () => {

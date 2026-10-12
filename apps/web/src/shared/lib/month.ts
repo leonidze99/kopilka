@@ -43,6 +43,65 @@ export function formatMonthTitle(month: Month): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+const shortFormat = new Intl.DateTimeFormat('ru-RU', { month: 'short' });
+
+/** "окт": an axis label. */
+export const formatMonthShort = (month: Month) =>
+  shortFormat.format(firstDay(month)).replace('.', '');
+
+const DATIVE = [
+  'январю',
+  'февралю',
+  'марту',
+  'апрелю',
+  'маю',
+  'июню',
+  'июлю',
+  'августу',
+  'сентябрю',
+  'октябрю',
+  'ноябрю',
+  'декабрю',
+];
+
+const dayMonthFormat = new Intl.DateTimeFormat('ru-RU', {
+  day: 'numeric',
+  month: 'long',
+});
+
+/**
+ * What to compare a month with: the previous month, or for the month in
+ * progress the same days of the previous one. On October 12th, October so
+ * far against September 1–12: a whole September would make every month
+ * in progress look cheaper. `label` completes "к …".
+ */
+export function previousPeriod(
+  month: Month,
+  now = new Date(),
+): { from: string; to: string; label: string } {
+  const previous = shiftMonth(month, -1);
+  const [, index] = previous.split('-').map(Number) as [number, number];
+  if (month !== currentMonth(now)) {
+    return { ...monthPeriod(previous), label: DATIVE[index - 1] ?? '' };
+  }
+  const start = firstDay(previous);
+  const end = firstDay(previous, 1);
+  // The same day and time; March 31st compares with all of February.
+  const same = new Date(start);
+  same.setDate(now.getDate());
+  same.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+  const to = same < end ? same : end;
+  const lastDay = new Date(to.getTime() - 1);
+  return {
+    from: start.toISOString(),
+    to: to.toISOString(),
+    label:
+      lastDay.getDate() === 1
+        ? dayMonthFormat.format(lastDay)
+        : `1–${dayMonthFormat.format(lastDay)}`,
+  };
+}
+
 /** "октябре": for "в октябре". */
 export function formatMonthIn(month: Month): string {
   const name = nameFormat.format(firstDay(month));

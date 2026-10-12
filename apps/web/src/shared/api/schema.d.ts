@@ -436,6 +436,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transactions/monthly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Income and expense per month
+         * @description Every month from `from` to `to`, months without transactions as zeros. Months begin and end in `timeZone`. Transfers are not counted.
+         */
+        get: operations["TransactionsController_monthly"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transactions/{id}": {
         parameters: {
             query?: never;
@@ -786,6 +806,13 @@ export interface components {
         CategoryTotal: {
             category: components["schemas"]["Category"];
             total: string;
+        };
+        MonthlyTotals: components["schemas"]["MonthlyTotal"][];
+        MonthlyTotal: {
+            month: components["schemas"]["Month"];
+            income: string;
+            expense: string;
+            balance: string;
         };
         TransactionInput: components["schemas"]["CategorizedTransactionInput"] | components["schemas"]["TransferInput"];
         CategorizedTransactionInput: {
@@ -2371,6 +2398,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryTotals"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    TransactionsController_monthly: {
+        parameters: {
+            query: {
+                from: components["schemas"]["Month"];
+                to: components["schemas"]["Month"];
+                timeZone: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyTotals"];
                 };
             };
             /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */

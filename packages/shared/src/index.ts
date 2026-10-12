@@ -1,4 +1,5 @@
 export * from './account.js';
+export * from './analytics.js';
 export * from './api-error.js';
 export * from './auth.js';
 export * from './budget.js';

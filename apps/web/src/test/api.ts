@@ -27,6 +27,29 @@ export const apiError = (
     { status },
   );
 
+/** GET /transactions/monthly without transactions: zeros for every month asked. */
+export function emptyMonths(url: URL) {
+  const from = url.searchParams.get('from') ?? '';
+  const to = url.searchParams.get('to') ?? '';
+  const months: string[] = [];
+  let [year, month] = from.split('-').map(Number) as [number, number];
+  for (
+    let key = from;
+    key <= to;
+    month = (month % 12) + 1,
+      year += month === 1 ? 1 : 0,
+      key = `${year}-${String(month).padStart(2, '0')}`
+  ) {
+    months.push(key);
+  }
+  return months.map((m) => ({
+    month: m,
+    income: '0.00',
+    expense: '0.00',
+    balance: '0.00',
+  }));
+}
+
 /** The account every new user starts with. */
 export const MAIN_ACCOUNT = {
   id: '0199d0a4-0000-7000-8000-0000000acc01',
@@ -50,6 +73,9 @@ export const emptyAccount = () => [
     HttpResponse.json({ income: '0.00', expense: '0.00', balance: '0.00' }),
   ),
   http.get(apiUrl('/transactions/by-category'), () => HttpResponse.json([])),
+  http.get(apiUrl('/transactions/monthly'), ({ request }) =>
+    HttpResponse.json(emptyMonths(new URL(request.url))),
+  ),
   http.get(apiUrl('/budgets'), () => HttpResponse.json(NO_BUDGETS)),
 ];
 

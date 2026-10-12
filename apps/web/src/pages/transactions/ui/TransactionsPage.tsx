@@ -8,6 +8,7 @@ import { AccountStrip } from '@/widgets/account-strip';
 import { BudgetPanel } from '@/widgets/budget-panel';
 import { CategoryBreakdown } from '@/widgets/category-breakdown';
 import { MonthSummary } from '@/widgets/month-summary';
+import { MonthlyTrend } from '@/widgets/monthly-trend';
 import { type ListFilter, TransactionList } from '@/widgets/transaction-list';
 import styles from '../../page.module.css';
 
@@ -75,6 +76,7 @@ export function TransactionsPage() {
             selectedId={filter.categoryId}
             onSelect={(categoryId) => setFilter({ categoryId })}
           />
+          <MonthlyTrend month={month} onSelect={setMonth} />
           <BudgetPanel month={month} />
           <TransactionList
             month={month}

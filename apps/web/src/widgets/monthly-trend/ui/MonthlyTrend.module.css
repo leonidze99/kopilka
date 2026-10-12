@@ -1,0 +1,253 @@
+.legend {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  list-style: none;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Legend keys mirror the mark: a small bar. */
+.key {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.income {
+  background: var(--chart-income);
+}
+
+.expense {
+  background: var(--chart-expense);
+}
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chart {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+
+.stale {
+  opacity: 0.6;
+}
+
+/* The tick labels, over the same height as the bars. */
+.axis {
+  position: relative;
+  height: 200px;
+  min-width: 44px;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.axis span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  white-space: nowrap;
+}
+
+.plot {
+  position: relative;
+}
+
+.grid {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 200px;
+  pointer-events: none;
+}
+
+.grid span {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.months {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The whole month is the hit target, not just its bars. */
+.slot {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.slot:hover,
+.slot:focus-visible {
+  background: color-mix(in srgb, var(--color-surface-2) 70%, transparent);
+}
+
+.slot[aria-pressed='true'] {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  /* The surface gap between the two bars of a month. */
+  gap: 2px;
+  height: 200px;
+}
+
+.bar {
+  width: min(12px, 40%);
+  /* Square at the baseline, a 4px rounded data end. */
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s ease-out;
+}
+
+.label {
+  padding: 6px 0 4px;
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+.slot[aria-pressed='true'] .label {
+  font-weight: 650;
+}
+
+.tooltip {
+  position: absolute;
+  /* Over the top of the plot, where the axis has the most air. */
+  top: 0;
+  z-index: 2;
+  min-width: 190px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-raised);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.tooltip p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.tooltip p + p {
+  margin-top: 4px;
+}
+
+.tooltip strong {
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+.tooltipTitle {
+  margin-bottom: 6px !important;
+  color: var(--color-text) !important;
+  font-weight: 650;
+}
+
+.tooltipBalance {
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Tooltip rows are keyed by a short stroke, not a box. */
+.line {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.table summary {
+  width: fit-content;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.table table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+}
+
+.table th[scope='row'],
+.table th:first-child {
+  text-align: left;
+}
+
+.table th[scope='row'] {
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .axis {
+    min-width: 36px;
+  }
+
+  .bar {
+    width: min(8px, 42%);
+  }
+
+  /*
+   * Twelve labels do not fit a phone: every other one. The selected month
+   * is the last, twelfth, so it keeps its label; the buttons keep their
+   * names for screen readers.
+   */
+  .months li:nth-child(odd) .label {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar,
+  .chart {
+    transition: none;
+  }
+}

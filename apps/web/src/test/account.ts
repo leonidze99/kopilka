@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import type { Schemas } from '@/shared/api';
 import { API_URL } from '@/shared/config/env';
-import { apiUrl, MAIN_ACCOUNT } from './api';
+import { apiUrl, emptyMonths, MAIN_ACCOUNT } from './api';
 import { server } from './server';
 
 type Account = Schemas['Account'];
@@ -19,6 +19,8 @@ interface AccountData {
   summary?: Schemas['TransactionSummary'];
   /** What GET /transactions/by-category answers, whatever the query. */
   categoryTotals?: Schemas['CategoryTotal'][];
+  /** Months GET /transactions/monthly has data for; the others are zeros. */
+  monthly?: Schemas['MonthlyTotal'][];
   /** Limits of the month, whatever the month asked. */
   budgets?: Budget[];
   recurring?: RecurringRule[];
@@ -51,6 +53,7 @@ export function mockAccount({
   transactions = [],
   summary = { income: '0.00', expense: '0.00', balance: '0.00' },
   categoryTotals = [],
+  monthly = [],
   budgets = [],
   recurring = [],
 }: AccountData = {}) {
@@ -184,6 +187,13 @@ export function mockAccount({
     }),
 
     http.get(apiUrl('/transactions/summary'), () => HttpResponse.json(summary)),
+    http.get(apiUrl('/transactions/monthly'), ({ request }) =>
+      HttpResponse.json(
+        emptyMonths(new URL(request.url)).map(
+          (zero) => monthly.find((m) => m.month === zero.month) ?? zero,
+        ),
+      ),
+    ),
     http.get(apiUrl('/transactions/by-category'), () =>
       HttpResponse.json(categoryTotals),
     ),

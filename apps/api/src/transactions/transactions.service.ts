@@ -3,6 +3,8 @@ import type {
   CategoryTotal,
   CategoryTotalsQuery,
   ListTransactionsQuery,
+  MonthlyTotal,
+  MonthlyTotalsQuery,
   Transaction,
   TransactionInputDto,
   TransactionKind,
@@ -216,6 +218,58 @@ export class TransactionsService {
       category,
       total: new Prisma.Decimal(total).toFixed(2),
     }));
+  }
+
+  /**
+   * Income and expense of every month in [from, to], zeros included.
+   *
+   * - generate_series makes the months, so a month without transactions
+   *   is a row of zeros rather than a gap the client would have to fill.
+   * - The period filter is a range on occurred_at itself, its bounds
+   *   computed once: the (user_id, occurred_at) index finds the rows. A
+   *   condition on date_trunc(occurred_at) could not use that index.
+   * - Months are the user's: occurred_at AT TIME ZONE gives the local wall
+   *   time, date_trunc its month.
+   */
+  async monthly(
+    userId: string,
+    { from, to, timeZone }: MonthlyTotalsQuery,
+  ): Promise<MonthlyTotal[]> {
+    const rows = await this.prisma.$queryRaw<
+      { month: string; income: Prisma.Decimal; expense: Prisma.Decimal }[]
+    >`
+      WITH months AS (
+        SELECT generate_series(${`${from}-01`}::date, ${`${to}-01`}::date, interval '1 month')::date AS month
+      ),
+      totals AS (
+        SELECT date_trunc('month', t.occurred_at AT TIME ZONE ${timeZone})::date AS month,
+               SUM(t.amount) FILTER (WHERE c.kind = 'income') AS income,
+               SUM(t.amount) FILTER (WHERE c.kind = 'expense') AS expense
+        FROM transactions t
+        JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id
+        WHERE t.user_id = ${userId}::uuid
+          AND t.occurred_at >= (${`${from}-01`}::date::timestamp AT TIME ZONE ${timeZone})
+          AND t.occurred_at < ((${`${to}-01`}::date + interval '1 month') AT TIME ZONE ${timeZone})
+        GROUP BY 1
+      )
+      SELECT to_char(m.month, 'YYYY-MM') AS month,
+             COALESCE(t.income, 0) AS income,
+             COALESCE(t.expense, 0) AS expense
+      FROM months m
+      LEFT JOIN totals t ON t.month = m.month
+      ORDER BY m.month
+    `;
+
+    return rows.map((row) => {
+      const income = new Prisma.Decimal(row.income);
+      const expense = new Prisma.Decimal(row.expense);
+      return {
+        month: row.month,
+        income: income.toFixed(2),
+        expense: expense.toFixed(2),
+        balance: income.minus(expense).toFixed(2),
+      };
+    });
   }
 
   /**

@@ -1,4 +1,5 @@
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { useMemo } from 'react';
 import {
   type TransactionSummary,
   useTransactionSummaryQuery,
@@ -9,6 +10,7 @@ import {
   formatMonthTitle,
   type Month,
   monthPeriod,
+  previousPeriod,
 } from '@/shared/lib';
 import { FormError, Skeleton } from '@/shared/ui';
 import styles from './MonthSummary.module.css';
@@ -16,6 +18,10 @@ import styles from './MonthSummary.module.css';
 /** Income, expense and balance of a month, summed by the API. */
 export function MonthSummary({ month }: { month: Month }) {
   const { data, error } = useTransactionSummaryQuery(monthPeriod(month));
+  // Once per month shown: "the same days so far" depends on now, and a
+  // period recomputed every render would be a new query every render.
+  const { label, ...previous } = useMemo(() => previousPeriod(month), [month]);
+  const { data: before } = useTransactionSummaryQuery(previous);
 
   const money = (amount: string | undefined, width: number) =>
     amount === undefined ? (
@@ -51,6 +57,7 @@ export function MonthSummary({ month }: { month: Month }) {
               Доходы
             </dt>
             <dd>{money(data?.income, 120)}</dd>
+            <Change now={data?.income} before={before?.income} label={label} />
           </div>
           <div className={styles.tile}>
             <dt>
@@ -60,10 +67,42 @@ export function MonthSummary({ month }: { month: Month }) {
               Расходы
             </dt>
             <dd>{money(data?.expense, 120)}</dd>
+            <Change
+              now={data?.expense}
+              before={before?.expense}
+              label={label}
+            />
           </div>
         </dl>
       )}
     </section>
+  );
+}
+
+/**
+ * "↑ 12% к сентябрю": against the previous period. Not colored: on the
+ * green card, and whether up is good depends on the line. Nothing when
+ * there is no base to compare with. Number() is display only.
+ */
+function Change({
+  now,
+  before,
+  label,
+}: {
+  now: string | undefined;
+  before: string | undefined;
+  label: string;
+}) {
+  if (now === undefined || before === undefined || Number(before) <= 0) {
+    return null;
+  }
+  const percent = Math.round((Number(now) / Number(before) - 1) * 100);
+  return (
+    <dd className={styles.change}>
+      {percent === 0
+        ? `0% к ${label}`
+        : `${percent > 0 ? '↑' : '↓'} ${Math.abs(percent)}% к ${label}`}
+    </dd>
   );
 }
 

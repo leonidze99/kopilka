@@ -27,6 +27,8 @@
 
 .list {
   display: grid;
+  /* Not wider than the panel, whatever the amounts. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
   margin: 0 -10px;
   padding: 0;
@@ -62,8 +64,10 @@
 
 .head {
   display: flex;
+  /* On a phone "spent of limit" goes under the name rather than off screen. */
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
+  gap: 2px 12px;
 }
 
 .name {

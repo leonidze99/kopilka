@@ -13,8 +13,8 @@ export const DEMO_PASSWORD = 'kopilka-demo';
 export const DEMO_TIME_ZONE = 'Europe/Moscow';
 /** Moscow has no daylight saving time: local = UTC + 3 all year. */
 const OFFSET = '+03:00';
-/** Full months before the current one. */
-const MONTHS_BACK = 3;
+/** Full months before the current one: a year with it, for the monthly chart. */
+const MONTHS_BACK = 11;
 
 export type AccountKey = 'card' | 'cash' | 'savings';
 export type CategoryKey =

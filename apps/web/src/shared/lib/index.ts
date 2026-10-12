@@ -9,10 +9,12 @@ export {
 export {
   currentMonth,
   formatMonthIn,
+  formatMonthShort,
   formatMonthTitle,
   type Month,
   monthPeriod,
   parseMonth,
+  previousPeriod,
   shiftMonth,
 } from './month';
 export { formatMoney, formatSignedMoney } from './money';

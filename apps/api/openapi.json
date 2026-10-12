@@ -2175,6 +2175,75 @@
         ]
       }
     },
+    "/transactions/monthly": {
+      "get": {
+        "description": "Every month from `from` to `to`, months without transactions as zeros. Months begin and end in `timeZone`. Transfers are not counted.",
+        "operationId": "TransactionsController_monthly",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Month"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Month"
+            }
+          },
+          {
+            "name": "timeZone",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "Europe/Moscow"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyTotals"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Income and expense per month",
+        "tags": [
+          "transactions"
+        ]
+      }
+    },
     "/transactions/{id}": {
       "put": {
         "description": "The whole transaction, as on create: it may change its type too.",
@@ -3604,6 +3673,36 @@
         "required": [
           "category",
           "total"
+        ],
+        "additionalProperties": false
+      },
+      "MonthlyTotals": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/MonthlyTotal"
+        }
+      },
+      "MonthlyTotal": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "$ref": "#/components/schemas/Month"
+          },
+          "income": {
+            "type": "string"
+          },
+          "expense": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "income",
+          "expense",
+          "balance"
         ],
         "additionalProperties": false
       },

@@ -1,5 +1,6 @@
 export {
   type CategoryTotal,
+  type MonthlyTotal,
   type Period,
   type Transaction,
   transactionApi,
@@ -10,6 +11,7 @@ export {
   useCreateTransactionMutation,
   useDeleteTransactionMutation,
   useListTransactionsInfiniteQuery,
+  useMonthlyTotalsQuery,
   useReplaceTransactionMutation,
   useTransactionSummaryQuery,
 } from './api/transaction-api';

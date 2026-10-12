@@ -25,6 +25,10 @@ import {
   categoryTotalsSchema,
   type ListTransactionsQuery,
   listTransactionsQuerySchema,
+  type MonthlyTotal,
+  type MonthlyTotalsQuery,
+  monthlyTotalsQuerySchema,
+  monthlyTotalsSchema,
   type Transaction,
   type TransactionPage,
   transactionPageSchema,
@@ -86,6 +90,21 @@ export class TransactionsController {
     @Query({ schema: categoryTotalsQuerySchema }) query: CategoryTotalsQuery,
   ): Promise<CategoryTotal[]> {
     return this.transactions.byCategory(user.id, query);
+  }
+
+  @Get('monthly')
+  @ApiOperation({
+    summary: 'Income and expense per month',
+    description:
+      'Every month from `from` to `to`, months without transactions as zeros. Months begin and end in `timeZone`. Transfers are not counted.',
+  })
+  @ApiOkResponse({ standardSchema: monthlyTotalsSchema })
+  @ApiErrorResponses(400)
+  monthly(
+    @CurrentUser() user: AuthUser,
+    @Query({ schema: monthlyTotalsQuerySchema }) query: MonthlyTotalsQuery,
+  ): Promise<MonthlyTotal[]> {
+    return this.transactions.monthly(user.id, query);
   }
 
   @Post()

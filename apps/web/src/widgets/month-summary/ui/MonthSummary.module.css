@@ -72,6 +72,13 @@
   font-size: var(--text-lg);
 }
 
+/* "↑ 12% к сентябрю" under a figure; wins over .tile dd by order. */
+.tile .change {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  opacity: 0.8;
+}
+
 .icon {
   display: grid;
   place-items: center;

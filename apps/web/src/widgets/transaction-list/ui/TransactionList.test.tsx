@@ -16,9 +16,10 @@ describe('TransactionList', () => {
     });
     renderApp('/', { session: 'authenticated' });
 
-    const rows = within(await screen.findByRole('list')).getAllByRole(
-      'listitem',
-    );
+    // The list of the day both are dated (October 5th).
+    const rows = within(
+      await screen.findByRole('list', { name: /5 октября/ }),
+    ).getAllByRole('listitem');
     expect(rows[0]).toHaveTextContent(/Зарплата.*\+50\s000,00\s₽/);
     expect(rows[1]).toHaveTextContent(/Продукты.*Ужин.*−1\s234,50\s₽/);
   });
