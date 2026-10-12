@@ -42,7 +42,7 @@ export const envSchema = z.object({
   // The built web app (apps/web/dist) to serve from this process; the
   // Docker image sets it. Unset: API only, as in development.
   WEB_DIST_DIR: z.string().min(1).optional(),
-  // Background jobs (recurring payments). Off in e2e tests: a tick in the
+  // Background jobs (recurring payments, imports). Off in e2e tests: a tick in the
   // middle of a test would make its data change under it; tests run the
   // jobs by hand with a clock of their own.
   JOBS_ENABLED: z.stringbool().default(true),

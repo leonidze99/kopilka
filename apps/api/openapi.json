@@ -1286,6 +1286,387 @@
         ]
       }
     },
+    "/imports": {
+      "get": {
+        "operationId": "ImportsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportSummaryList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Recent imports, newest first",
+        "tags": [
+          "imports"
+        ]
+      },
+      "post": {
+        "description": "UTF-8 or Windows-1251, delimiter detected, the first line is the header. Up to 10 MB. Known bank formats come back with `preset` and the columns filled in.",
+        "operationId": "ImportsController_upload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Import"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "VALIDATION_FAILED: the file is too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: see the Retry-After header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Upload a bank statement (CSV)",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/imports/{id}": {
+      "get": {
+        "description": "Poll while `status` is `parsing` or `importing`.",
+        "operationId": "ImportsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Import"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "An import: its rows, progress and summary",
+        "tags": [
+          "imports"
+        ]
+      },
+      "delete": {
+        "description": "Not once it is importing or done.",
+        "operationId": "ImportsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Discard an import",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/imports/{id}/mapping": {
+      "put": {
+        "description": "Parses the rows in the background (`parsing` → `ready`) and finds those already imported into the account. May be sent again to read the file differently.",
+        "operationId": "ImportsController_setMapping",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMappingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Import"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Choose the columns and the account",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/imports/{id}/commit": {
+      "post": {
+        "description": "Creates the transactions in the background (`importing` → `done`), all or none. If the account must not go negative and would, the import goes back to `ready` with `error`. The categories are remembered for the next import.",
+        "operationId": "ImportsController_commit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportCommitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Import"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Choose the categories and import",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
     "/recurring": {
       "get": {
         "operationId": "RecurringController_list",
@@ -2346,6 +2727,457 @@
           "name"
         ]
       },
+      "ImportSummaryList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ImportSummary"
+        }
+      },
+      "ImportSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ImportStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "account": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountRef"
+              }
+            ]
+          },
+          "totalRows": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ImportCounts"
+          }
+        },
+        "required": [
+          "id",
+          "fileName",
+          "status",
+          "createdAt",
+          "account",
+          "totalRows",
+          "counts"
+        ],
+        "additionalProperties": false
+      },
+      "ImportStatus": {
+        "type": "string",
+        "enum": [
+          "uploading",
+          "uploaded",
+          "parsing",
+          "ready",
+          "importing",
+          "done",
+          "failed"
+        ]
+      },
+      "AccountRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccountType"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "ImportCounts": {
+        "type": "object",
+        "properties": {
+          "new": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "duplicate": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "invalid": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "skipped": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "imported": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "new",
+          "duplicate",
+          "invalid",
+          "skipped",
+          "imported"
+        ],
+        "additionalProperties": false
+      },
+      "Import": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ImportStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "account": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountRef"
+              }
+            ]
+          },
+          "totalRows": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ImportCounts"
+          },
+          "timeZone": {
+            "nullable": true,
+            "type": "string"
+          },
+          "headers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sample": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "preset": {
+            "nullable": true,
+            "type": "string"
+          },
+          "columns": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ImportColumns"
+              }
+            ]
+          },
+          "processed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "line": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "line",
+                "message"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportCategoryGroup"
+            }
+          },
+          "error": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "fileName",
+          "status",
+          "createdAt",
+          "account",
+          "totalRows",
+          "counts",
+          "timeZone",
+          "headers",
+          "sample",
+          "preset",
+          "columns",
+          "processed",
+          "errors",
+          "categories",
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "ImportColumns": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 49
+          },
+          "dateOrder": {
+            "$ref": "#/components/schemas/ImportDateOrder"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "signed"
+                    ]
+                  },
+                  "column": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 49
+                  }
+                },
+                "required": [
+                  "type",
+                  "column"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "split"
+                    ]
+                  },
+                  "income": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 49
+                  },
+                  "expense": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 49
+                  }
+                },
+                "required": [
+                  "type",
+                  "income",
+                  "expense"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "description": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 49
+          },
+          "category": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 49
+          },
+          "status": {
+            "nullable": true,
+            "type": "object",
+            "properties": {
+              "column": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 49
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "column",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "date",
+          "dateOrder",
+          "amount",
+          "description",
+          "category",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "ImportDateOrder": {
+        "type": "string",
+        "enum": [
+          "dmy",
+          "ymd",
+          "mdy"
+        ]
+      },
+      "ImportCategoryGroup": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "source": {
+            "nullable": true,
+            "type": "string"
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": "string"
+          },
+          "category": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Category"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "source",
+          "rows",
+          "total",
+          "category"
+        ],
+        "additionalProperties": false
+      },
+      "ImportMappingRequest": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "timeZone": {
+            "type": "string",
+            "example": "Europe/Moscow"
+          },
+          "columns": {
+            "$ref": "#/components/schemas/ImportColumns"
+          }
+        },
+        "required": [
+          "accountId",
+          "timeZone",
+          "columns"
+        ]
+      },
+      "ImportCommitRequest": {
+        "type": "object",
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "$ref": "#/components/schemas/TransactionKind"
+                },
+                "source": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "categoryId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                }
+              },
+              "required": [
+                "kind",
+                "source",
+                "categoryId"
+              ]
+            }
+          }
+        },
+        "required": [
+          "categories"
+        ]
+      },
       "RecurringRuleList": {
         "type": "array",
         "items": {
@@ -2415,28 +3247,6 @@
           "nextOn",
           "lastError",
           "category"
-        ],
-        "additionalProperties": false
-      },
-      "AccountRef": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-          },
-          "name": {
-            "type": "string"
-          },
-          "type": {
-            "$ref": "#/components/schemas/AccountType"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "type"
         ],
         "additionalProperties": false
       },

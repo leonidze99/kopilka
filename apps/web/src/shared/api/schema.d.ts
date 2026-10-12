@@ -245,6 +245,91 @@ export interface paths {
         patch: operations["CategoriesController_rename"];
         trace?: never;
     };
+    "/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent imports, newest first */
+        get: operations["ImportsController_list"];
+        put?: never;
+        /**
+         * Upload a bank statement (CSV)
+         * @description UTF-8 or Windows-1251, delimiter detected, the first line is the header. Up to 10 MB. Known bank formats come back with `preset` and the columns filled in.
+         */
+        post: operations["ImportsController_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An import: its rows, progress and summary
+         * @description Poll while `status` is `parsing` or `importing`.
+         */
+        get: operations["ImportsController_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Discard an import
+         * @description Not once it is importing or done.
+         */
+        delete: operations["ImportsController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/{id}/mapping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose the columns and the account
+         * @description Parses the rows in the background (`parsing` → `ready`) and finds those already imported into the account. May be sent again to read the file differently.
+         */
+        put: operations["ImportsController_setMapping"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/{id}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Choose the categories and import
+         * @description Creates the transactions in the background (`importing` → `done`), all or none. If the account must not go negative and would, the import goes back to `ready` with `error`. The categories are remembered for the next import.
+         */
+        post: operations["ImportsController_commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recurring": {
         parameters: {
             query?: never;
@@ -486,6 +571,100 @@ export interface components {
         UpdateCategoryRequest: {
             name: string;
         };
+        ImportSummaryList: components["schemas"]["ImportSummary"][];
+        ImportSummary: {
+            /** Format: uuid */
+            id: string;
+            fileName: string;
+            status: components["schemas"]["ImportStatus"];
+            /** Format: date-time */
+            createdAt: string;
+            account: components["schemas"]["AccountRef"] | null;
+            totalRows: number;
+            counts: components["schemas"]["ImportCounts"];
+        };
+        /** @enum {string} */
+        ImportStatus: "uploading" | "uploaded" | "parsing" | "ready" | "importing" | "done" | "failed";
+        AccountRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: components["schemas"]["AccountType"];
+        };
+        ImportCounts: {
+            new: number;
+            duplicate: number;
+            invalid: number;
+            skipped: number;
+            imported: number;
+        };
+        Import: {
+            /** Format: uuid */
+            id: string;
+            fileName: string;
+            status: components["schemas"]["ImportStatus"];
+            /** Format: date-time */
+            createdAt: string;
+            account: components["schemas"]["AccountRef"] | null;
+            totalRows: number;
+            counts: components["schemas"]["ImportCounts"];
+            timeZone: string | null;
+            headers: string[];
+            sample: string[][];
+            preset: string | null;
+            columns: components["schemas"]["ImportColumns"] | null;
+            processed: number;
+            errors: {
+                line: number;
+                message: string;
+            }[];
+            categories: components["schemas"]["ImportCategoryGroup"][];
+            error: string | null;
+        };
+        ImportColumns: {
+            date: number;
+            dateOrder: components["schemas"]["ImportDateOrder"];
+            amount: {
+                /** @enum {string} */
+                type: "signed";
+                column: number;
+            } | {
+                /** @enum {string} */
+                type: "split";
+                income: number;
+                expense: number;
+            };
+            description: number | null;
+            category: number | null;
+            status: {
+                column: number;
+                value: string;
+            } | null;
+        };
+        /** @enum {string} */
+        ImportDateOrder: "dmy" | "ymd" | "mdy";
+        ImportCategoryGroup: {
+            kind: components["schemas"]["TransactionKind"];
+            source: string | null;
+            rows: number;
+            total: string;
+            category: components["schemas"]["Category"] | null;
+        };
+        ImportMappingRequest: {
+            /** Format: uuid */
+            accountId: string;
+            /** @example Europe/Moscow */
+            timeZone: string;
+            columns: components["schemas"]["ImportColumns"];
+        };
+        ImportCommitRequest: {
+            categories: {
+                kind: components["schemas"]["TransactionKind"];
+                source: string | null;
+                /** Format: uuid */
+                categoryId: string;
+            }[];
+        };
         RecurringRuleList: components["schemas"]["RecurringRule"][];
         RecurringRule: components["schemas"]["CategorizedRecurringRule"] | components["schemas"]["RecurringTransferRule"];
         CategorizedRecurringRule: {
@@ -501,12 +680,6 @@ export interface components {
             nextOn: components["schemas"]["CalendarDate"];
             lastError: string | null;
             category: components["schemas"]["Category"];
-        };
-        AccountRef: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            type: components["schemas"]["AccountType"];
         };
         /**
          * Format: date
@@ -1549,6 +1722,303 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Category"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    ImportsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportSummaryList"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    ImportsController_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Import"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description VALIDATION_FAILED: the file is too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description RATE_LIMITED: see the Retry-After header */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    ImportsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Import"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    ImportsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    ImportsController_setMapping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportMappingRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Import"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    ImportsController_commit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportCommitRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Import"];
                 };
             };
             /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */

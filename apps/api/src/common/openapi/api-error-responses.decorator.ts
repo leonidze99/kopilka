@@ -8,6 +8,7 @@ const DESCRIPTIONS = {
   403: 'FORBIDDEN',
   404: 'NOT_FOUND',
   409: 'CONFLICT: clashes with existing data',
+  413: 'VALIDATION_FAILED: the file is too large',
   429: 'RATE_LIMITED: see the Retry-After header',
 } as const;
 

@@ -33,6 +33,8 @@ model User {
 
   accounts       Account[]
   recurringRules RecurringRule[]
+  imports        Import[]
+  importRules    ImportCategoryRule[]
   categories     Category[]
   transactions   Transaction[]
   refreshTokens  RefreshToken[]
@@ -49,10 +51,11 @@ model Category {
   createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   budgets      Budget[]
   recurring    RecurringRule[]
+  importRules  ImportCategoryRule[]
 
   // "Подарки" may exist both as income and as expense.
   @@unique([userId, kind, name])
@@ -81,6 +84,7 @@ model Account {
   transfersIn  Transaction[]   @relation("TransferTarget")
   recurring    RecurringRule[] @relation("RecurringAccount")
   recurringIn  RecurringRule[] @relation("RecurringTarget")
+  imports      Import[]
 
   @@unique([userId, name])
   // Target of the composite foreign keys from transactions.
@@ -93,19 +97,23 @@ model Account {
 /// SQL-only: CHECK (num_nonnulls(category_id, to_account_id) = 1)
 /// and CHECK (to_account_id <> account_id).
 model Transaction {
-  id              String    @id @default(uuid(7)) @db.Uuid
-  userId          String    @map("user_id") @db.Uuid
-  accountId       String    @map("account_id") @db.Uuid
-  categoryId      String?   @map("category_id") @db.Uuid
-  toAccountId     String?   @map("to_account_id") @db.Uuid
-  amount          Decimal   @db.Decimal(14, 2)
-  comment         String?   @db.VarChar(280)
-  occurredAt      DateTime  @map("occurred_at") @db.Timestamptz(3)
+  id                String    @id @default(uuid(7)) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  accountId         String    @map("account_id") @db.Uuid
+  categoryId        String?   @map("category_id") @db.Uuid
+  toAccountId       String?   @map("to_account_id") @db.Uuid
+  amount            Decimal   @db.Decimal(14, 2)
+  comment           String?   @db.VarChar(280)
+  occurredAt        DateTime  @map("occurred_at") @db.Timestamptz(3)
   /// Made by a recurring rule, for its occurrence on recurring_on.
-  recurringRuleId String?   @map("recurring_rule_id") @db.Uuid
-  recurringOn     DateTime? @map("recurring_on") @db.Date
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  recurringRuleId   String?   @map("recurring_rule_id") @db.Uuid
+  recurringOn       DateTime? @map("recurring_on") @db.Date
+  /// Brought in by an import; the fingerprint of its statement row (see
+  /// ImportRow.fingerprint) keeps a second import of it out.
+  importId          String?   @map("import_id") @db.Uuid
+  importFingerprint String?   @map("import_fingerprint") @db.Char(64)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Composite keys: the database itself guarantees that a transaction only
@@ -116,10 +124,15 @@ model Transaction {
   category      Category?      @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
   // The transactions stay when their rule is deleted.
   recurringRule RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
+  import        Import?        @relation(fields: [importId], references: [id], onDelete: SetNull)
 
   // Idempotency key: one transaction per occurrence of a rule, whatever
   // retries or a second runner do.
   @@unique([recurringRuleId, recurringOn])
+  // The same for statement rows: a row imported twice into one account is
+  // one transaction (INSERT ... ON CONFLICT DO NOTHING).
+  @@unique([accountId, importFingerprint])
+  @@index([importId])
   // Keyset pagination: ORDER BY occurred_at DESC, id DESC within a user.
   @@index([userId, occurredAt(sort: Desc), id(sort: Desc)])
   @@index([categoryId])
@@ -188,6 +201,142 @@ model Budget {
   @@unique([categoryId, effectiveFrom])
   @@index([userId])
   @@map("budgets")
+}
+
+enum ImportStatus {
+  /// The file is still arriving; an import stuck here was cut off.
+  uploading
+  /// Rows are staged; waiting for the columns and the account.
+  uploaded
+  /// The worker reads the rows with the chosen columns.
+  parsing
+  /// Parsed: waiting for the categories and the go-ahead.
+  ready
+  /// The worker creates the transactions.
+  importing
+  done
+  failed
+
+  @@map("import_status")
+}
+
+enum ImportRowStatus {
+  /// Becomes a transaction on import.
+  new
+  /// Already imported into the account (same fingerprint).
+  duplicate
+  /// Could not be read: see error.
+  invalid
+  /// Readable, but not a transaction to import (a declined payment, zero).
+  skipped
+  /// Made into a transaction, or found imported meanwhile.
+  imported
+
+  @@map("import_row_status")
+}
+
+/// A bank statement on its way in: uploaded, read with the columns the user
+/// chose, then turned into transactions by ImportWorker. The work is queued
+/// in this table: the worker claims a row in a "parsing" or "importing"
+/// status with a lease (locked_until) and keeps renewing it; a worker that
+/// dies lets the lease expire and another one picks the import up.
+model Import {
+  id            String       @id @default(uuid(7)) @db.Uuid
+  userId        String       @map("user_id") @db.Uuid
+  /// Chosen with the columns; NULL until then.
+  accountId     String?      @map("account_id") @db.Uuid
+  fileName      String       @map("file_name") @db.VarChar(255)
+  status        ImportStatus
+  /// The header row of the file.
+  headers       String[]
+  /// Bank format recognised by the headers, e.g. "tbank".
+  preset        String?      @db.VarChar(32)
+  /// Which column holds what (ImportColumns in @kopilka/shared).
+  columns       Json?
+  /// The zone of the statement's local times.
+  timeZone      String?      @map("time_zone") @db.VarChar(64)
+  /// Data rows staged (without the header).
+  totalRows     Int          @default(0) @map("total_rows")
+  /// Rows done in the current phase: progress for the client.
+  processed     Int          @default(0)
+  newRows       Int          @default(0) @map("new_rows")
+  duplicateRows Int          @default(0) @map("duplicate_rows")
+  invalidRows   Int          @default(0) @map("invalid_rows")
+  skippedRows   Int          @default(0) @map("skipped_rows")
+  importedRows  Int          @default(0) @map("imported_rows")
+  /// Why the import failed, for the user.
+  error         String?      @db.VarChar(280)
+  /// Lease of the worker processing it; expired = free to take over.
+  lockedUntil   DateTime?    @map("locked_until") @db.Timestamptz(3)
+  /// Claims in the current phase: an import that keeps crashing its
+  /// worker fails after a few instead of being retried forever.
+  attempts      Int          @default(0)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account?      @relation(fields: [accountId, userId], references: [id, userId], onDelete: Cascade)
+  rows         ImportRow[]
+  transactions Transaction[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  // The worker looks for imports in a phase it runs.
+  @@index([status])
+  @@map("imports")
+}
+
+/// One data row of an uploaded statement: a staging table. The raw cells
+/// come in during the upload; the worker fills in the parsed values. Kept
+/// in the database rather than on disk: any instance can pick the work up,
+/// and an instance's disk does not survive a redeploy.
+/// No foreign key on category_id: a scratch value, checked when the
+/// transactions are created (their own foreign key).
+model ImportRow {
+  importId       String           @map("import_id") @db.Uuid
+  /// Line number in the file, the header being line 1: what the user sees
+  /// in a spreadsheet.
+  line           Int
+  cells          String[]
+  /// NULL: not parsed yet.
+  status         ImportRowStatus?
+  /// Date and time as written in the statement, no zone: the fingerprint
+  /// does not change with the zone the user picks.
+  localAt        DateTime?        @map("local_at") @db.Timestamp(0)
+  occurredAt     DateTime?        @map("occurred_at") @db.Timestamptz(3)
+  amount         Decimal?         @db.Decimal(14, 2)
+  kind           TransactionKind?
+  description    String?          @db.VarChar(280)
+  /// The bank's category, '' if none: what the user maps to a category.
+  sourceCategory String?          @map("source_category") @db.VarChar(64)
+  categoryId     String?          @map("category_id") @db.Uuid
+  fingerprint    String?          @db.Char(64)
+  error          String?          @db.VarChar(280)
+
+  import Import @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@id([importId, line])
+  @@map("import_rows")
+}
+
+/// "The bank's Супермаркеты is my Продукты": remembered from the last
+/// import, suggested on the next one.
+model ImportCategoryRule {
+  id         String          @id @default(uuid(7)) @db.Uuid
+  userId     String          @map("user_id") @db.Uuid
+  kind       TransactionKind
+  /// The bank's category name, '' for rows without one.
+  source     String          @db.VarChar(64)
+  categoryId String          @map("category_id") @db.Uuid
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Forgotten with its category.
+  category Category @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, kind, source])
+  @@index([categoryId])
+  @@map("import_category_rules")
 }
 
 /// Opaque refresh tokens; only a SHA-256 hash is stored, never the token itself.
