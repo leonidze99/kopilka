@@ -99,6 +99,16 @@ export const listTransactionsQuerySchema = z.object({
   /** Money that left or reached the account: transfers count for both. */
   accountId: z.uuid().optional(),
   type: transactionTypeSchema.optional(),
+  /**
+   * A piece of the comment, anywhere in it: "такс" finds "Яндекс Такси".
+   * Case and ё/е do not matter.
+   */
+  q: z
+    .string()
+    .trim()
+    .min(2, 'Введите хотя бы 2 символа')
+    .max(100, 'Не длиннее 100 символов')
+    .optional(),
 });
 
 export const transactionPageSchema = z

@@ -59,6 +59,20 @@ function toTransaction({
 const notFound = () =>
   new AppException('NOT_FOUND', 'Transaction not found', HttpStatus.NOT_FOUND);
 
+/**
+ * As transactions.comment_search is generated: lower case, ё as е. JS
+ * lowercases Cyrillic like Postgres under a UTF-8 locale.
+ *
+ * Prisma's `contains` becomes LIKE '%…%' without escaping the pattern:
+ * a typed "100%" would also match "1005", "__" anything. Backslash is
+ * LIKE's default escape character.
+ */
+const searchable = (text: string) =>
+  text
+    .toLowerCase()
+    .replaceAll('ё', 'е')
+    .replace(/[\\%_]/g, (char) => `\\${char}`);
+
 const invalid = (field: string, message: string, detail: string) =>
   new AppException('VALIDATION_FAILED', message, HttpStatus.BAD_REQUEST, [
     { field, message: detail },
@@ -128,6 +142,9 @@ export class TransactionsService {
       where: {
         userId,
         categoryId: query.categoryId,
+        // LIKE '%…%' on the generated comment_search column, which the
+        // trigram index serves; the query is normalized the same way.
+        ...(query.q && { commentSearch: { contains: searchable(query.q) } }),
         ...(query.type === 'transfer'
           ? { toAccountId: { not: null } }
           : query.type && { category: { kind: query.type } }),

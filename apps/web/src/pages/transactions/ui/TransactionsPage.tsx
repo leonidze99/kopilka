@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { CreateTransactionForm } from '@/features/transaction-form';
 import { currentMonth, type Month, parseMonth } from '@/shared/lib';
@@ -30,22 +30,34 @@ function useOperationsView() {
     accountId: params.get('account') ?? undefined,
   };
 
-  const update = (changes: Record<string, string | undefined>) =>
-    setParams(
-      (previous) => {
-        const next = new URLSearchParams(previous);
-        for (const [key, value] of Object.entries(changes)) {
-          if (value === undefined) next.delete(key);
-          else next.set(key, value);
-        }
-        return next;
-      },
-      { replace: true },
-    );
+  const update = useCallback(
+    (changes: Record<string, string | undefined>) =>
+      setParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          for (const [key, value] of Object.entries(changes)) {
+            if (value === undefined) next.delete(key);
+            else next.set(key, value);
+          }
+          return next;
+        },
+        { replace: true },
+      ),
+    [setParams],
+  );
+
+  // Stable: the search box waits for a pause in typing with it.
+  const setQuery = useCallback(
+    (query: string) => update({ q: query || undefined }),
+    [update],
+  );
 
   return {
     month,
     filter,
+    /** Search in comments, independent of the filter. */
+    query: params.get('q') ?? '',
+    setQuery,
     setMonth: (next: Month) =>
       // The current month is the default: keep the URL clean.
       update({ month: next === currentMonth() ? undefined : next }),
@@ -55,7 +67,8 @@ function useOperationsView() {
 }
 
 export function TransactionsPage() {
-  const { month, filter, setMonth, setFilter } = useOperationsView();
+  const { month, filter, query, setMonth, setFilter, setQuery } =
+    useOperationsView();
   const [adding, setAdding] = useState(false);
 
   return (
@@ -82,6 +95,8 @@ export function TransactionsPage() {
             month={month}
             filter={filter}
             onFilterChange={setFilter}
+            query={query}
+            onQueryChange={setQuery}
           />
         </div>
         <div className={`${styles.aside} ${styles.wideOnly}`}>

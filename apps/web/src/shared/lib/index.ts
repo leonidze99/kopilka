@@ -17,6 +17,7 @@ export {
   previousPeriod,
   shiftMonth,
 } from './month';
+export { highlight } from './highlight';
 export { formatMoney, formatSignedMoney } from './money';
 export { pluralize } from './plural';
 export { type Theme, useTheme } from './theme';

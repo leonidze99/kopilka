@@ -2254,6 +2254,7 @@ export interface operations {
                 categoryId?: string;
                 accountId?: string;
                 type?: components["schemas"]["TransactionType"];
+                q?: string;
             };
             header?: never;
             path?: never;

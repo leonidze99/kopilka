@@ -93,6 +93,26 @@
   text-overflow: ellipsis;
 }
 
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.searchHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+/* What the search found: a wash behind the letters, the text stays text. */
+.match {
+  border-radius: 3px;
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
 .side {
   display: flex;
   flex-direction: column;

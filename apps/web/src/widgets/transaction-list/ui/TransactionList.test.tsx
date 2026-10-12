@@ -1,4 +1,8 @@
-import { screen, within } from '@testing-library/react';
+import {
+  screen,
+  waitForElementToBeRemoved,
+  within,
+} from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { mockAccount } from '@/test/account';
 import { apiUrl, FOOD, MAIN_ACCOUNT, SALARY, transaction } from '@/test/api';
@@ -182,5 +186,92 @@ describe('TransactionList', () => {
 
     expect(await screen.findByText('Апрель 2026')).toBeInTheDocument();
     expect(router.state.location.search).toBe('?month=2026-04&type=income');
+  });
+
+  describe('search', () => {
+    /** The list API with search: what each request asked, and q applied. */
+    function mockSearch() {
+      const rows = [
+        transaction({ comment: 'Яндекс Такси' }),
+        transaction({ comment: 'Пятёрочка у дома' }),
+      ];
+      const queries: URLSearchParams[] = [];
+      server.use(
+        http.get(apiUrl('/transactions'), ({ request }) => {
+          const query = new URL(request.url).searchParams;
+          queries.push(query);
+          const q = query.get('q')?.toLowerCase().replaceAll('ё', 'е');
+          return HttpResponse.json({
+            items: rows.filter(
+              (row) =>
+                !q ||
+                row.comment?.toLowerCase().replaceAll('ё', 'е').includes(q),
+            ),
+            nextCursor: null,
+          });
+        }),
+      );
+      return queries;
+    }
+
+    it('searches all months once typing pauses, marking what it found', async () => {
+      mockAccount({ categories: [FOOD] });
+      const queries = mockSearch();
+      const { user, router } = renderApp('/?month=2026-04', {
+        session: 'authenticated',
+      });
+      await screen.findByText('Яндекс Такси');
+
+      await user.type(
+        screen.getByRole('searchbox', { name: 'Поиск по комментариям' }),
+        'пятерочка',
+      );
+
+      expect(
+        await screen.findByText('Ищем во всех месяцах'),
+      ).toBeInTheDocument();
+      // The previous list stays until the results arrive.
+      await waitForElementToBeRemoved(() => screen.queryByText('Яндекс Такси'));
+      expect(screen.getByText('Пятёрочка').tagName).toBe('MARK');
+      expect(router.state.location.search).toBe(
+        '?month=2026-04&q=%D0%BF%D1%8F%D1%82%D0%B5%D1%80%D0%BE%D1%87%D0%BA%D0%B0',
+      );
+      // One request for the whole word, not one per letter; no period.
+      const searches = queries.filter((q) => q.has('q'));
+      expect(searches.map((q) => q.get('q'))).toEqual(['пятерочка']);
+      expect(searches[0]?.has('from')).toBe(false);
+    });
+
+    it('waits for a second character', async () => {
+      mockAccount({ categories: [FOOD] });
+      const queries = mockSearch();
+      const { user } = renderApp('/', { session: 'authenticated' });
+      await screen.findByText('Яндекс Такси');
+
+      await user.type(screen.getByRole('searchbox'), 'я');
+
+      expect(
+        await screen.findByText('Введите ещё хотя бы один символ'),
+      ).toBeInTheDocument();
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      expect(queries.some((q) => q.has('q'))).toBe(false);
+    });
+
+    it('opens from a link and resets', async () => {
+      mockAccount({ categories: [FOOD] });
+      mockSearch();
+      const { user, router } = renderApp('/?q=метро', {
+        session: 'authenticated',
+      });
+
+      expect(screen.getByRole('searchbox')).toHaveValue('метро');
+      expect(await screen.findByText('Ничего не найдено')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Сбросить поиск' }));
+
+      expect(await screen.findByText('Яндекс Такси')).toBeInTheDocument();
+      expect(screen.getByRole('searchbox')).toHaveValue('');
+      expect(router.state.location.search).toBe('');
+    });
   });
 });

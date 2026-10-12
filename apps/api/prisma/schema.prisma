@@ -112,6 +112,12 @@ model Transaction {
   /// ImportRow.fingerprint) keeps a second import of it out.
   importId          String?   @map("import_id") @db.Uuid
   importFingerprint String?   @map("import_fingerprint") @db.Char(64)
+  /// For search: lower(comment) with ё as е. GENERATED ALWAYS in SQL (see
+  /// the migration): Postgres keeps it in step on every write, whichever
+  /// code path makes it, and refuses writes to it. Never set it. Prisma
+  /// reads a generation expression as a default: dbgenerated() repeats it
+  /// as Postgres prints it, so `migrate diff` sees no drift.
+  commentSearch     String?   @default(dbgenerated("lower(translate((comment)::text, 'ёЁ'::text, 'еЕ'::text))")) @map("comment_search")
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -133,6 +139,8 @@ model Transaction {
   // one transaction (INSERT ... ON CONFLICT DO NOTHING).
   @@unique([accountId, importFingerprint])
   @@index([importId])
+  // Trigrams: LIKE '%такс%' finds "Яндекс Такси" through the index.
+  @@index([commentSearch(ops: raw("gin_trgm_ops"))], type: Gin)
   // Keyset pagination: ORDER BY occurred_at DESC, id DESC within a user.
   @@index([userId, occurredAt(sort: Desc), id(sort: Desc)])
   @@index([categoryId])

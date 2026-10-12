@@ -211,6 +211,77 @@ describe('Transactions (e2e)', () => {
       ).toEqual(['500.00', '20.00']);
     });
 
+    describe('search by comment', () => {
+      async function withComments() {
+        const fixture = await setUp();
+        const comments = [
+          'Яндекс Такси',
+          'Пятёрочка у дома',
+          'Перекрёсток',
+          'Кэшбэк 100% за кофе',
+          'Кэшбэк 1005',
+          null,
+        ];
+        for (const [index, comment] of comments.entries()) {
+          await add(fixture.user, {
+            categoryId: fixture.food.id,
+            amount: String(index + 1),
+            ...(comment && { comment }),
+            occurredAt: `2026-10-0${index + 1}T12:00:00Z`,
+          }).expect(201);
+        }
+        const search = async (q: string, extra: Record<string, string> = {}) =>
+          (
+            await list(fixture.user, { q, ...extra }).expect(200)
+          ).body.items.map((t: { comment: string }) => t.comment);
+        return { ...fixture, search };
+      }
+
+      it('finds a piece anywhere in the comment, whatever the case', async () => {
+        const { search } = await withComments();
+        expect(await search('такс')).toEqual(['Яндекс Такси']);
+        expect(await search('ЯНДЕКС')).toEqual(['Яндекс Такси']);
+        expect(await search('  у дом ')).toEqual(['Пятёрочка у дома']);
+      });
+
+      it('treats ё and е as the same letter, both ways', async () => {
+        const { search } = await withComments();
+        expect(await search('пятерочка')).toEqual(['Пятёрочка у дома']);
+        expect(await search('перекресток')).toEqual(['Перекрёсток']);
+        expect(await search('ПЯТЁР')).toEqual(['Пятёрочка у дома']);
+      });
+
+      it('takes % and _ literally', async () => {
+        const { search } = await withComments();
+        // As LIKE wildcards they would match "Кэшбэк 1005" too, or anything.
+        expect(await search('100%')).toEqual(['Кэшбэк 100% за кофе']);
+        expect(await search('__')).toEqual([]);
+      });
+
+      it('combines with the other filters and pages', async () => {
+        const { search } = await withComments();
+        expect(await search('кэшбэк', { limit: '1' })).toEqual(['Кэшбэк 1005']);
+        expect(
+          await search('кэшбэк', {
+            from: '2026-10-04T00:00:00Z',
+            to: '2026-10-05T00:00:00Z',
+          }),
+        ).toEqual(['Кэшбэк 100% за кофе']);
+        const stranger = await setUp();
+        expect(
+          (await list(stranger.user, { q: 'такс' }).expect(200)).body.items,
+        ).toEqual([]);
+      });
+
+      it('wants at least two characters', async () => {
+        const { user } = await setUp();
+        const res = await list(user, { q: ' я ' }).expect(400);
+        expect(res.body.details).toEqual([
+          { field: 'q', message: 'Введите хотя бы 2 символа' },
+        ]);
+      });
+    });
+
     it('rejects a forged cursor', async () => {
       const { user } = await setUp();
 

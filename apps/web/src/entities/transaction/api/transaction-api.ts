@@ -38,11 +38,15 @@ export interface Period {
 
 export type TransactionType = Transaction['type'];
 
-/** What the list shows: a period, narrowed to a type, category or account. */
-export interface TransactionFilter extends Period {
+/**
+ * What the list shows: a period (none: all time), narrowed to a type,
+ * category or account, and to comments containing `q`.
+ */
+export interface TransactionFilter extends Partial<Period> {
   type?: TransactionType;
   categoryId?: string;
   accountId?: string;
+  q?: string;
 }
 
 type TransactionInput = RequestBody<'/transactions', 'post'>;

@@ -5,7 +5,7 @@ import {
   Repeat,
   SearchX,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useListAccountsQuery } from '@/entities/account';
 import {
   CategoryAvatar,
@@ -27,6 +27,7 @@ import {
   formatMonthIn,
   formatSignedMoney,
   formatTime,
+  highlight,
   type Month,
   monthPeriod,
 } from '@/shared/lib';
@@ -36,6 +37,7 @@ import {
   EmptyState,
   FormError,
   Panel,
+  SearchField,
   SelectField,
   Skeleton,
 } from '@/shared/ui';
@@ -52,6 +54,60 @@ interface TransactionListProps {
   month: Month;
   filter: ListFilter;
   onFilterChange: (filter: ListFilter) => void;
+  /** Search in comments, over all months; '' for none. */
+  query: string;
+  onQueryChange: (query: string) => void;
+}
+
+/** What the API searches for: from 2 characters, trimmed; else nothing. */
+const searchable = (draft: string) =>
+  draft.trim().length >= 2 ? draft.trim() : '';
+
+const SEARCH_DELAY_MS = 300;
+
+/**
+ * The search box. Keeps what is typed and sends it once typing pauses: a
+ * request per keystroke would be wasted, and each would replace the URL.
+ */
+function CommentSearch({
+  query,
+  onChange,
+}: {
+  query: string;
+  onChange: (query: string) => void;
+}) {
+  const [draft, setDraft] = useState(query);
+  const [seen, setSeen] = useState(query);
+  // The query changed from outside (a reset, the back button): show it,
+  // unless it is only the trimmed draft coming back ("яндекс " stays).
+  if (query !== seen) {
+    setSeen(query);
+    if (searchable(draft) !== query) setDraft(query);
+  }
+
+  useEffect(() => {
+    const next = searchable(draft);
+    if (next === query) return;
+    const timer = setTimeout(() => onChange(next), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [draft, query, onChange]);
+
+  const short = draft.trim().length === 1;
+  return (
+    <div className={styles.search}>
+      <SearchField
+        label="Поиск по комментариям"
+        placeholder="Поиск по комментариям"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+      />
+      {(query || short) && (
+        <p className={styles.searchHint} aria-live="polite">
+          {short ? 'Введите ещё хотя бы один символ' : 'Ищем во всех месяцах'}
+        </p>
+      )}
+    </div>
+  );
 }
 
 /** Consecutive transactions of one local day; the list is newest first. */
@@ -80,6 +136,8 @@ export function TransactionList({
   month,
   filter,
   onFilterChange,
+  query,
+  onQueryChange,
 }: TransactionListProps) {
   const {
     data,
@@ -88,10 +146,14 @@ export function TransactionList({
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
-  } = useListTransactionsInfiniteQuery({ ...monthPeriod(month), ...filter });
+  } = useListTransactionsInfiniteQuery(
+    // A search looks through every month: "такси" means all the rides.
+    query ? { ...filter, q: query } : { ...monthPeriod(month), ...filter },
+  );
   const transactions = data?.pages.flatMap((page) => page.items) ?? [];
   const [editing, setEditing] = useState<Transaction>();
-  const filtered = Object.values(filter).some((value) => value !== undefined);
+  const filtered =
+    !!query || Object.values(filter).some((value) => value !== undefined);
   // With one account, naming it on every row is noise.
   const { data: accounts } = useListAccountsQuery();
   const showAccount = (accounts?.items.length ?? 0) > 1;
@@ -102,6 +164,7 @@ export function TransactionList({
       title="История"
       actions={<FilterSelect filter={filter} onChange={onFilterChange} />}
     >
+      <CommentSearch query={query} onChange={onQueryChange} />
       {error && <FormError message={errorMessage(error)} />}
       {isLoading && <ListSkeleton />}
       {!isLoading && !error && transactions.length === 0 && !filtered && (
@@ -115,9 +178,12 @@ export function TransactionList({
             variant="secondary"
             size="sm"
             className={styles.reset}
-            onClick={() => onFilterChange({})}
+            onClick={() => {
+              onFilterChange({});
+              onQueryChange('');
+            }}
           >
-            Сбросить фильтр
+            {query ? 'Сбросить поиск' : 'Сбросить фильтр'}
           </Button>
         </EmptyState>
       )}
@@ -141,6 +207,7 @@ export function TransactionList({
                     transaction={transaction}
                     showAccount={showAccount}
                     accountId={filter.accountId}
+                    query={query}
                   />
                   <ChevronRight
                     className={styles.chevron}
@@ -199,10 +266,30 @@ interface RowContentProps {
   showAccount: boolean;
   /** The account the list is narrowed to: a transfer is out of or into it. */
   accountId?: string;
+  /** The search: its matches in the comment are marked. */
+  query: string;
+}
+
+/** A comment with what the search found in it marked. */
+function Comment({ text, query }: { text: string; query: string }) {
+  return highlight(text, query).map((part, index) =>
+    part.match ? (
+      <mark key={index} className={styles.match}>
+        {part.text}
+      </mark>
+    ) : (
+      part.text
+    ),
+  );
 }
 
 /** What a row shows: a category with its amount, or a transfer between accounts. */
-function RowContent({ transaction, showAccount, accountId }: RowContentProps) {
+function RowContent({
+  transaction,
+  showAccount,
+  accountId,
+  query,
+}: RowContentProps) {
   const time = (
     <time className={styles.time} dateTime={transaction.occurredAt}>
       {showAccount && transaction.type !== 'transfer'
@@ -233,7 +320,12 @@ function RowContent({ transaction, showAccount, accountId }: RowContentProps) {
           </span>
           <span className={styles.comment}>
             {transaction.account.name} → {transaction.toAccount.name}
-            {transaction.comment && ` · ${transaction.comment}`}
+            {transaction.comment && (
+              <>
+                {' · '}
+                <Comment text={transaction.comment} query={query} />
+              </>
+            )}
           </span>
         </span>
         <span className={styles.side}>
@@ -260,7 +352,9 @@ function RowContent({ transaction, showAccount, accountId }: RowContentProps) {
           <RecurringMark transaction={transaction} />
         </span>
         {transaction.comment && (
-          <span className={styles.comment}>{transaction.comment}</span>
+          <span className={styles.comment}>
+            <Comment text={transaction.comment} query={query} />
+          </span>
         )}
       </span>
       <span className={styles.side}>
