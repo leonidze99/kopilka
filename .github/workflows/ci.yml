@@ -73,6 +73,9 @@ jobs:
     name: E2E tests (Postgres)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The tests bring their own database (Testcontainers starts one and
+    # throws it away). This service is for the two migration checks below,
+    # which need a server to apply a migration to.
     services:
       postgres:
         image: postgres:16-alpine
@@ -109,6 +112,8 @@ jobs:
       - name: Migrations match schema.prisma
         run: pnpm --filter api exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
 
+      # Starts postgres:16-alpine through Testcontainers, migrates it and
+      # drops it afterwards; nothing is left between runs.
       - name: E2E tests
         run: pnpm --filter api test:e2e
 

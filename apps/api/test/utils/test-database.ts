@@ -1,24 +1,46 @@
 import 'dotenv/config';
+import { PostgreSqlContainer } from '@testcontainers/postgresql';
 
-/**
- * e2e tests get a database of their own: the one in DATABASE_URL (from
- * apps/api/.env locally, from the workflow in CI) with "_test" appended.
- * Sharing the development database let tests move the clock of the
- * recurring runner over everybody's rules, and a running dev server's cron
- * act on the tests' data.
- */
-export function testDatabaseUrl(): string {
-  const base = process.env['DATABASE_URL'];
-  if (!base) throw new Error('DATABASE_URL is not set (see apps/api/.env)');
-  const url = new URL(base);
-  const name = url.pathname.slice(1);
-  if (!name.endsWith('_test')) url.pathname = `/${name}_test`;
-  return url.toString();
+/** The Postgres the e2e suite runs against, and how to let it go. */
+export interface TestDatabase {
+  url: string;
+  stop: () => Promise<void>;
 }
 
-/** The same server, its maintenance database: where CREATE DATABASE runs. */
-export function maintenanceUrl(databaseUrl: string): string {
-  const url = new URL(databaseUrl);
-  url.pathname = '/postgres';
-  return url.toString();
+// The same server version as development and production run.
+const IMAGE = 'postgres:16-alpine';
+
+/**
+ * A database for the e2e run.
+ *
+ * By default a Postgres container of its own (Testcontainers), thrown away
+ * afterwards: the suite needs no local server, cannot inherit leftovers from
+ * an earlier run, and cannot touch development data — a test moving the
+ * recurring runner's clock months ahead used to make payments on the demo
+ * user's rules, and a dev server's cron used to act on the tests' rows.
+ *
+ * E2E_DATABASE_URL points the run at an existing database instead (for an
+ * environment where starting containers is not an option). That database is
+ * migrated and written to, so it must not be one anybody cares about.
+ */
+export async function startTestDatabase(): Promise<TestDatabase> {
+  const existing = process.env['E2E_DATABASE_URL'];
+  if (existing) return { url: existing, stop: () => Promise.resolve() };
+
+  const container = await new PostgreSqlContainer(IMAGE)
+    .withDatabase('kopilka_test')
+    // Collation decides what lower() does to Cyrillic, which comment search
+    // depends on; the C locale would leave "Пятёрочка" as it is.
+    .withEnvironment({
+      LANG: 'C.UTF-8',
+      POSTGRES_INITDB_ARGS: '--locale=C.UTF-8',
+    })
+    .start();
+
+  return {
+    url: container.getConnectionUri(),
+    stop: async () => {
+      await container.stop();
+    },
+  };
 }

@@ -108,7 +108,7 @@ Exception filter готов; `requestId` в теле ошибки совпада
 Сборка приложения и тесты:
 
 - То, что живёт в модулях (фильтр, пайп, guard'ы, middleware) — через `APP_*`-провайдеры в модулях. То, что настраивается на уровне приложения (`app.use`, `enableCors`, shutdown hooks) — только в `setupApp()` (`apps/api/src/app.setup.ts`), его вызывают и `main.ts`, и тесты. В `main.ts` — только логгер и `listen`.
-- **e2e — на своей базе** `<DATABASE_URL>_test` (`kopilka_test` локально): `vitest.config.e2e.ts` передаёт её URL воркерам, `test/global-setup.ts` создаёт базу при отсутствии и применяет миграции (`migrate deploy`). Раньше тесты шли на dev-базе — и `runner.runDue(future)` провёл демо-пользователю платежи на три месяца вперёд, а cron dev-сервера мог трогать данные тестов.
+- **e2e — на своей базе в контейнере** (Testcontainers, см. ниже). Раньше тесты шли на dev-базе — и `runner.runDue(future)` провёл демо-пользователю платежи на три месяца вперёд, а cron dev-сервера мог трогать данные тестов; потом была соседняя база `_test`, теперь — одноразовый контейнер.
 - e2e-файлы идут параллельно на одной (тестовой) БД: пользователей создавать через `testUsers(app)` (`apps/api/test/utils/auth.ts`) и удалять в `afterAll` только своих (`users.cleanup()`). Удаление «всех тестовых» по домену стирает данные соседнего набора посреди теста (так ловился флейк пагинации). То же для фоновых задач: `runner.runDue(now, { userId: user.id })` — только правила своего пользователя (`TestUser.id`); без этого набор регулярных с часами на месяцы вперёд делал платежи по правилам демо-сида и ловил с его удалением дедлок.
 - e2e-тесты поднимают приложение через `createTestApp()` (`apps/api/test/utils/create-test-app.ts`): `AppModule` + `setupApp`, логгер выключен, throttler выключен (все запросы с одного IP); `{ throttle: true }` — для тестов лимитов, `{ controllers }` — для служебных контроллеров.
 
@@ -141,15 +141,17 @@ OpenAPI (`apps/api/src/openapi.ts`, e2e — `apps/api/test/openapi*.e2e-spec.ts`
 CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, параллельные job'ы:
 
 - `checks`: `format:check` → `lint` → `build` → `typecheck` → `test` → `api:generate` + `git diff --exit-code` (устаревшие `openapi.json` / `schema.d.ts` валят CI).
-- `e2e`: Postgres 16 как сервис → `db:deploy` (как при деплое) → `prisma migrate diff --exit-code` (ловит изменение `schema.prisma` без миграции) → e2e.
+- `e2e`: Postgres 16 как сервис → `db:deploy` (как при деплое) → `prisma migrate diff --exit-code` (ловит изменение `schema.prisma` без миграции) → e2e на своём контейнере (сервис нужен только двум проверкам миграций).
 - `cypress`: сборка → миграции → один процесс с API и собранным фронтом на :3000 → браузерные сценарии; скриншоты падений уходят в артефакты.
 - Тестовые `DATABASE_URL` / `JWT_ACCESS_SECRET` заданы в `env` workflow — не секреты. `.env` в CI нет, конфиг читается из окружения.
 - Экшены закреплены по SHA с комментарием версии; обновляет Dependabot (`.github/dependabot.yml`, только github-actions). Новые экшены добавлять так же, по SHA.
 - Версия Node — из `.nvmrc` (22), pnpm — из `packageManager`.
 - `pnpm typecheck` проверяет все пакеты, у `api` — вместе с `test/` (`nest build` проверяет только `src/`).
-- Перед пушем можно прогнать то же локально: `pnpm format:check && pnpm lint && pnpm build && pnpm typecheck && pnpm test && pnpm --filter api test:e2e`. Браузерные сценарии — отдельно, при запущенном `pnpm dev`: `pnpm --filter web e2e`.
+- Перед пушем можно прогнать то же локально: `pnpm format:check && pnpm lint && pnpm build && pnpm typecheck && pnpm test && pnpm --filter api test:e2e` (нужен запущенный Docker: e2e поднимает свой Postgres). Браузерные сценарии — отдельно, при запущенном `pnpm dev`: `pnpm --filter web e2e`.
 
 Cypress (`apps/web/cypress/`, `pnpm --filter web e2e`, `e2e:open` — интерактивно): пять сценариев в двух спеках против **реального стека** (`onboarding.cy.ts` — регистрация → счёт и категории из коробки → расход → поиск по комментарию с подсветкой; `auth.cy.ts` — редирект анонима, выход и повторный вход, путь к восстановлению пароля). `baseUrl` по умолчанию `http://localhost:5173` (локально при запущенном `pnpm dev`: Vite проксирует `/api`, origin один как в проде), в CI — `CYPRESS_BASE_URL=http://localhost:3000`, где один процесс отдаёт API и собранный фронт. Пользователей спеки создают сами, домен `@cypress.test`; в dev-базе они остаются (удалять вручную). Бинарь браузера ставится только в job'е Cypress (`CYPRESS_INSTALL_BINARY: '0'` на уровне workflow + кеш `~/.cache/Cypress`), иначе его качали бы все job'ы.
+
+e2e API на Testcontainers (`apps/api/test/utils/test-database.ts`, `test/global-setup.ts`): перед прогоном поднимается свой `postgres:16-alpine`, на него накатываются миграции (`migrate deploy`), URL кладётся в `DATABASE_URL` **через окружение глобального setup'а** (конфиг Vitest читается раньше, чем контейнер существует; воркеры форкаются после и наследуют), после прогона контейнер останавливается. Больше нет базы `_test` рядом с dev-базой и остатков от прошлых прогонов. Локаль контейнера — `C.UTF-8`: от неё зависит `lower()` для кириллицы, на которой держится поиск по комментариям. `E2E_DATABASE_URL` указывает на готовую базу вместо контейнера (её мигрируют и пишут в неё). В CI сервис Postgres остался — но только для двух проверок миграций (`db:deploy` и `migrate diff`), тестам он не нужен.
 
 Фаза 2 закрыта.
 

@@ -1,6 +1,5 @@
 import { defineConfig } from 'vitest/config';
 import tsconfigPaths from 'vite-tsconfig-paths';
-import { testDatabaseUrl } from './test/utils/test-database.js';
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
@@ -8,13 +7,14 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
-    // Creates and migrates the test database once.
+    // Starts a Postgres container (or takes E2E_DATABASE_URL), applies the
+    // migrations and puts the URL into DATABASE_URL for the test workers.
     globalSetup: ['./test/global-setup.ts'],
     env: {
-      // A database of their own, not the development one.
-      DATABASE_URL: testDatabaseUrl(),
       // No cron ticks in the middle of a test: jobs run by hand there.
       JOBS_ENABLED: 'false',
     },
+    // Pulling and starting the container, then migrating, takes a while.
+    hookTimeout: 120_000,
   },
 });
