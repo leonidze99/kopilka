@@ -44,6 +44,19 @@ export const envSchema = z.object({
   // further failure, up to an hour). The throttler's per-IP limit stays.
   LOGIN_MAX_FAILURES: z.coerce.number().int().min(1).default(10),
   LOGIN_LOCK_MINUTES: z.coerce.number().int().min(1).default(5),
+  // How long an emailed password reset link works.
+  PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().positive().default(60),
+  // Where the app is for a user clicking a link in an email. Must be the
+  // public address in production; in development Vite serves the frontend.
+  APP_URL: z
+    .url()
+    .default('http://localhost:5173')
+    // A trailing slash would double up in the links built from it.
+    .transform((url) => (url.endsWith('/') ? url.slice(0, -1) : url)),
+  // SMTP of any provider, e.g. smtps://user:key@smtp.resend.com:465.
+  // Unset: mail is written to the log instead of being sent (development).
+  MAIL_SMTP_URL: z.string().min(1).optional(),
+  MAIL_FROM: z.string().min(1).default('Копилка <no-reply@kopilka.local>'),
   // The built web app (apps/web/dist) to serve from this process; the
   // Docker image sets it. Unset: API only, as in development.
   WEB_DIST_DIR: z.string().min(1).optional(),

@@ -5,11 +5,13 @@ export {
   useChangePasswordMutation,
   useEndOtherSessionsMutation,
   useEndSessionMutation,
+  useForgotPasswordMutation,
   useListSessionsQuery,
   useLoginMutation,
   useLogoutMutation,
   useMeQuery,
   useRegisterMutation,
+  useResetPasswordMutation,
   useRestoreSessionMutation,
 } from './api/session-api';
 export {

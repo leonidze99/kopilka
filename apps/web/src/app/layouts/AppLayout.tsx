@@ -1,5 +1,4 @@
 import { Outlet } from 'react-router';
-import { Toaster } from '@/shared/ui';
 import { AppHeader } from '@/widgets/app-header';
 import styles from './AppLayout.module.css';
 
@@ -11,7 +10,6 @@ export function AppLayout() {
       <main className={styles.main}>
         <Outlet />
       </main>
-      <Toaster />
     </>
   );
 }

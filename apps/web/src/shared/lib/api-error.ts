@@ -36,6 +36,11 @@ export function errorMessage(error: unknown): string {
         apiError.details?.[0]?.message ??
         'Слишком много неудачных попыток входа. Попробуйте позже.'
       );
+    case 'INVALID_RESET_TOKEN':
+      return (
+        apiError.details?.[0]?.message ??
+        'Ссылка недействительна или устарела. Запросите новую.'
+      );
     case 'RATE_LIMITED':
       return 'Слишком много попыток. Попробуйте через минуту.';
     case 'VALIDATION_FAILED':

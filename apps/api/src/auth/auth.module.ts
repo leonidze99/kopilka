@@ -4,14 +4,18 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import cookieParser from 'cookie-parser';
 import type { Env } from '../config/env.js';
+import { MailModule } from '../mail/mail.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
+import { PasswordResetService } from './password-reset.service.js';
 import { RefreshTokenService } from './refresh-token.service.js';
 import { SessionsService } from './sessions.service.js';
 
 @Module({
   imports: [
+    // Mails the password reset link.
+    MailModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({
@@ -29,6 +33,7 @@ import { SessionsService } from './sessions.service.js';
   controllers: [AuthController],
   providers: [
     AuthService,
+    PasswordResetService,
     RefreshTokenService,
     SessionsService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },

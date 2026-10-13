@@ -11,6 +11,8 @@ export const errorCodeSchema = z
     'INVALID_CREDENTIALS',
     // Too many failed sign-ins for this account; see the Retry-After header.
     'ACCOUNT_LOCKED',
+    // The password reset link is unknown, already used or expired.
+    'INVALID_RESET_TOKEN',
     'FORBIDDEN',
     'NOT_FOUND',
     'CONFLICT',

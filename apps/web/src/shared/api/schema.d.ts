@@ -112,6 +112,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email a link for setting a new password
+         * @description Answers 204 whether or not the address is registered: the form must not tell who has an account. At most one link a minute per account.
+         */
+        post: operations["AuthController_forgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set a new password with an emailed token
+         * @description The token works once and ends every session of the account; the user signs in with the new password afterwards.
+         */
+        post: operations["AuthController_resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/sessions": {
         parameters: {
             query?: never;
@@ -590,7 +630,7 @@ export interface components {
             details?: components["schemas"]["ErrorDetail"][];
         };
         /** @enum {string} */
-        ErrorCode: "BAD_REQUEST" | "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "ACCOUNT_LOCKED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "CATEGORY_IN_USE" | "ACCOUNT_IN_USE" | "INSUFFICIENT_FUNDS" | "RATE_LIMITED" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "BAD_REQUEST" | "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "ACCOUNT_LOCKED" | "INVALID_RESET_TOKEN" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "CATEGORY_IN_USE" | "ACCOUNT_IN_USE" | "INSUFFICIENT_FUNDS" | "RATE_LIMITED" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
         ErrorDetail: {
             field?: string;
             message: string;
@@ -601,6 +641,14 @@ export interface components {
         };
         ChangePasswordRequest: {
             currentPassword: string;
+            newPassword: string;
+        };
+        ForgotPasswordRequest: {
+            /** Format: email */
+            email: string;
+        };
+        ResetPasswordRequest: {
+            token: string;
             newPassword: string;
         };
         AuthSessionList: components["schemas"]["AuthSession"][];
@@ -1183,6 +1231,84 @@ export interface operations {
             };
             /** @description UNAUTHORIZED: missing, invalid or expired credentials */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description RATE_LIMITED: see the Retry-After header */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    AuthController_forgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPasswordRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description RATE_LIMITED: see the Retry-After header */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    AuthController_resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

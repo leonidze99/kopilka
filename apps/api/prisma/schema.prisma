@@ -47,6 +47,7 @@ model User {
   transactions   Transaction[]
   refreshTokens  RefreshToken[]
   sessions       Session[]
+  passwordResets PasswordReset[]
 
   @@map("users")
 }
@@ -399,6 +400,25 @@ model Session {
 /// Every login starts a session (family_id); each refresh rotates the token
 /// within it. revoked_at here means used: presenting a used token means it
 /// was stolen, and the whole session is ended.
+/// A one-time link mailed to someone who cannot sign in. Only the SHA-256
+/// of the token is stored, as for refresh tokens: a leaked database does not
+/// hand out account takeovers. A request invalidates the user's earlier
+/// links, and using one ends every session of that user.
+model PasswordReset {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  /// Spent: the password was changed with it.
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_resets")
+}
+
 model RefreshToken {
   id        String    @id @default(uuid(7)) @db.Uuid
   userId    String    @map("user_id") @db.Uuid

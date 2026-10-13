@@ -3,6 +3,9 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
 
+/** The password every user created here signs in with. */
+export const TEST_PASSWORD = 'correct horse battery';
+
 export interface TestUser {
   id: string;
   email: string;
@@ -24,7 +27,7 @@ export function testUsers(app: INestApplication) {
       emails.push(email);
       const res = await request(app.getHttpServer())
         .post('/api/auth/register')
-        .send({ email, password: 'correct horse battery' })
+        .send({ email, password: TEST_PASSWORD })
         .expect(201);
       return {
         id: res.body.user.id as string,

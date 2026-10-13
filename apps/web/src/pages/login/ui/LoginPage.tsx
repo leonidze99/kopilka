@@ -10,6 +10,8 @@ export function LoginPage() {
       footer={
         <>
           Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
+          <br />
+          <Link to="/forgot-password">Забыли пароль?</Link>
         </>
       }
     >

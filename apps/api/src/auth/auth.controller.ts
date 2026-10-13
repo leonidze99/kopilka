@@ -26,8 +26,12 @@ import {
   authSessionListSchema,
   type ChangePasswordDto,
   changePasswordSchema,
+  type ForgotPasswordDto,
+  forgotPasswordSchema,
   type LoginDto,
   type RegisterDto,
+  type ResetPasswordDto,
+  resetPasswordSchema,
   type User,
   authResponseSchema,
   loginSchema,
@@ -39,6 +43,7 @@ import { API_PREFIX } from '../common/http/api-prefix.js';
 import { ApiErrorResponses } from '../common/openapi/api-error-responses.decorator.js';
 import type { Env } from '../config/env.js';
 import { AuthService, type Session } from './auth.service.js';
+import { PasswordResetService } from './password-reset.service.js';
 import type { ClientInfo } from './refresh-token.service.js';
 import { SessionsService } from './sessions.service.js';
 import { type AuthUser, CurrentUser } from './current-user.decorator.js';
@@ -69,6 +74,7 @@ export class AuthController {
 
   constructor(
     private readonly auth: AuthService,
+    private readonly passwordResets: PasswordResetService,
     private readonly sessions: SessionsService,
     config: ConfigService<Env, true>,
   ) {
@@ -185,6 +191,42 @@ export class AuthController {
     @Body({ schema: changePasswordSchema }) dto: ChangePasswordDto,
   ): Promise<void> {
     await this.auth.changePassword(user.id, user.sessionId, dto);
+  }
+
+  // Public: whoever needs it cannot sign in. Throttled like login: the
+  // form sends mail and checks whether an address is registered.
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @Post('password/forgot')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Email a link for setting a new password',
+    description:
+      'Answers 204 whether or not the address is registered: the form must not tell who has an account. At most one link a minute per account.',
+  })
+  @ApiNoContentResponse()
+  @ApiErrorResponses(400, 429)
+  forgotPassword(
+    @Body({ schema: forgotPasswordSchema }) dto: ForgotPasswordDto,
+  ): Promise<void> {
+    return this.passwordResets.request(dto);
+  }
+
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @Post('password/reset')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Set a new password with an emailed token',
+    description:
+      'The token works once and ends every session of the account; the user signs in with the new password afterwards.',
+  })
+  @ApiNoContentResponse()
+  @ApiErrorResponses(400, 429)
+  resetPassword(
+    @Body({ schema: resetPasswordSchema }) dto: ResetPasswordDto,
+  ): Promise<void> {
+    return this.passwordResets.reset(dto);
   }
 
   @Get('sessions')

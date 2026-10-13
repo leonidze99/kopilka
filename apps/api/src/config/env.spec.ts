@@ -21,6 +21,9 @@ describe('envSchema', () => {
       REFRESH_TOKEN_TTL_DAYS: 30,
       LOGIN_MAX_FAILURES: 10,
       LOGIN_LOCK_MINUTES: 5,
+      PASSWORD_RESET_TTL_MINUTES: 60,
+      APP_URL: 'http://localhost:5173',
+      MAIL_FROM: 'Копилка <no-reply@kopilka.local>',
       JOBS_ENABLED: true,
     });
   });

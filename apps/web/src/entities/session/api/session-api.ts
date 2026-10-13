@@ -64,6 +64,33 @@ export const sessionApi = baseApi.injectEndpoints({
     me: build.query<ResponseBody<'/auth/me', 'get', 200>, void>({
       query: () => '/auth/me' satisfies ApiPath,
     }),
+
+    /**
+     * Asks for a link by email. Succeeds whether or not the address is
+     * registered — the API answers the same, on purpose.
+     */
+    forgotPassword: build.mutation<
+      void,
+      RequestBody<'/auth/password/forgot', 'post'>
+    >({
+      query: (body) => ({
+        url: '/auth/password/forgot' satisfies ApiPath,
+        method: 'POST',
+        body,
+      }),
+    }),
+
+    /** Sets the password with the token from the emailed link. */
+    resetPassword: build.mutation<
+      void,
+      RequestBody<'/auth/password/reset', 'post'>
+    >({
+      query: (body) => ({
+        url: '/auth/password/reset' satisfies ApiPath,
+        method: 'POST',
+        body,
+      }),
+    }),
   }),
 });
 
@@ -113,6 +140,8 @@ export const {
   useRestoreSessionMutation,
   useLogoutMutation,
   useMeQuery,
+  useForgotPasswordMutation,
+  useResetPasswordMutation,
 } = sessionApi;
 
 export const {

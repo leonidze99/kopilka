@@ -86,9 +86,10 @@ export class SessionsService {
 
   /**
    * Every refresh adds a row, so refresh_tokens only grows. Daily: drop
-   * expired tokens, and sessions that ended or expired (their tokens go
-   * with them). Used but unexpired tokens of live sessions stay: they are
-   * what catches a stolen token presented again.
+   * expired tokens, sessions that ended or expired (their tokens go with
+   * them) and expired password reset links. Used but unexpired tokens of
+   * live sessions stay: they are what catches a stolen token presented
+   * again.
    */
   @Cron(CronExpression.EVERY_DAY_AT_4AM, { name: 'sessions-cleanup' })
   async tick(): Promise<void> {
@@ -115,9 +116,14 @@ export class SessionsService {
     const tokens = await this.prisma.refreshToken.deleteMany({
       where: { userId: scope.userId, expiresAt: { lte: now } },
     });
+    // A used link stays until it expires: a second click on it then gets
+    // "the link is dead" rather than nothing at all.
+    const resets = await this.prisma.passwordReset.deleteMany({
+      where: { userId: scope.userId, expiresAt: { lte: now } },
+    });
     this.logger.log(
-      { sessions: sessions.count, tokens: tokens.count },
-      'Ended sessions and expired refresh tokens deleted',
+      { sessions: sessions.count, tokens: tokens.count, resets: resets.count },
+      'Ended sessions, expired refresh tokens and reset links deleted',
     );
   }
 }

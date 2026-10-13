@@ -35,6 +35,9 @@ services:
       DATABASE_URL: postgresql://kopilka:kopilka@postgres:5432/kopilka
       # A local check only; a real deployment gets its own secret.
       JWT_ACCESS_SECRET: local-production-check-not-a-real-secret
+      # Links in emails point at this app, which serves the frontend itself.
+      # No MAIL_SMTP_URL here: mail is written to the log (docker compose logs).
+      APP_URL: http://localhost:8080
     depends_on:
       postgres: { condition: service_healthy }
       # A release starts only on a migrated schema.
