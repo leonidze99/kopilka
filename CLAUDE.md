@@ -143,6 +143,7 @@ CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, п
 - `checks`: `format:check` → `lint` → `build` → `typecheck` → `test` → `api:generate` + `git diff --exit-code` (устаревшие `openapi.json` / `schema.d.ts` валят CI).
 - `e2e`: Postgres 16 как сервис → `db:deploy` (как при деплое) → `prisma migrate diff --exit-code` (ловит изменение `schema.prisma` без миграции) → e2e на своём контейнере (сервис нужен только двум проверкам миграций).
 - `cypress`: сборка → миграции → один процесс с API и собранным фронтом на :3000 → браузерные сценарии; скриншоты падений уходят в артефакты.
+- `image`: сборка обоих образов, миграции на пустой БД, старт, smoke-тест.
 - Тестовые `DATABASE_URL` / `JWT_ACCESS_SECRET` заданы в `env` workflow — не секреты. `.env` в CI нет, конфиг читается из окружения.
 - Экшены закреплены по SHA с комментарием версии; обновляет Dependabot (`.github/dependabot.yml`, только github-actions). Новые экшены добавлять так же, по SHA.
 - Версия Node — из `.nvmrc` (22), pnpm — из `packageManager`.
@@ -153,7 +154,15 @@ Cypress (`apps/web/cypress/`, `pnpm --filter web e2e`, `e2e:open` — интер
 
 e2e API на Testcontainers (`apps/api/test/utils/test-database.ts`, `test/global-setup.ts`): перед прогоном поднимается свой `postgres:16-alpine`, на него накатываются миграции (`migrate deploy`), URL кладётся в `DATABASE_URL` **через окружение глобального setup'а** (конфиг Vitest читается раньше, чем контейнер существует; воркеры форкаются после и наследуют), после прогона контейнер останавливается. Больше нет базы `_test` рядом с dev-базой и остатков от прошлых прогонов. Локаль контейнера — `C.UTF-8`: от неё зависит `lower()` для кириллицы, на которой держится поиск по комментариям. `E2E_DATABASE_URL` указывает на готовую базу вместо контейнера (её мигрируют и пишут в неё). В CI сервис Postgres остался — но только для двух проверок миграций (`db:deploy` и `migrate diff`), тестам он не нужен.
 
-Фаза 2 закрыта.
+Метрики (`apps/api/src/metrics/`, e2e — `test/metrics.e2e-spec.ts`), prom-client:
+
+- `GET /metrics` в формате Prometheus: метрики процесса (`collectDefaultMetrics` — память, лаг event loop, GC) плюс `http_requests_total` и `http_request_duration_seconds` с метками `method`, `route`, `status`.
+- **Метка `route` — шаблон маршрута** (`/api/transactions/:id`), а не URL: метка на каждый id — это серия на запись, классический способ положить хранилище метрик. Всё, что роутер не сопоставил, сводится к двум меткам: `unmatched` (запросы под `/api`) и `web` (страницы и файлы фронта). Шаблон берётся в `res.on('finish')` — до обработчика маршрут ещё не известен; путь — из `originalUrl`, потому что внутри смонтированного middleware `req.path` относительный.
+- Доступ: с `METRICS_TOKEN` нужен `Authorization: Bearer <token>`, без переменной — открыто в development и **отсутствует в production**. Неверный токен — 404, а не 401: сканеру не за что зацепиться. Сравнение токенов — по SHA-256 через `timingSafeEqual`.
+- Эндпоинт исключён из OpenAPI (`@ApiExcludeEndpoint`): это интерфейс для эксплуатации, а не контракт клиента, и фронтовые типы он не засоряет. В access-лог не пишется, как и health-чеки.
+- Дашборда Grafana нет: это конфигурация системы мониторинга, а не кода приложения. Чтобы собирать — `scrape_configs` с `bearer_token` на `/api/metrics`.
+
+Фаза 2 закрыта. Из фазы 3 сделаны браузерные тесты, e2e на Testcontainers и метрики; остаются Redis/BullMQ (только под реальную задачу) и деплой.
 
 Деплой (платформа ещё не выбрана; образ проверен локально):
 
@@ -180,7 +189,7 @@ e2e API на Testcontainers (`apps/api/test/utils/test-database.ts`, `test/globa
 - Тесты: Vitest + RTL + MSW 3 (`pnpm --filter web test`). `src/test/render.tsx` — `renderApp(path, { session })` поднимает реальные store, роуты и guard'ы. Запрос без MSW-обработчика **валит тест** (`src/test/setup.ts`; в MSW 3 опция называется `onUnhandledFrame`, а стратегия `'error'` сама тест не валит). `FormData` и `File` в тестах — нодовские (подменены в `setup.ts`): jsdom-овские не читает fetch из Node, загрузка файла падала с `reading '_buffer'`.
 - API для фронта — `/api` на том же origin (`VITE_API_URL` переопределяет). В dev Vite проксирует `/api` на `:3000` (`API_PROXY_TARGET`), так что кука `Path=/api/auth` работает как в проде.
 
-Не сделано на фронте: e2e на Cypress (в плане), обработка `Retry-After` в тексте ошибки (fetchBaseQuery не отдаёт заголовки в `error`).
+Не сделано на фронте: обработка `Retry-After` в тексте ошибки (fetchBaseQuery не отдаёт заголовки в `error`).
 
 Code splitting (`apps/web/src/app/router/routes.tsx`): страницы приложения грузятся отдельными чанками через `lazy` у маршрутов, `HydrateFallback` у корневого — лоадер на первую загрузку. Страницы анонима (вход, регистрация, забыли/сброс пароля) остались в первом чанке: вместе это пара килобайт, и это первый экран — лишний round trip ради формы входа не нужен. Первая загрузка 199 → 179 КБ gzip; страницы: лента 10.6, импорт 8.8, регулярные 3.3, счета 2.6, настройки 2.0, категории 1.8 КБ gzip. Главное не в разовой экономии: новая страница больше не увеличивает первый чанк. Остаток первого чанка — react, RTK Query, react-router, react-hook-form и Zod со схемами shared (нужны форме входа, отложить нельзя).
 

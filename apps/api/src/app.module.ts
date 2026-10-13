@@ -11,6 +11,7 @@ import { AccountsModule } from './accounts/accounts.module.js';
 import { BudgetsModule } from './budgets/budgets.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
 import { ImportsModule } from './imports/imports.module.js';
+import { MetricsModule } from './metrics/metrics.module.js';
 import { RecurringModule } from './recurring/recurring.module.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { createValidationPipe } from './common/errors/validation.pipe.js';
@@ -50,6 +51,7 @@ import { TransactionsModule } from './transactions/transactions.module.js';
     BudgetsModule,
     CategoriesModule,
     ImportsModule,
+    MetricsModule,
     RecurringModule,
     TransactionsModule,
   ],

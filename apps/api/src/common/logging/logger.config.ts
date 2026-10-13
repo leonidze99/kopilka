@@ -48,7 +48,10 @@ export function createLoggerParams(
     // Platform health probes hit every few seconds and would drown the
     // access log; failed checks are logged by terminus itself.
     autoLogging: {
-      ignore: (req) => req.url?.startsWith(`/${API_PREFIX}/health/`) ?? false,
+      // The same for the metrics scrape, which Prometheus repeats as often.
+      ignore: (req) =>
+        req.url?.startsWith(`/${API_PREFIX}/health/`) ||
+        req.url === `/${API_PREFIX}/metrics`,
     },
     customLogLevel: (_req, res, error) => {
       if (error || res.statusCode >= 500) return 'error';
