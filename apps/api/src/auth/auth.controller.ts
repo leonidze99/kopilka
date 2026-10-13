@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Req,
   Res,
 } from '@nestjs/common';
@@ -29,6 +30,8 @@ import {
   type ForgotPasswordDto,
   forgotPasswordSchema,
   type LoginDto,
+  type NotificationSettingsDto,
+  notificationSettingsSchema,
   type RegisterDto,
   type ResetPasswordDto,
   resetPasswordSchema,
@@ -227,6 +230,22 @@ export class AuthController {
     @Body({ schema: resetPasswordSchema }) dto: ResetPasswordDto,
   ): Promise<void> {
     return this.passwordResets.reset(dto);
+  }
+
+  @Put('notifications')
+  @ApiOperation({
+    summary: 'Turn the budget letters on or off',
+    description:
+      'Off means no mail about an overspent budget, for every budget of the account.',
+  })
+  @ApiOkResponse({ standardSchema: userSchema })
+  @ApiErrorResponses(400, 401)
+  setNotifications(
+    @CurrentUser() user: AuthUser,
+    @Body({ schema: notificationSettingsSchema })
+    dto: NotificationSettingsDto,
+  ): Promise<User> {
+    return this.auth.setNotifications(user.id, dto);
   }
 
   @Get('sessions')

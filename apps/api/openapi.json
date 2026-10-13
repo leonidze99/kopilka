@@ -371,6 +371,59 @@
         ]
       }
     },
+    "/auth/notifications": {
+      "put": {
+        "description": "Off means no mail about an overspent budget, for every budget of the account.",
+        "operationId": "AuthController_setNotifications",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Turn the budget letters on or off",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/auth/sessions": {
       "get": {
         "description": "Active sessions, the current one first.",
@@ -2854,6 +2907,11 @@
             "type": "string",
             "minLength": 8,
             "maxLength": 128
+          },
+          "timeZone": {
+            "default": "UTC",
+            "type": "string",
+            "example": "Europe/Moscow"
           }
         },
         "required": [
@@ -2894,11 +2952,15 @@
           },
           "email": {
             "type": "string"
+          },
+          "budgetAlerts": {
+            "type": "boolean"
           }
         },
         "required": [
           "id",
-          "email"
+          "email",
+          "budgetAlerts"
         ],
         "additionalProperties": false
       },
@@ -3029,6 +3091,17 @@
         "required": [
           "token",
           "newPassword"
+        ]
+      },
+      "NotificationSettings": {
+        "type": "object",
+        "properties": {
+          "budgetAlerts": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "budgetAlerts"
         ]
       },
       "AuthSessionList": {

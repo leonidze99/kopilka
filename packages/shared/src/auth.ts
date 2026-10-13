@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { timeZoneSchema } from './recurring.js';
 
 // Normalize before validating: z.email().trim() would check the format first
 // and reject " Foo@Example.com ". Lowercasing here is what makes the unique
@@ -22,6 +23,12 @@ export const registerSchema = z
   .object({
     email: emailSchema,
     password: newPasswordSchema,
+    /**
+     * Where the user is, as the browser knows it. Kept on the account
+     * because a background job has no request to ask: which month a budget
+     * alert is about depends on it.
+     */
+    timeZone: timeZoneSchema.default('UTC'),
   })
   .meta({ id: 'RegisterRequest' });
 
@@ -53,8 +60,16 @@ export const userSchema = z
   .object({
     id: z.uuid(),
     email: z.string(),
+    /** Mail when a budget of the month is overspent. */
+    budgetAlerts: z.boolean(),
   })
   .meta({ id: 'User' });
+
+export const notificationSettingsSchema = z
+  .object({
+    budgetAlerts: z.boolean(),
+  })
+  .meta({ id: 'NotificationSettings' });
 
 export const authResponseSchema = z
   .object({
@@ -101,6 +116,9 @@ export const authSessionListSchema = z
   .meta({ id: 'AuthSessionList' });
 
 export type RegisterDto = z.infer<typeof registerSchema>;
+export type NotificationSettingsDto = z.infer<
+  typeof notificationSettingsSchema
+>;
 export type ForgotPasswordDto = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordDto = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;

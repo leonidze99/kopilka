@@ -39,7 +39,14 @@ export async function seedDemo(
     async (tx) => {
       await tx.user.deleteMany({ where: { email: DEMO_EMAIL } });
       const { id: userId } = await tx.user.create({
-        data: { email: DEMO_EMAIL, passwordHash },
+        data: {
+          email: DEMO_EMAIL,
+          passwordHash,
+          timeZone: DEMO_TIME_ZONE,
+          // Nobody reads that mailbox: the demo budgets are overspent on
+          // purpose and would mail about it every month.
+          budgetAlerts: false,
+        },
         select: { id: true },
       });
 

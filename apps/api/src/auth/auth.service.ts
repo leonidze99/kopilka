@@ -5,6 +5,7 @@ import type {
   AuthResponse,
   ChangePasswordDto,
   LoginDto,
+  NotificationSettingsDto,
   RegisterDto,
   User,
 } from '@kopilka/shared';
@@ -40,7 +41,7 @@ export interface Session {
   refreshToken: IssuedRefreshToken;
 }
 
-const userSelect = { id: true, email: true } as const;
+const userSelect = { id: true, email: true, budgetAlerts: true } as const;
 
 /**
  * Policy, not deployment settings, so they stay here while the limit and
@@ -89,7 +90,7 @@ export class AuthService {
   }
 
   async register(
-    { email, password }: RegisterDto,
+    { email, password, timeZone }: RegisterDto,
     client: ClientInfo,
   ): Promise<Session> {
     const passwordHash = await hash(password);
@@ -99,6 +100,7 @@ export class AuthService {
           data: {
             email,
             passwordHash,
+            timeZone,
             // Every transaction needs an account: a new user starts with one.
             accounts: { create: { name: 'Основной счёт', type: 'card' } },
             // ...and with categories to put transactions in, so the app is
@@ -301,6 +303,18 @@ export class AuthService {
     });
     this.logger.log({ userId, endedSessions }, 'Password changed');
     return { endedSessions };
+  }
+
+  /** Turns the budget letters on or off; the only setting there is. */
+  async setNotifications(
+    userId: string,
+    { budgetAlerts }: NotificationSettingsDto,
+  ): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { budgetAlerts },
+      select: userSelect,
+    });
   }
 
   async me(userId: string): Promise<User> {

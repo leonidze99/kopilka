@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw';
 import type { Schemas } from '@/shared/api';
 import { API_URL } from '@/shared/config/env';
 import { mockAccount } from '@/test/account';
-import { apiError, apiUrl } from '@/test/api';
+import { apiError, apiUrl, USER } from '@/test/api';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 
@@ -75,9 +75,34 @@ describe('SettingsPage', () => {
     );
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Безопасность' }),
+      await screen.findByRole('heading', { level: 1, name: 'Настройки' }),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/settings');
+  });
+
+  it('turns the budget letters off and keeps the switch in step', async () => {
+    mockAccount();
+    mockSessions();
+    const sent: unknown[] = [];
+    server.use(
+      http.put(apiUrl('/auth/notifications'), async ({ request }) => {
+        const body = await request.json();
+        sent.push(body);
+        return HttpResponse.json({ ...USER, ...(body as object) });
+      }),
+    );
+    const { user } = renderApp('/settings', { session: 'authenticated' });
+
+    const toggle = await screen.findByRole('switch', {
+      name: /Письма о перерасходе/,
+    });
+    expect(toggle).toBeChecked();
+
+    await user.click(toggle);
+
+    expect(sent).toEqual([{ budgetAlerts: false }]);
+    // The session holds the user the page reads: no reload to see it.
+    await waitFor(() => expect(toggle).not.toBeChecked());
   });
 
   it('lists the devices, this one first, and signs another out', async () => {

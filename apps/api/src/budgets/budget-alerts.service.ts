@@ -1,0 +1,181 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import type { Env } from '../config/env.js';
+import { Prisma } from '../generated/prisma/client.js';
+import { type Mail, MailerService } from '../mail/mailer.service.js';
+import { isPrismaError, PrismaCode } from '../prisma/prisma-errors.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+
+/** A budget of the current month whose spending has passed its limit. */
+interface Overspent {
+  user_id: string;
+  email: string;
+  category_id: string;
+  category: string;
+  month: Date;
+  spent: Prisma.Decimal;
+  limit: Prisma.Decimal;
+}
+
+const money = new Intl.NumberFormat('ru-RU', {
+  style: 'currency',
+  currency: 'RUB',
+  minimumFractionDigits: 2,
+});
+
+const monthName = new Intl.DateTimeFormat('ru-RU', {
+  month: 'long',
+  timeZone: 'UTC',
+});
+
+function alertMail(row: Overspent, appUrl: string): Mail {
+  const month = monthName.format(row.month);
+  const spent = money.format(Number(row.spent));
+  const limit = money.format(Number(row.limit));
+  const over = money.format(Number(row.spent) - Number(row.limit));
+  const subject = `Бюджет «${row.category}» на ${month} превышен`;
+  return {
+    to: row.email,
+    subject,
+    text: [
+      `${subject}.`,
+      '',
+      `Потрачено ${spent} из ${limit} — на ${over} больше.`,
+      '',
+      `Посмотреть: ${appUrl}`,
+      '',
+      'Чтобы не получать такие письма, выключите их в настройках Копилки.',
+    ].join('\n'),
+    html: `<p>Бюджет «${row.category}» на ${month} превышен.</p>
+<p>Потрачено <strong>${spent}</strong> из ${limit} — на ${over} больше.</p>
+<p><a href="${appUrl}">Посмотреть в Копилке</a></p>
+<p>Чтобы не получать такие письма, выключите их в настройках.</p>`,
+  };
+}
+
+/**
+ * Mails a user once per category and month when the month's spending passes
+ * the budget. A job rather than a check on every write: ten purchases in a
+ * row would be ten letters, and a write should not wait for an SMTP server.
+ */
+@Injectable()
+export class BudgetAlertsService {
+  private readonly logger = new Logger(BudgetAlertsService.name);
+  private readonly jobsEnabled: boolean;
+  private readonly appUrl: string;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailer: MailerService,
+    config: ConfigService<Env, true>,
+  ) {
+    this.jobsEnabled = config.get('JOBS_ENABLED', { infer: true });
+    this.appUrl = config.get('APP_URL', { infer: true });
+  }
+
+  @Cron(CronExpression.EVERY_HOUR, { name: 'budget-alerts' })
+  async tick(): Promise<void> {
+    if (!this.jobsEnabled) return;
+    try {
+      await this.run(new Date());
+    } catch (error) {
+      this.logger.error(error, 'Budget alerts failed');
+    }
+  }
+
+  /**
+   * `now` is a parameter: tests move the clock. `scope.userId` keeps a test
+   * to its own rows, as the other jobs do — suites share one database.
+   *
+   * The row is written and the letter sent in one transaction: a failing
+   * SMTP server rolls the row back and the next hour tries again, rather
+   * than marking an alert nobody received. The unique index on
+   * (category_id, month) is what makes a second letter impossible, even
+   * with two instances running the job at the same moment.
+   */
+  async run(now: Date, scope: { userId?: string } = {}): Promise<number> {
+    const rows = await this.overspent(now, scope.userId);
+    let sent = 0;
+
+    for (const row of rows) {
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          await tx.budgetAlert.create({
+            data: {
+              userId: row.user_id,
+              categoryId: row.category_id,
+              month: row.month,
+              spent: row.spent,
+              limit: row.limit,
+            },
+          });
+          await this.mailer.send(alertMail(row, this.appUrl));
+        });
+        sent++;
+      } catch (error) {
+        // Another instance sent this one between the query and the write.
+        if (isPrismaError(error, PrismaCode.UniqueViolation)) continue;
+        this.logger.error({
+          msg: 'Budget alert not sent',
+          userId: row.user_id,
+          categoryId: row.category_id,
+          err: error,
+        });
+      }
+    }
+
+    if (sent > 0) this.logger.log({ sent }, 'Budget alerts sent');
+    return sent;
+  }
+
+  /**
+   * Every overspent budget of the month that has not been mailed about.
+   *
+   * The month is each user's own: a background job has no request to tell
+   * it the zone, so the account carries one. The limit of a category is its
+   * latest version not after this month (DISTINCT ON over the unique index
+   * on (category_id, effective_from)), and a NULL version means the
+   * category stopped being budgeted.
+   */
+  private overspent(now: Date, userId?: string): Promise<Overspent[]> {
+    return this.prisma.$queryRaw<Overspent[]>`
+      WITH months AS (
+        SELECT u.id AS user_id, u.email, u.time_zone,
+               date_trunc('month', (${now}::timestamptz AT TIME ZONE u.time_zone))::date AS month
+        FROM users u
+        WHERE u.budget_alerts
+          ${userId ? Prisma.sql`AND u.id = ${userId}::uuid` : Prisma.empty}
+      ),
+      current_limits AS (
+        SELECT DISTINCT ON (b.category_id)
+               b.category_id, b.amount, m.user_id, m.email, m.time_zone, m.month
+        FROM budgets b
+        JOIN months m ON m.user_id = b.user_id
+        WHERE b.effective_from <= m.month
+        ORDER BY b.category_id, b.effective_from DESC
+      ),
+      spending AS (
+        SELECT l.user_id, l.email, l.category_id, l.amount, l.month,
+               c.name AS category,
+               COALESCE((
+                 SELECT SUM(t.amount) FROM transactions t
+                 WHERE t.category_id = l.category_id
+                   AND t.occurred_at >= (l.month::timestamp AT TIME ZONE l.time_zone)
+                   AND t.occurred_at < ((l.month + interval '1 month')::timestamp AT TIME ZONE l.time_zone)
+               ), 0) AS spent
+        FROM current_limits l
+        JOIN categories c ON c.id = l.category_id
+        -- Already mailed about this month, or no limit any more.
+        LEFT JOIN budget_alerts a
+          ON a.category_id = l.category_id AND a.month = l.month
+        WHERE l.amount IS NOT NULL AND a.id IS NULL
+      )
+      SELECT user_id, email, category_id, category, month, spent,
+             amount AS limit
+      FROM spending
+      WHERE spent >= amount
+      ORDER BY user_id, category
+    `;
+  }
+}

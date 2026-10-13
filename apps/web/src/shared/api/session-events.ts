@@ -11,6 +11,9 @@ export const sessionStarted =
 
 export const sessionEnded = createAction('session/ended');
 
+/** The signed-in user changed a setting of their own. */
+export const userUpdated = createAction<Schemas['User']>('session/user');
+
 /** The slice of state the API layer reads the access token from. */
 export interface StateWithAccessToken {
   session: { accessToken: string | null };

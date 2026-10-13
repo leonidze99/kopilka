@@ -3,6 +3,7 @@ export { REFRESH_LOCK, refreshSession } from './base-query';
 export {
   sessionEnded,
   sessionStarted,
+  userUpdated,
   type StateWithAccessToken,
 } from './session-events';
 export type {

@@ -6,6 +6,7 @@ import {
   type ResponseBody,
   sessionEnded,
   sessionStarted,
+  userUpdated,
 } from '@/shared/api';
 
 type AuthResponse = ResponseBody<'/auth/login', 'post', 200>;
@@ -119,6 +120,23 @@ export const securityApi = sessionApi
         invalidatesTags: ['AuthSession'],
       }),
 
+      /** The budget letters on or off; the answer is the updated user. */
+      setNotifications: build.mutation<
+        ResponseBody<'/auth/notifications', 'put', 200>,
+        RequestBody<'/auth/notifications', 'put'>
+      >({
+        query: (body) => ({
+          url: '/auth/notifications' satisfies ApiPath,
+          method: 'PUT',
+          body,
+        }),
+        async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+          const { data } = await queryFulfilled.catch(() => ({ data: null }));
+          // The session holds the user the pages read: keep it in step.
+          if (data) dispatch(userUpdated(data));
+        },
+      }),
+
       /** Ends the other sessions too: the list changes. */
       changePassword: build.mutation<
         void,
@@ -149,4 +167,5 @@ export const {
   useEndSessionMutation,
   useEndOtherSessionsMutation,
   useChangePasswordMutation,
+  useSetNotificationsMutation,
 } = securityApi;

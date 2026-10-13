@@ -48,15 +48,22 @@ model User {
   /// Until then every sign-in is refused, the right password included.
   lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(3)
 
-  accounts       Account[]
-  recurringRules RecurringRule[]
-  imports        Import[]
-  importRules    ImportCategoryRule[]
-  categories     Category[]
-  transactions   Transaction[]
-  refreshTokens  RefreshToken[]
-  sessions       Session[]
-  passwordResets PasswordReset[]
+  /// Where the user is, as the browser said on registration: a background
+  /// job has no request to ask, and "this month" depends on it.
+  timeZone     String  @default("UTC") @map("time_zone") @db.VarChar(64)
+  /// Mail when a budget is overspent; off is off for all of them.
+  budgetAlerts Boolean @default(true) @map("budget_alerts")
+
+  accounts         Account[]
+  recurringRules   RecurringRule[]
+  imports          Import[]
+  importRules      ImportCategoryRule[]
+  categories       Category[]
+  transactions     Transaction[]
+  refreshTokens    RefreshToken[]
+  sessions         Session[]
+  passwordResets   PasswordReset[]
+  budgetAlertsSent BudgetAlert[]
 
   @@map("users")
 }
@@ -75,6 +82,7 @@ model Category {
   budgets      Budget[]
   recurring    RecurringRule[]
   importRules  ImportCategoryRule[]
+  alerts       BudgetAlert[]
 
   // "Подарки" may exist both as income and as expense.
   @@unique([userId, kind, name])
@@ -235,6 +243,28 @@ model Budget {
   @@unique([categoryId, effectiveFrom])
   @@index([userId])
   @@map("budgets")
+}
+
+/// A budget overspend already mailed about. One row per category and month
+/// is what keeps the job from writing every hour: the unique index is the
+/// idempotency key, not a flag the job sets and reads.
+model BudgetAlert {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  categoryId String   @map("category_id") @db.Uuid
+  /// The first day of the month it is about.
+  month      DateTime @db.Date
+  /// What the numbers were when the letter went out.
+  spent      Decimal  @db.Decimal(14, 2)
+  limit      Decimal  @db.Decimal(14, 2)
+  sentAt     DateTime @default(now()) @map("sent_at") @db.Timestamptz(3)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([categoryId, month])
+  @@index([userId])
+  @@map("budget_alerts")
 }
 
 enum ImportStatus {

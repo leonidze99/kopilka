@@ -1,5 +1,10 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { type Schemas, sessionEnded, sessionStarted } from '@/shared/api';
+import {
+  type Schemas,
+  sessionEnded,
+  sessionStarted,
+  userUpdated,
+} from '@/shared/api';
 
 export interface SessionState {
   /** `unknown` until the refresh cookie has been tried on page load. */
@@ -26,6 +31,9 @@ export const sessionSlice = createSlice({
         accessToken: payload.accessToken,
         user: payload.user,
       }))
+      .addCase(userUpdated, (state, { payload }) => {
+        state.user = payload;
+      })
       .addCase(sessionEnded, () => ({ ...initialState, status: 'anonymous' }));
   },
   selectors: {

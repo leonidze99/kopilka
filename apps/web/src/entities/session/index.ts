@@ -13,6 +13,7 @@ export {
   useRegisterMutation,
   useResetPasswordMutation,
   useRestoreSessionMutation,
+  useSetNotificationsMutation,
 } from './api/session-api';
 export {
   selectCurrentUser,

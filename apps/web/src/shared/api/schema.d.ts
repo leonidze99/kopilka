@@ -152,6 +152,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Turn the budget letters on or off
+         * @description Off means no mail about an overspent budget, for every budget of the account.
+         */
+        put: operations["AuthController_setNotifications"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/sessions": {
         parameters: {
             query?: never;
@@ -632,6 +652,11 @@ export interface components {
             /** Format: email */
             email: string;
             password: string;
+            /**
+             * @default UTC
+             * @example Europe/Moscow
+             */
+            timeZone: string;
         };
         AuthResponse: {
             accessToken: string;
@@ -642,6 +667,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             email: string;
+            budgetAlerts: boolean;
         };
         ApiError: {
             code: components["schemas"]["ErrorCode"];
@@ -670,6 +696,9 @@ export interface components {
         ResetPasswordRequest: {
             token: string;
             newPassword: string;
+        };
+        NotificationSettings: {
+            budgetAlerts: boolean;
         };
         AuthSessionList: components["schemas"]["AuthSession"][];
         AuthSession: {
@@ -1363,6 +1392,47 @@ export interface operations {
             };
             /** @description RATE_LIMITED: see the Retry-After header */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    AuthController_setNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSettings"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
