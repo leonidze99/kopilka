@@ -8,3 +8,7 @@ build/
 .idea/
 *.tsbuildinfo
 apps/api/src/generated/
+
+# Cypress artifacts of a failed run
+apps/web/cypress/screenshots/
+apps/web/cypress/videos/

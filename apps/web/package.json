@@ -9,9 +9,11 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "api:types": "openapi-typescript ../api/openapi.json -o src/shared/api/schema.d.ts",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b && tsc --noEmit -p cypress/tsconfig.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "e2e": "cypress run",
+    "e2e:open": "cypress open --e2e --browser electron"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -33,6 +35,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "cypress": "^16.1.1",
     "jsdom": "^30.1.2",
     "msw": "^3.0.3",
     "openapi-typescript": "^7.13.0",

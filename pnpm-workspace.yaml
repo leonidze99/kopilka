@@ -5,6 +5,8 @@ packages:
 onlyBuiltDependencies:
   - '@prisma/engines'
   - prisma
+  # Downloads the browser-driving binary on install.
+  - cypress
 
 # Install-time telemetry from swagger-ui-dist: never run it.
 ignoredBuiltDependencies:

@@ -19,6 +19,9 @@ env:
   # and both e2e tests and OpenAPI generation boot the app.
   DATABASE_URL: postgresql://kopilka:kopilka@localhost:5432/kopilka
   JWT_ACCESS_SECRET: ci-only-jwt-secret-of-at-least-32-characters
+  # Cypress is a dependency of the web app, but its ~250 MB browser binary
+  # is only needed by the job that runs it (which installs it itself).
+  CYPRESS_INSTALL_BINARY: '0'
 
 # Third-party code runs with access to the repository, so actions are pinned
 # to a commit SHA: a tag can be moved to a different commit, a SHA cannot.
@@ -108,6 +111,84 @@ jobs:
 
       - name: E2E tests
         run: pnpm --filter api test:e2e
+
+  cypress:
+    name: Browser tests (Cypress)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: kopilka
+          POSTGRES_PASSWORD: kopilka
+          POSTGRES_DB: kopilka
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U kopilka"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cache the Cypress binary
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install the Cypress binary
+        env:
+          CYPRESS_INSTALL_BINARY: ''
+        run: pnpm --filter web exec cypress install
+
+      - name: Build
+        run: pnpm build
+
+      - name: Apply migrations
+        run: pnpm --filter api db:deploy
+
+      # One process serves the API and the built web app, as in production:
+      # the refresh cookie (SameSite=Strict, Path=/api/auth) needs one origin.
+      - name: Start the app
+        env:
+          WEB_DIST_DIR: apps/web/dist
+          # No recurring payments or import workers while the browser drives.
+          JOBS_ENABLED: 'false'
+        run: |
+          node apps/api/dist/main.js > /tmp/api.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -fsS localhost:3000/api/health/ready && break
+            sleep 2
+          done
+          curl -fsS localhost:3000/api/health/ready
+
+      - name: Cypress
+        env:
+          CYPRESS_BASE_URL: http://localhost:3000
+        run: pnpm --filter web e2e
+
+      - name: Screenshots of the failures
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cypress-screenshots
+          path: apps/web/cypress/screenshots
+          if-no-files-found: ignore
+
+      - name: App logs
+        if: failure()
+        run: cat /tmp/api.log
 
   image:
     name: Docker image (build, migrate, smoke test)

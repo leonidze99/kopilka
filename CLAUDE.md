@@ -138,15 +138,18 @@ OpenAPI (`apps/api/src/openapi.ts`, e2e — `apps/api/test/openapi*.e2e-spec.ts`
 - Swagger UI — `/docs`, JSON — `/docs/openapi.json`; только вне production. В dev CSP без `upgrade-insecure-requests`, иначе `/docs` не грузится по HTTP.
 - **После изменения API: `pnpm api:generate`** — собирает api, пишет `apps/api/openapi.json` и генерирует `apps/web/src/shared/api/schema.d.ts` (openapi-typescript). Оба файла коммитятся, в `.prettierignore`. e2e-тест падает, если `openapi.json` не совпадает с кодом. Генерация читает `apps/api/.env` (валидация конфига), БД не нужна.
 
-CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, два параллельных job'а:
+CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, параллельные job'ы:
 
 - `checks`: `format:check` → `lint` → `build` → `typecheck` → `test` → `api:generate` + `git diff --exit-code` (устаревшие `openapi.json` / `schema.d.ts` валят CI).
 - `e2e`: Postgres 16 как сервис → `db:deploy` (как при деплое) → `prisma migrate diff --exit-code` (ловит изменение `schema.prisma` без миграции) → e2e.
+- `cypress`: сборка → миграции → один процесс с API и собранным фронтом на :3000 → браузерные сценарии; скриншоты падений уходят в артефакты.
 - Тестовые `DATABASE_URL` / `JWT_ACCESS_SECRET` заданы в `env` workflow — не секреты. `.env` в CI нет, конфиг читается из окружения.
 - Экшены закреплены по SHA с комментарием версии; обновляет Dependabot (`.github/dependabot.yml`, только github-actions). Новые экшены добавлять так же, по SHA.
 - Версия Node — из `.nvmrc` (22), pnpm — из `packageManager`.
 - `pnpm typecheck` проверяет все пакеты, у `api` — вместе с `test/` (`nest build` проверяет только `src/`).
-- Перед пушем можно прогнать то же локально: `pnpm format:check && pnpm lint && pnpm build && pnpm typecheck && pnpm test && pnpm --filter api test:e2e`.
+- Перед пушем можно прогнать то же локально: `pnpm format:check && pnpm lint && pnpm build && pnpm typecheck && pnpm test && pnpm --filter api test:e2e`. Браузерные сценарии — отдельно, при запущенном `pnpm dev`: `pnpm --filter web e2e`.
+
+Cypress (`apps/web/cypress/`, `pnpm --filter web e2e`, `e2e:open` — интерактивно): пять сценариев в двух спеках против **реального стека** (`onboarding.cy.ts` — регистрация → счёт и категории из коробки → расход → поиск по комментарию с подсветкой; `auth.cy.ts` — редирект анонима, выход и повторный вход, путь к восстановлению пароля). `baseUrl` по умолчанию `http://localhost:5173` (локально при запущенном `pnpm dev`: Vite проксирует `/api`, origin один как в проде), в CI — `CYPRESS_BASE_URL=http://localhost:3000`, где один процесс отдаёт API и собранный фронт. Пользователей спеки создают сами, домен `@cypress.test`; в dev-базе они остаются (удалять вручную). Бинарь браузера ставится только в job'е Cypress (`CYPRESS_INSTALL_BINARY: '0'` на уровне workflow + кеш `~/.cache/Cypress`), иначе его качали бы все job'ы.
 
 Фаза 2 закрыта.
 
