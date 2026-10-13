@@ -27,3 +27,9 @@ export type ResponseBody<
     ? JsonContent<R[S]>
     : never
   : never;
+
+/** The query string of a GET, as the contract declares it. */
+export type QueryParams<
+  P extends ApiPath,
+  M extends keyof paths[P],
+> = paths[P][M] extends { parameters: { query?: infer Q } } ? Q : never;

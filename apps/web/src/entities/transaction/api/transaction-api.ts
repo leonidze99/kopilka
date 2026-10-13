@@ -1,6 +1,7 @@
 import {
   type ApiPath,
   baseApi,
+  type QueryParams,
   type RequestBody,
   type ResponseBody,
 } from '@/shared/api';
@@ -50,6 +51,9 @@ export interface TransactionFilter extends Partial<Period> {
 }
 
 type TransactionInput = RequestBody<'/transactions', 'post'>;
+
+/** The filters of the feed plus the reader's time zone, for the CSV. */
+export type ExportParams = QueryParams<'/transactions/export', 'get'>;
 
 // Every write moves money: account balances and budget spending change too.
 const WRITE_TAGS = ['Transaction', 'Account', 'Budget'] as const;
@@ -133,6 +137,23 @@ export const transactionApi = baseApi
         query: (id) => ({ url: `/transactions/${id}`, method: 'DELETE' }),
         invalidatesTags: WRITE_TAGS,
       }),
+
+      /**
+       * The CSV of whatever the list is showing. A mutation, not a query:
+       * it is an action with a file as its result, and caching a blob by
+       * filter would only hold memory. The response is read as a blob —
+       * the default handler would try to parse the file as JSON.
+       */
+      exportTransactions: build.mutation<Blob, ExportParams>({
+        query: (params) => ({
+          url: '/transactions/export' satisfies ApiPath,
+          params: params as Record<string, string>,
+          // Only a successful response is the file; a failed one is the
+          // usual ApiError JSON, which the error message is built from.
+          responseHandler: (response) =>
+            response.ok ? response.blob() : response.json(),
+        }),
+      }),
     }),
   });
 
@@ -144,4 +165,5 @@ export const {
   useCreateTransactionMutation,
   useReplaceTransactionMutation,
   useDeleteTransactionMutation,
+  useExportTransactionsMutation,
 } = transactionApi;

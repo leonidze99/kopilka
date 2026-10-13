@@ -10,6 +10,7 @@ import {
   Post,
   Put,
   Query,
+  Res,
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
@@ -18,11 +19,15 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { once } from 'node:events';
+import type { Response } from 'express';
 import {
   type CategoryTotal,
   type CategoryTotalsQuery,
   categoryTotalsQuerySchema,
   categoryTotalsSchema,
+  type ExportTransactionsQuery,
+  exportTransactionsQuerySchema,
   type ListTransactionsQuery,
   listTransactionsQuerySchema,
   type MonthlyTotal,
@@ -42,13 +47,74 @@ import {
 } from '@kopilka/shared';
 import { type AuthUser, CurrentUser } from '../auth/current-user.decorator.js';
 import { ApiErrorResponses } from '../common/openapi/api-error-responses.decorator.js';
+import {
+  CSV_BOM,
+  csvLine,
+  TRANSACTION_CSV_HEADER,
+  transactionCsvFields,
+} from './csv.js';
 import { TransactionsService } from './transactions.service.js';
+
+/** The date of the file in the reader's own zone; ASCII, so the
+ * Content-Disposition header needs no encoding. */
+function fileName({ timeZone }: ExportTransactionsQuery): string {
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+  return `kopilka-transactions-${today}.csv`;
+}
+
+/** Written to the response only when the socket has room for it. */
+async function write(res: Response, chunk: string): Promise<void> {
+  if (!res.write(chunk)) await once(res, 'drain');
+}
 
 @ApiTags('transactions')
 @ApiErrorResponses(401)
 @Controller('transactions')
 export class TransactionsController {
   constructor(private readonly transactions: TransactionsService) {}
+
+  // Before any ':id' route, or "export" would be read as an id.
+  @Get('export')
+  @ApiOperation({
+    summary: 'The matching transactions as a CSV file',
+    description:
+      'The filters of the feed, without paging. Semicolons, a comma for the decimal mark and a byte order mark: what a Russian Excel opens by double-click, and what the import reads back. Streamed, so the size of the file does not decide the memory of the server.',
+  })
+  @ApiOkResponse({
+    description: 'text/csv; charset=utf-8, as an attachment',
+    content: { 'text/csv': { schema: { type: 'string' } } },
+  })
+  @ApiErrorResponses(400)
+  async export(
+    @CurrentUser() user: AuthUser,
+    @Query({ schema: exportTransactionsQuerySchema })
+    query: ExportTransactionsQuery,
+    @Res() res: Response,
+  ): Promise<void> {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${fileName(query)}"`,
+    );
+
+    await write(res, CSV_BOM + csvLine(TRANSACTION_CSV_HEADER));
+    for await (const batch of this.transactions.exportRows(user.id, query)) {
+      await write(
+        res,
+        batch
+          .map((transaction) =>
+            csvLine(transactionCsvFields(transaction, query.timeZone)),
+          )
+          .join(''),
+      );
+    }
+    res.end();
+  }
 
   @Get()
   @ApiOperation({

@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import type {
   CategoryTotal,
   CategoryTotalsQuery,
+  ExportTransactionsQuery,
   ListTransactionsQuery,
   MonthlyTotal,
   MonthlyTotalsQuery,
@@ -120,37 +121,23 @@ export class TransactionsService {
     query: ListTransactionsQuery,
   ): Promise<TransactionPage> {
     const cursor = query.cursor ? decodeCursor(query.cursor) : undefined;
-    const and: Prisma.TransactionWhereInput[] = [];
-    // A transfer belongs to both of its accounts.
-    if (query.accountId) {
-      and.push({
-        OR: [{ accountId: query.accountId }, { toAccountId: query.accountId }],
-      });
-    }
-    // (occurred_at, id) < (cursor.occurredAt, cursor.id); id breaks ties
-    // between transactions with the same timestamp.
-    if (cursor) {
-      and.push({
-        OR: [
-          { occurredAt: { lt: cursor.occurredAt } },
-          { occurredAt: cursor.occurredAt, id: { lt: cursor.id } },
-        ],
-      });
-    }
-
     const rows = await this.prisma.transaction.findMany({
-      where: {
+      // (occurred_at, id) < (cursor.occurredAt, cursor.id); id breaks ties
+      // between transactions with the same timestamp.
+      where: this.filters(
         userId,
-        categoryId: query.categoryId,
-        // LIKE '%…%' on the generated comment_search column, which the
-        // trigram index serves; the query is normalized the same way.
-        ...(query.q && { commentSearch: { contains: searchable(query.q) } }),
-        ...(query.type === 'transfer'
-          ? { toAccountId: { not: null } }
-          : query.type && { category: { kind: query.type } }),
-        occurredAt: { gte: query.from, lt: query.to },
-        AND: and,
-      },
+        query,
+        cursor
+          ? [
+              {
+                OR: [
+                  { occurredAt: { lt: cursor.occurredAt } },
+                  { occurredAt: cursor.occurredAt, id: { lt: cursor.id } },
+                ],
+              },
+            ]
+          : [],
+      ),
       orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
       // One extra row tells whether there is a next page, without COUNT(*).
       take: query.limit + 1,
@@ -163,6 +150,77 @@ export class TransactionsService {
       items: items.map(toTransaction),
       nextCursor: rows.length > query.limit && last ? encodeCursor(last) : null,
     };
+  }
+
+  /** What the feed shows, as a Prisma filter; `extra` adds the cursor. */
+  private filters(
+    userId: string,
+    query: Omit<ListTransactionsQuery, 'cursor' | 'limit'>,
+    extra: Prisma.TransactionWhereInput[] = [],
+  ): Prisma.TransactionWhereInput {
+    const and = [...extra];
+    // A transfer belongs to both of its accounts.
+    if (query.accountId) {
+      and.push({
+        OR: [{ accountId: query.accountId }, { toAccountId: query.accountId }],
+      });
+    }
+    return {
+      userId,
+      categoryId: query.categoryId,
+      // LIKE '%…%' on the generated comment_search column, which the
+      // trigram index serves; the query is normalized the same way.
+      ...(query.q && { commentSearch: { contains: searchable(query.q) } }),
+      ...(query.type === 'transfer'
+        ? { toAccountId: { not: null } }
+        : query.type && { category: { kind: query.type } }),
+      occurredAt: { gte: query.from, lt: query.to },
+      AND: and,
+    };
+  }
+
+  /**
+   * Everything matching the filter, oldest first, a batch at a time: an
+   * export can be a year of rows, and building the whole file in memory is
+   * how a process runs out of it. Keyset paging as in the feed, so rows
+   * written meanwhile cannot shift a later batch and duplicate a row; the
+   * index on (user_id, occurred_at DESC, id DESC) serves this order too,
+   * scanned backwards.
+   */
+  async *exportRows(
+    userId: string,
+    query: ExportTransactionsQuery,
+  ): AsyncGenerator<Transaction[]> {
+    const batchSize = 500;
+    let after: { occurredAt: Date; id: string } | undefined;
+
+    for (;;) {
+      const rows = await this.prisma.transaction.findMany({
+        where: this.filters(
+          userId,
+          query,
+          after
+            ? [
+                {
+                  OR: [
+                    { occurredAt: { gt: after.occurredAt } },
+                    { occurredAt: after.occurredAt, id: { gt: after.id } },
+                  ],
+                },
+              ]
+            : [],
+        ),
+        orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
+        take: batchSize,
+        select: transactionSelect,
+      });
+      if (rows.length === 0) return;
+
+      yield rows.map(toTransaction);
+      if (rows.length < batchSize) return;
+      const last = rows[rows.length - 1]!;
+      after = { occurredAt: last.occurredAt, id: last.id };
+    }
   }
 
   /**

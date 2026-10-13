@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { accountRefSchema } from './account.js';
 import { categorySchema, transactionKindSchema } from './category.js';
 import { amountSchema } from './money.js';
+import { timeZoneSchema } from './recurring.js';
 
 /**
  * Income and expense take their kind from the category; a transfer moves
@@ -87,10 +88,7 @@ export const transactionSchema = z
   ])
   .meta({ id: 'Transaction' });
 
-export const listTransactionsQuerySchema = z.object({
-  /** Opaque, from `nextCursor` of the previous page. */
-  cursor: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+const transactionFilters = {
   /** Inclusive. */
   from: z.coerce.date().optional(),
   /** Exclusive. */
@@ -109,6 +107,23 @@ export const listTransactionsQuerySchema = z.object({
     .min(2, 'Введите хотя бы 2 символа')
     .max(100, 'Не длиннее 100 символов')
     .optional(),
+};
+
+export const listTransactionsQuerySchema = z.object({
+  /** Opaque, from `nextCursor` of the previous page. */
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  ...transactionFilters,
+});
+
+/**
+ * The same filters as the feed, no paging: the export is everything that
+ * matches. The time zone is the client's, so the dates in the file read as
+ * the user saw them on screen.
+ */
+export const exportTransactionsQuerySchema = z.object({
+  ...transactionFilters,
+  timeZone: timeZoneSchema,
 });
 
 export const transactionPageSchema = z
@@ -156,6 +171,9 @@ export type TransactionType = z.infer<typeof transactionTypeSchema>;
 export type TransactionInputDto = z.infer<typeof transactionInputSchema>;
 export type Transaction = z.infer<typeof transactionSchema>;
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
+export type ExportTransactionsQuery = z.infer<
+  typeof exportTransactionsQuerySchema
+>;
 export type TransactionPage = z.infer<typeof transactionPageSchema>;
 export type TransactionSummaryQuery = z.infer<
   typeof transactionSummaryQuerySchema

@@ -5,4 +5,10 @@ export {
   sessionStarted,
   type StateWithAccessToken,
 } from './session-events';
-export type { ApiPath, RequestBody, ResponseBody, Schemas } from './types';
+export type {
+  ApiPath,
+  QueryParams,
+  RequestBody,
+  ResponseBody,
+  Schemas,
+} from './types';

@@ -1,5 +1,6 @@
 export {
   type CategoryTotal,
+  type ExportParams,
   type MonthlyTotal,
   type Period,
   type Transaction,
@@ -10,6 +11,7 @@ export {
   useCategoryTotalsQuery,
   useCreateTransactionMutation,
   useDeleteTransactionMutation,
+  useExportTransactionsMutation,
   useListTransactionsInfiniteQuery,
   useMonthlyTotalsQuery,
   useReplaceTransactionMutation,

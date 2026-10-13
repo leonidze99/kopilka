@@ -18,6 +18,7 @@ import {
   useListTransactionsInfiniteQuery,
 } from '@/entities/transaction';
 import { DeleteTransactionButton } from '@/features/transaction-delete';
+import { ExportCsvButton } from '@/features/transaction-export';
 import { EditTransactionForm } from '@/features/transaction-form';
 import {
   dayKey,
@@ -139,6 +140,10 @@ export function TransactionList({
   query,
   onQueryChange,
 }: TransactionListProps) {
+  // A search looks through every month: "такси" means all the rides.
+  const shown = query
+    ? { ...filter, q: query }
+    : { ...monthPeriod(month), ...filter };
   const {
     data,
     error,
@@ -146,10 +151,7 @@ export function TransactionList({
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
-  } = useListTransactionsInfiniteQuery(
-    // A search looks through every month: "такси" means all the rides.
-    query ? { ...filter, q: query } : { ...monthPeriod(month), ...filter },
-  );
+  } = useListTransactionsInfiniteQuery(shown);
   const transactions = data?.pages.flatMap((page) => page.items) ?? [];
   const [editing, setEditing] = useState<Transaction>();
   const filtered =
@@ -162,7 +164,15 @@ export function TransactionList({
   return (
     <Panel
       title="История"
-      actions={<FilterSelect filter={filter} onChange={onFilterChange} />}
+      actions={
+        <>
+          <ExportCsvButton
+            params={shown}
+            name={`kopilka-${query ? 'search' : month}`}
+          />
+          <FilterSelect filter={filter} onChange={onFilterChange} />
+        </>
+      }
     >
       <CommentSearch query={query} onChange={onQueryChange} />
       {error && <FormError message={errorMessage(error)} />}
