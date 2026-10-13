@@ -10,6 +10,7 @@ import type {
 } from '@kopilka/shared';
 import { hash, verify } from '@node-rs/argon2';
 import { randomBytes } from 'node:crypto';
+import { DEFAULT_CATEGORIES } from '../categories/default-categories.js';
 import { AppException } from '../common/errors/app.exception.js';
 import type { Env } from '../config/env.js';
 import { Prisma } from '../generated/prisma/client.js';
@@ -100,6 +101,9 @@ export class AuthService {
             passwordHash,
             // Every transaction needs an account: a new user starts with one.
             accounts: { create: { name: 'Основной счёт', type: 'card' } },
+            // ...and with categories to put transactions in, so the app is
+            // usable before the user sets anything up.
+            categories: { create: [...DEFAULT_CATEGORIES] },
           },
           select: userSelect,
         });

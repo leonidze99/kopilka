@@ -22,15 +22,26 @@ export function testUsers(app: INestApplication) {
   const emails: string[] = [];
 
   return {
-    async signUp(): Promise<TestUser> {
+    /**
+     * A registered user. Registration hands out default categories; they
+     * are dropped here unless a test asks for them, so suites can create
+     * categories of any name without running into one of the defaults.
+     */
+    async signUp({ keepDefaults = false } = {}): Promise<TestUser> {
       const email = `user-${randomUUID()}@kopilka-e2e.test`;
       emails.push(email);
       const res = await request(app.getHttpServer())
         .post('/api/auth/register')
         .send({ email, password: TEST_PASSWORD })
         .expect(201);
+      const id = res.body.user.id as string;
+      if (!keepDefaults) {
+        await app.get(PrismaService).category.deleteMany({
+          where: { userId: id },
+        });
+      }
       return {
-        id: res.body.user.id as string,
+        id,
         email,
         auth: `Bearer ${res.body.accessToken as string}`,
       };

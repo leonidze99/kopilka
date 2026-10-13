@@ -29,6 +29,23 @@ describe('Categories (e2e)', () => {
     await http().get('/api/categories').expect(401);
   });
 
+  it('gives a new account categories to start with', async () => {
+    const fresh = await users.signUp({ keepDefaults: true });
+
+    const res = await http()
+      .get('/api/categories')
+      .set('Authorization', fresh.auth)
+      .expect(200);
+
+    const names = res.body.map(
+      (c: { kind: string; name: string }) => `${c.kind}:${c.name}`,
+    );
+    // Both kinds, so income and expense can be recorded right away.
+    expect(names).toContain('expense:Продукты');
+    expect(names).toContain('income:Зарплата');
+    expect(res.body).toHaveLength(8);
+  });
+
   it('creates a category with a trimmed name', async () => {
     const res = await create(alice, {
       kind: 'expense',
