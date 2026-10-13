@@ -19,6 +19,8 @@ const ruleSelect = {
   amount: true,
   comment: true,
   startOn: true,
+  every: true,
+  unit: true,
   timeZone: true,
   active: true,
   nextOn: true,
@@ -124,7 +126,10 @@ export class RecurringService {
   private scheduleOf(dto: RecurringInputDto, notBefore?: string) {
     const today = todayIn(dto.timeZone, new Date());
     const from = [dto.startOn, today, notBefore ?? ''].sort().at(-1) as string;
-    const { index, on } = firstOnOrAfter(dto.startOn, from);
+    const { index, on } = firstOnOrAfter(dto.startOn, from, {
+      every: dto.every,
+      unit: dto.unit,
+    });
     return { nextIndex: index, nextOn: toDateColumn(on) };
   }
 
@@ -139,6 +144,8 @@ export class RecurringService {
       amount: dto.amount,
       comment: dto.comment || null,
       startOn: toDateColumn(dto.startOn),
+      every: dto.every,
+      unit: dto.unit,
       timeZone: dto.timeZone,
       active: dto.active,
       ...schedule,

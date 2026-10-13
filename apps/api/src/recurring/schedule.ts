@@ -42,6 +42,40 @@ export function addDays(date: string, days: number): string {
   );
 }
 
+/** How often a rule repeats: every N days, weeks or months. */
+export interface Interval {
+  every: number;
+  unit: 'day' | 'week' | 'month';
+}
+
+/**
+ * The date of occurrence `steps` of a schedule that started on `date`.
+ * Counted from the start every time, never by stepping one occurrence at a
+ * time: that is what keeps the 31st on the 31st (see addMonths) and keeps
+ * a weekly rule on its weekday forever.
+ */
+export function addInterval(
+  date: string,
+  steps: number,
+  { every, unit }: Interval,
+): string {
+  const count = steps * every;
+  if (unit === 'month') return addMonths(date, count);
+  return addDays(date, unit === 'week' ? count * 7 : count);
+}
+
+/** Whole days from one date to another; negative if `to` is earlier. */
+function daysBetween(from: string, to: string): number {
+  const [fromYear, fromMonth, fromDay] = parse(from);
+  const [toYear, toMonth, toDay] = parse(to);
+  const day = 24 * 60 * 60 * 1000;
+  return Math.round(
+    (Date.UTC(toYear, toMonth - 1, toDay) -
+      Date.UTC(fromYear, fromMonth - 1, fromDay)) /
+      day,
+  );
+}
+
 /** The date it is in a time zone at an instant, "2026-10-12". */
 export function todayIn(timeZone: string, now: Date): string {
   // en-CA formats dates as YYYY-MM-DD.
@@ -54,23 +88,28 @@ export function todayIn(timeZone: string, now: Date): string {
 }
 
 /**
- * The first occurrence of a monthly schedule from `start` that falls on or
- * after `from`: its number and date. Dates in this format compare as
+ * The first occurrence of the schedule that falls on or after `from`: its
+ * number and date. An estimate first, then a step or two — months differ in
+ * length and the estimate rounds down. Dates in this format compare as
  * strings.
  */
 export function firstOnOrAfter(
   start: string,
   from: string,
+  interval: Interval,
 ): { index: number; on: string } {
-  // Whole months between the two, then step over the few left.
-  const [startYear, startMonth] = parse(start);
-  const [fromYear, fromMonth] = parse(from);
-  let index = Math.max(
-    0,
-    (fromYear - startYear) * 12 + (fromMonth - startMonth) - 1,
-  );
-  while (addMonths(start, index) < from) index++;
-  return { index, on: addMonths(start, index) };
+  let index: number;
+  if (interval.unit === 'month') {
+    const [startYear, startMonth] = parse(start);
+    const [fromYear, fromMonth] = parse(from);
+    const months = (fromYear - startYear) * 12 + (fromMonth - startMonth);
+    index = Math.max(0, Math.floor(months / interval.every) - 1);
+  } else {
+    const step = interval.every * (interval.unit === 'week' ? 7 : 1);
+    index = Math.max(0, Math.floor(daysBetween(start, from) / step));
+  }
+  while (addInterval(start, index, interval) < from) index++;
+  return { index, on: addInterval(start, index, interval) };
 }
 
 /** A date column comes back as UTC midnight: Date -> "2026-10-05". */

@@ -9,7 +9,7 @@ export function RecurringPage() {
       <div className={styles.heading}>
         <h1 className={styles.title}>Регулярные операции</h1>
         <p className={styles.subtitle}>
-          Повторяются каждый месяц и записываются сами в свой день
+          Повторяются с выбранным периодом и записываются сами в свой день
         </p>
       </div>
       <div className={styles.columns}>

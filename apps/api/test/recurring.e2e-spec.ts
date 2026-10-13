@@ -111,6 +111,94 @@ describe('Recurring payments (e2e)', () => {
     expect((await rules(fixture.user))[0].nextOn).toBe(addMonths(today(), 1));
   });
 
+  it('repeats every week, keeping the weekday', async () => {
+    const fixture = await setUp();
+    const start = today();
+    const { body: rule } = await createRule(fixture.user, {
+      ...rentRule(fixture),
+      every: 1,
+      unit: 'week',
+      comment: 'Уборка',
+    }).expect(201);
+    expect(rule).toMatchObject({ every: 1, unit: 'week', nextOn: start });
+
+    // Three weeks on: a payment on each of them, none in between.
+    await runner.runDue(at(addDays(start, 21), '12:00:00'), {
+      userId: fixture.user.id,
+    });
+
+    const made = await transactions(fixture.user);
+    expect(made.map((t) => t.occurredAt.toISOString().slice(0, 10))).toEqual([
+      addDays(start, 21),
+      addDays(start, 14),
+      addDays(start, 7),
+      start,
+    ]);
+    expect((await rules(fixture.user))[0].nextOn).toBe(addDays(start, 28));
+  });
+
+  it('repeats every few days, counted from the start', async () => {
+    const fixture = await setUp();
+    const start = today();
+    await createRule(fixture.user, {
+      ...rentRule(fixture),
+      amount: '100',
+      every: 10,
+      unit: 'day',
+    }).expect(201);
+
+    await runner.runDue(at(addDays(start, 25), '12:00:00'), {
+      userId: fixture.user.id,
+    });
+
+    const made = await transactions(fixture.user);
+    expect(made).toHaveLength(3);
+    expect((await rules(fixture.user))[0].nextOn).toBe(addDays(start, 30));
+  });
+
+  it('keeps a quarterly rule on the day of its start', async () => {
+    const fixture = await setUp();
+    const { body: rule } = await createRule(fixture.user, {
+      ...rentRule(fixture),
+      startOn: '2026-01-31',
+      every: 3,
+      unit: 'month',
+    }).expect(201);
+
+    // From a 31st: April has 30 days, July has 31 again.
+    expect(rule.nextOn >= '2026-01-31').toBe(true);
+    const monthDays = ['2026-01-31', '2026-04-30', '2026-07-31', '2026-10-31'];
+    expect(monthDays).toContain(rule.nextOn);
+  });
+
+  it('refuses an interval that is not a whole number of steps', async () => {
+    const fixture = await setUp();
+
+    const res = await createRule(fixture.user, {
+      ...rentRule(fixture),
+      every: 0,
+      unit: 'week',
+    }).expect(400);
+
+    expect(res.body.details[0]).toMatchObject({ field: 'every' });
+    await createRule(fixture.user, {
+      ...rentRule(fixture),
+      every: 400,
+      unit: 'day',
+    }).expect(400);
+  });
+
+  it('is monthly when nothing says otherwise', async () => {
+    const fixture = await setUp();
+
+    const { body: rule } = await createRule(
+      fixture.user,
+      rentRule(fixture),
+    ).expect(201);
+
+    expect(rule).toMatchObject({ every: 1, unit: 'month' });
+  });
+
   it('catches up the months it missed, each on its own date', async () => {
     const fixture = await setUp();
     await createRule(fixture.user, rentRule(fixture)).expect(201);

@@ -5,7 +5,7 @@ import { AccountsService, type Tx } from '../accounts/accounts.service.js';
 import type { Env } from '../config/env.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { addMonths, dateOf, toDateColumn } from './schedule.js';
+import { addInterval, dateOf, toDateColumn } from './schedule.js';
 
 interface DueRule {
   id: string;
@@ -16,6 +16,8 @@ interface DueRule {
   amount: Prisma.Decimal;
   comment: string | null;
   start_on: Date;
+  every: number;
+  unit: 'day' | 'week' | 'month';
   next_on: Date;
   next_index: number;
   kind: 'income' | 'expense' | null;
@@ -106,7 +108,12 @@ export class RecurringRunner {
         where: { id: rule.id },
         data: {
           nextIndex,
-          nextOn: toDateColumn(addMonths(dateOf(rule.start_on), nextIndex)),
+          nextOn: toDateColumn(
+            addInterval(dateOf(rule.start_on), nextIndex, {
+              every: rule.every,
+              unit: rule.unit,
+            }),
+          ),
           lastError,
         },
       });
@@ -127,7 +134,8 @@ export class RecurringRunner {
   ): Promise<DueRule | undefined> {
     const [rule] = await tx.$queryRaw<DueRule[]>`
       SELECT r.id, r.user_id, r.account_id, r.category_id, r.to_account_id,
-             r.amount, r.comment, r.start_on, r.next_on, r.next_index,
+             r.amount, r.comment, r.start_on, r.every, r.unit,
+             r.next_on, r.next_index,
              c.kind,
              (r.next_on::timestamp AT TIME ZONE r.time_zone) AS occurs_at
       FROM recurring_rules r

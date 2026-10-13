@@ -6,4 +6,8 @@ export {
   useListRecurringQuery,
   useReplaceRecurringMutation,
 } from './api/recurring-api';
-export { describeSchedule, formatPaymentDay } from './lib/describe';
+export {
+  describeInterval,
+  describeSchedule,
+  formatPaymentDay,
+} from './lib/describe';

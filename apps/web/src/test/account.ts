@@ -210,6 +210,8 @@ export function mockAccount({
         comment: body.comment || null,
         account: ref(account),
         startOn: body.startOn,
+        every: body.every ?? 1,
+        unit: body.unit ?? 'month',
         timeZone: body.timeZone,
         active: body.active ?? true,
         nextOn: body.startOn,

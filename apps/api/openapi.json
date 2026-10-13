@@ -3965,6 +3965,14 @@
           "startOn": {
             "$ref": "#/components/schemas/CalendarDate"
           },
+          "every": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "unit": {
+            "$ref": "#/components/schemas/RecurringUnit"
+          },
           "timeZone": {
             "type": "string"
           },
@@ -3989,6 +3997,8 @@
           "comment",
           "account",
           "startOn",
+          "every",
+          "unit",
           "timeZone",
           "active",
           "nextOn",
@@ -4002,6 +4012,14 @@
         "format": "date",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
         "example": "2026-10-05"
+      },
+      "RecurringUnit": {
+        "type": "string",
+        "enum": [
+          "day",
+          "week",
+          "month"
+        ]
       },
       "RecurringTransferRule": {
         "type": "object",
@@ -4030,6 +4048,14 @@
           "startOn": {
             "$ref": "#/components/schemas/CalendarDate"
           },
+          "every": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "unit": {
+            "$ref": "#/components/schemas/RecurringUnit"
+          },
           "timeZone": {
             "type": "string"
           },
@@ -4054,6 +4080,8 @@
           "comment",
           "account",
           "startOn",
+          "every",
+          "unit",
           "timeZone",
           "active",
           "nextOn",
@@ -4099,6 +4127,20 @@
           },
           "startOn": {
             "$ref": "#/components/schemas/CalendarDate"
+          },
+          "every": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365
+          },
+          "unit": {
+            "default": "month",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringUnit"
+              }
+            ]
           },
           "timeZone": {
             "type": "string",
@@ -4148,6 +4190,20 @@
           },
           "startOn": {
             "$ref": "#/components/schemas/CalendarDate"
+          },
+          "every": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365
+          },
+          "unit": {
+            "default": "month",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecurringUnit"
+              }
+            ]
           },
           "timeZone": {
             "type": "string",

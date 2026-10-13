@@ -17,6 +17,8 @@ const rule = (overrides: Partial<CategorizedRule> = {}): CategorizedRule => ({
   type: 'expense',
   amount: '38000.00',
   comment: 'Аренда',
+  every: 1,
+  unit: 'month',
   account: { id: MAIN_ACCOUNT.id, name: MAIN_ACCOUNT.name, type: 'card' },
   category: RENT,
   startOn: '2026-10-05',
@@ -48,15 +50,48 @@ describe('RecurringPage', () => {
       name: /Жильё/,
     });
     expect(rent).toHaveTextContent(
-      /каждое 5-е число · следующая 5 ноября.*Аренда.*−38\s000,00\s₽/,
+      /раз в месяц, 5-е число · следующая 5 ноября.*Аренда.*−38\s000,00\s₽/,
     );
     // From the 29th on, the text says what a short month does.
     expect(late).toHaveTextContent(
-      /каждое 31-е число или последний день месяца/,
+      /раз в месяц, 31-е число или последний день месяца/,
     );
     expect(late).toHaveTextContent(
       'Пропущена: 31 октября: на счёте «Наличные» не хватило 500,00 ₽',
     );
+  });
+
+  it('creates a rule that repeats every two weeks', async () => {
+    const { sent } = mockAccount({ categories: [RENT, FOOD] });
+    const { user } = renderApp('/recurring', { session: 'authenticated' });
+    const form = within(
+      (
+        await screen.findByRole('heading', {
+          name: 'Новая регулярная операция',
+        })
+      ).closest('section')!,
+    );
+    await form.findByRole('option', { name: RENT.name });
+
+    await user.type(form.getByLabelText('Сумма'), '500');
+    await user.selectOptions(form.getByLabelText('Категория'), RENT.name);
+    fireEvent.change(form.getByLabelText('Первый платёж'), {
+      target: { value: '2026-11-05' },
+    });
+    await user.clear(form.getByLabelText('Повторять раз в'));
+    await user.type(form.getByLabelText('Повторять раз в'), '2');
+    // The unit reads as the count asks: "недели", not "неделю".
+    await user.selectOptions(form.getByLabelText('Период'), 'недели');
+
+    // The hint says what was set, before anything is sent.
+    expect(form.getByText(/раз в 2 недели, четверг/)).toBeInTheDocument();
+
+    await user.click(form.getByRole('button', { name: 'Добавить' }));
+
+    expect(
+      await screen.findByText('Регулярная операция добавлена'),
+    ).toBeInTheDocument();
+    expect(sent.recurring[0]).toMatchObject({ every: 2, unit: 'week' });
   });
 
   it('creates a rule with the date and the time zone of the browser', async () => {
@@ -91,6 +126,8 @@ describe('RecurringPage', () => {
         amount: '38000',
         comment: 'Аренда',
         startOn: '2026-11-05',
+        every: 1,
+        unit: 'month',
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         active: true,
       },

@@ -895,6 +895,8 @@ export interface components {
             comment: string | null;
             account: components["schemas"]["AccountRef"];
             startOn: components["schemas"]["CalendarDate"];
+            every: number;
+            unit: components["schemas"]["RecurringUnit"];
             timeZone: string;
             active: boolean;
             nextOn: components["schemas"]["CalendarDate"];
@@ -906,6 +908,8 @@ export interface components {
          * @example 2026-10-05
          */
         CalendarDate: string;
+        /** @enum {string} */
+        RecurringUnit: "day" | "week" | "month";
         RecurringTransferRule: {
             /** @enum {string} */
             type: "transfer";
@@ -915,6 +919,8 @@ export interface components {
             comment: string | null;
             account: components["schemas"]["AccountRef"];
             startOn: components["schemas"]["CalendarDate"];
+            every: number;
+            unit: components["schemas"]["RecurringUnit"];
             timeZone: string;
             active: boolean;
             nextOn: components["schemas"]["CalendarDate"];
@@ -935,6 +941,10 @@ export interface components {
             amount: string;
             comment?: string;
             startOn: components["schemas"]["CalendarDate"];
+            /** @default 1 */
+            every: number;
+            /** @default month */
+            unit: components["schemas"]["RecurringUnit"];
             /** @example Europe/Moscow */
             timeZone: string;
             /** @default true */
@@ -954,6 +964,10 @@ export interface components {
             amount: string;
             comment?: string;
             startOn: components["schemas"]["CalendarDate"];
+            /** @default 1 */
+            every: number;
+            /** @default month */
+            unit: components["schemas"]["RecurringUnit"];
             /** @example Europe/Moscow */
             timeZone: string;
             /** @default true */

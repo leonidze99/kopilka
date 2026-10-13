@@ -16,6 +16,15 @@ enum TransactionKind {
   @@map("transaction_kind")
 }
 
+/// The step of a recurring rule: every N of these from its start.
+enum RecurringUnit {
+  day
+  week
+  month
+
+  @@map("recurring_unit")
+}
+
 enum AccountType {
   card
   cash
@@ -170,22 +179,26 @@ model Transaction {
 /// at the next one; a payment is due once that day begins in time_zone.
 /// SQL-only: the same CHECKs as on transactions (category or target account).
 model RecurringRule {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  accountId   String   @map("account_id") @db.Uuid
-  categoryId  String?  @map("category_id") @db.Uuid
-  toAccountId String?  @map("to_account_id") @db.Uuid
-  amount      Decimal  @db.Decimal(14, 2)
-  comment     String?  @db.VarChar(280)
-  startOn     DateTime @map("start_on") @db.Date
-  timeZone    String   @map("time_zone") @db.VarChar(64)
-  active      Boolean  @default(true)
-  nextOn      DateTime @map("next_on") @db.Date
-  nextIndex   Int      @map("next_index")
+  id          String        @id @default(uuid(7)) @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  accountId   String        @map("account_id") @db.Uuid
+  categoryId  String?       @map("category_id") @db.Uuid
+  toAccountId String?       @map("to_account_id") @db.Uuid
+  amount      Decimal       @db.Decimal(14, 2)
+  comment     String?       @db.VarChar(280)
+  startOn     DateTime      @map("start_on") @db.Date
+  /// Every `every` units after start_on. CHECK (every BETWEEN 1 AND 365)
+  /// in the migration: Prisma cannot say it.
+  every       Int           @default(1)
+  unit        RecurringUnit @default(month)
+  timeZone    String        @map("time_zone") @db.VarChar(64)
+  active      Boolean       @default(true)
+  nextOn      DateTime      @map("next_on") @db.Date
+  nextIndex   Int           @map("next_index")
   /// Why the latest payment was skipped; cleared by the next one made.
-  lastError   String?  @map("last_error") @db.VarChar(280)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lastError   String?       @map("last_error") @db.VarChar(280)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   // A rule is a setting: it goes away with its account or category.

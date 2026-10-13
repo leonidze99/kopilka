@@ -53,7 +53,7 @@ export function RecurringList() {
                   )}
                 </span>
                 <span className={styles.meta}>
-                  {describeSchedule(rule.startOn)}
+                  {describeSchedule(rule.startOn, rule.every, rule.unit)}
                   {rule.active &&
                     ` · следующая ${formatPaymentDay(rule.nextOn)}`}
                 </span>
