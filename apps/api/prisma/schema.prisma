@@ -89,12 +89,14 @@ model Account {
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]   @relation("TransactionAccount")
-  transfersIn  Transaction[]   @relation("TransferTarget")
-  recurring    RecurringRule[] @relation("RecurringAccount")
-  recurringIn  RecurringRule[] @relation("RecurringTarget")
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]        @relation("TransactionAccount")
+  transfersIn  Transaction[]        @relation("TransferTarget")
+  recurring    RecurringRule[]      @relation("RecurringAccount")
+  recurringIn  RecurringRule[]      @relation("RecurringTarget")
   imports      Import[]
+  importRows   ImportRow[]          @relation("ImportRowTarget")
+  importRules  ImportCategoryRule[] @relation("ImportRuleTarget")
 
   @@unique([userId, name])
   // Target of the composite foreign keys from transactions.
@@ -332,6 +334,9 @@ model ImportRow {
   /// The bank's category, '' if none: what the user maps to a category.
   sourceCategory       String?          @map("source_category") @db.VarChar(64)
   categoryId           String?          @map("category_id") @db.Uuid
+  /// Chosen instead of a category: the row is a transfer between the user's
+  /// own accounts, this being the other side of it.
+  toAccountId          String?          @map("to_account_id") @db.Uuid
   fingerprint          String?          @db.Char(64)
   error                String?          @db.VarChar(280)
   /// A transaction entered by hand (or by a recurring rule) that looks like
@@ -341,33 +346,41 @@ model ImportRow {
 
   import             Import       @relation(fields: [importId], references: [id], onDelete: Cascade)
   similarTransaction Transaction? @relation("SimilarImportRows", fields: [similarTransactionId], references: [id], onDelete: SetNull)
+  toAccount          Account?     @relation("ImportRowTarget", fields: [toAccountId], references: [id], onDelete: Cascade)
 
   @@id([importId, line])
   // Deleting a transaction looks up the rows pointing at it (ON DELETE SET
   // NULL): without an index, a scan of import_rows per deleted transaction,
   // and an undo deletes thousands at once.
   @@index([similarTransactionId])
+  // The same for deleting an account (ON DELETE CASCADE).
+  @@index([toAccountId])
   @@map("import_rows")
 }
 
 /// "The bank's Супермаркеты is my Продукты": remembered from the last
 /// import, suggested on the next one.
 model ImportCategoryRule {
-  id         String          @id @default(uuid(7)) @db.Uuid
-  userId     String          @map("user_id") @db.Uuid
-  kind       TransactionKind
+  id          String          @id @default(uuid(7)) @db.Uuid
+  userId      String          @map("user_id") @db.Uuid
+  kind        TransactionKind
   /// The bank's category name, '' for rows without one.
-  source     String          @db.VarChar(64)
-  categoryId String          @map("category_id") @db.Uuid
-  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt  DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  source      String          @db.VarChar(64)
+  /// What rows of this bank category become: a category, or a transfer to
+  /// toAccountId. Exactly one of the two, by a CHECK in the migration.
+  categoryId  String?         @map("category_id") @db.Uuid
+  toAccountId String?         @map("to_account_id") @db.Uuid
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Forgotten with its category.
-  category Category @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Forgotten with its category or account.
+  category  Category? @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
+  toAccount Account?  @relation("ImportRuleTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Cascade)
 
   @@unique([userId, kind, source])
   @@index([categoryId])
+  @@index([toAccountId])
   @@map("import_category_rules")
 }
 

@@ -839,6 +839,7 @@ export interface components {
             rows: number;
             total: string;
             category: components["schemas"]["Category"] | null;
+            toAccount: components["schemas"]["AccountRef"] | null;
         };
         PossibleDuplicate: {
             line: number;
@@ -865,14 +866,24 @@ export interface components {
             columns: components["schemas"]["ImportColumns"];
         };
         ImportCommitRequest: {
-            categories: {
-                kind: components["schemas"]["TransactionKind"];
-                source: string | null;
-                /** Format: uuid */
-                categoryId: string;
-            }[];
+            categories: components["schemas"]["ImportGroupTarget"][];
             /** @default [] */
             skipLines: number[];
+        };
+        ImportGroupTarget: {
+            /** @enum {string} */
+            target: "category";
+            kind: components["schemas"]["TransactionKind"];
+            source: string | null;
+            /** Format: uuid */
+            categoryId: string;
+        } | {
+            /** @enum {string} */
+            target: "transfer";
+            kind: components["schemas"]["TransactionKind"];
+            source: string | null;
+            /** Format: uuid */
+            toAccountId: string;
         };
         RecurringRuleList: components["schemas"]["RecurringRule"][];
         RecurringRule: components["schemas"]["CategorizedRecurringRule"] | components["schemas"]["RecurringTransferRule"];

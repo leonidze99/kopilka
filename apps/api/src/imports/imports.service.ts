@@ -385,24 +385,73 @@ export class ImportsService {
             choice.kind === group.kind &&
             sourceIn(choice.source) === group.source,
         );
-        const choice = dto.categories[index];
-        if (!choice) {
+        const target = dto.categories[index];
+        if (!target) {
           throw invalid(
             'categories',
-            'A group has no category',
+            'A group has no target',
             `Выберите категорию для «${group.source || 'Без категории'}»`,
           );
         }
-        return { ...group, index, categoryId: choice.categoryId };
+        return { ...group, index, target };
       });
 
-      const categories = await tx.category.findMany({
-        where: { userId, id: { in: choices.map((c) => c.categoryId) } },
-        select: { id: true, kind: true },
-      });
+      const categoryChoices = choices.filter(
+        (choice) => choice.target.target === 'category',
+      );
+      const transferChoices = choices.filter(
+        (choice) => choice.target.target === 'transfer',
+      );
+
+      const [categories, targetAccounts] = await Promise.all([
+        tx.category.findMany({
+          where: {
+            userId,
+            id: {
+              in: categoryChoices.map((c) =>
+                c.target.target === 'category' ? c.target.categoryId : '',
+              ),
+            },
+          },
+          select: { id: true, kind: true },
+        }),
+        tx.account.findMany({
+          where: {
+            userId,
+            id: {
+              in: transferChoices.map((c) =>
+                c.target.target === 'transfer' ? c.target.toAccountId : '',
+              ),
+            },
+          },
+          select: { id: true },
+        }),
+      ]);
+
       for (const choice of choices) {
-        const category = categories.find((c) => c.id === choice.categoryId);
+        if (choice.target.target === 'transfer') {
+          const field = `categories.${choice.index}.toAccountId`;
+          const { toAccountId } = choice.target;
+          if (!targetAccounts.some((account) => account.id === toAccountId)) {
+            throw invalid(field, 'Account not found', 'Счёт не найден');
+          }
+          // A transfer has two sides; both being the same account is what
+          // the database refuses anyway (to_account_id <> account_id).
+          if (toAccountId === current.account_id) {
+            throw invalid(
+              field,
+              'Transfer to the account being imported into',
+              'Это тот же счёт, на который идёт импорт',
+            );
+          }
+          continue;
+        }
         const field = `categories.${choice.index}.categoryId`;
+        const category = categories.find(
+          (c) =>
+            choice.target.target === 'category' &&
+            c.id === choice.target.categoryId,
+        );
         if (!category) {
           throw invalid(field, 'Category not found', 'Категория не найдена');
         }
@@ -417,45 +466,81 @@ export class ImportsService {
         }
       }
 
-      // Early answer for the common case; the worker checks again under the
-      // account lock, against the balance at that moment.
-      const net = choices.reduce(
-        (sum, choice) => sum.plus(choice.net),
-        new Prisma.Decimal(0),
-      );
-      const shortfall = await this.accounts.shortfall(
-        tx,
-        userId,
-        current.account_id,
-        net.negated(),
-      );
-      if (shortfall) {
-        throw new AppException(
-          'INSUFFICIENT_FUNDS',
-          'Account must not go negative',
-          HttpStatus.CONFLICT,
-          [
-            {
-              field: 'categories',
-              message: `После импорта на счёте «${shortfall.account}» не хватит ${shortfall.missing}`,
-            },
-          ],
+      // What the import does to each account: every row moves the one being
+      // imported into, and a transfer group moves the account at the other
+      // end by the same amount the other way.
+      const deltas = new Map<string, Prisma.Decimal>();
+      const move = (accountId: string, amount: Prisma.Decimal) =>
+        deltas.set(
+          accountId,
+          (deltas.get(accountId) ?? new Prisma.Decimal(0)).plus(amount),
         );
+      for (const choice of choices) {
+        const net = new Prisma.Decimal(choice.net);
+        move(current.account_id, net);
+        if (choice.target.target === 'transfer') {
+          move(choice.target.toAccountId, net.negated());
+        }
       }
 
-      if (choices.length > 0) {
+      // Early answer for the common case; the worker checks again under the
+      // account locks, against the balances at that moment.
+      for (const [accountId, delta] of deltas) {
+        const shortfall = await this.accounts.shortfall(
+          tx,
+          userId,
+          accountId,
+          delta.negated(),
+        );
+        if (shortfall) {
+          throw new AppException(
+            'INSUFFICIENT_FUNDS',
+            'Account must not go negative',
+            HttpStatus.CONFLICT,
+            [
+              {
+                field: 'categories',
+                message: `После импорта на счёте «${shortfall.account}» не хватит ${shortfall.missing}`,
+              },
+            ],
+          );
+        }
+      }
+
+      if (categoryChoices.length > 0) {
         await tx.$executeRaw`
           UPDATE import_rows r SET category_id = v.category_id
           FROM unnest(
-            ${choices.map((c) => c.kind)}::transaction_kind[],
-            ${choices.map((c) => c.source)}::text[],
-            ${choices.map((c) => c.categoryId)}::uuid[]
+            ${categoryChoices.map((c) => c.kind)}::transaction_kind[],
+            ${categoryChoices.map((c) => c.source)}::text[],
+            ${categoryChoices.map((c) =>
+              c.target.target === 'category' ? c.target.categoryId : null,
+            )}::uuid[]
           ) AS v(kind, source, category_id)
           WHERE r.import_id = ${id}::uuid AND r.status = 'new'
             AND r.kind = v.kind AND r.source_category = v.source
         `;
       }
+      if (transferChoices.length > 0) {
+        await tx.$executeRaw`
+          UPDATE import_rows r SET to_account_id = v.to_account_id
+          FROM unnest(
+            ${transferChoices.map((c) => c.kind)}::transaction_kind[],
+            ${transferChoices.map((c) => c.source)}::text[],
+            ${transferChoices.map((c) =>
+              c.target.target === 'transfer' ? c.target.toAccountId : null,
+            )}::uuid[]
+          ) AS v(kind, source, to_account_id)
+          WHERE r.import_id = ${id}::uuid AND r.status = 'new'
+            AND r.kind = v.kind AND r.source_category = v.source
+        `;
+      }
       for (const choice of choices) {
+        // Exactly one of the two, as the CHECK on the table requires.
+        const target =
+          choice.target.target === 'category'
+            ? { categoryId: choice.target.categoryId, toAccountId: null }
+            : { categoryId: null, toAccountId: choice.target.toAccountId };
         await tx.importCategoryRule.upsert({
           where: {
             userId_kind_source: {
@@ -468,9 +553,9 @@ export class ImportsService {
             userId,
             kind: choice.kind,
             source: choice.source,
-            categoryId: choice.categoryId,
+            ...target,
           },
-          update: { categoryId: choice.categoryId },
+          update: target,
         });
       }
       await tx.import.update({
@@ -629,7 +714,12 @@ export class ImportsService {
       `,
       this.prisma.importCategoryRule.findMany({
         where: { userId },
-        select: { kind: true, source: true, categoryId: true },
+        select: {
+          kind: true,
+          source: true,
+          categoryId: true,
+          toAccount: { select: accountRefSelect },
+        },
       }),
       this.prisma.category.findMany({
         where: { userId },
@@ -641,16 +731,21 @@ export class ImportsService {
     const suggest = (
       kind: TransactionKind,
       source: string,
-    ): Category | null => {
+    ): Pick<ImportCategoryGroup, 'category' | 'toAccount'> => {
       const rule = rules.find((r) => r.kind === kind && r.source === source);
-      const remembered = rule && byId.get(rule.categoryId);
-      if (remembered) return remembered;
+      // A rule remembers one of the two: a category, or "these are
+      // transfers to that account".
+      if (rule?.toAccount) return { category: null, toAccount: rule.toAccount };
+      const remembered = rule?.categoryId && byId.get(rule.categoryId);
+      if (remembered) return { category: remembered, toAccount: null };
       const name = source.toLowerCase();
-      return (
-        categories.find(
-          (c) => c.kind === kind && c.name.toLowerCase() === name,
-        ) ?? null
-      );
+      return {
+        category:
+          categories.find(
+            (c) => c.kind === kind && c.name.toLowerCase() === name,
+          ) ?? null,
+        toAccount: null,
+      };
     };
 
     return groups.map((group) => ({
@@ -658,7 +753,7 @@ export class ImportsService {
       source: sourceOut(group.source),
       rows: group.rows,
       total: new Prisma.Decimal(group.total).toFixed(2),
-      category: suggest(group.kind, group.source),
+      ...suggest(group.kind, group.source),
     }));
   }
 }

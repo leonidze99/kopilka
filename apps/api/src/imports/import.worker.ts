@@ -306,10 +306,26 @@ export class ImportWorker {
     try {
       await this.prisma.$transaction(
         async (tx) => {
+          // Rows the user marked as transfers move a second account; lock
+          // every account this import touches, in one call (it orders them
+          // by id, so two writers cannot deadlock on the pair).
+          const targets = await tx.importRow.findMany({
+            where: {
+              importId: job.id,
+              status: 'new',
+              toAccountId: { not: null },
+            },
+            select: { toAccountId: true },
+            distinct: ['toAccountId'],
+          });
+          const accountIds = [
+            job.account_id,
+            ...targets.map((row) => row.toAccountId!),
+          ];
           await this.accounts.lock(
             tx,
             job.user_id,
-            [{ id: job.account_id, field: 'accountId' }],
+            accountIds.map((id) => ({ id, field: 'accountId' })),
             () => new Error(`Account of import ${job.id} is gone`),
           );
           // Under the account lock: a worker whose lease ran out and that
@@ -331,8 +347,10 @@ export class ImportWorker {
                 line: true,
                 occurredAt: true,
                 amount: true,
+                kind: true,
                 description: true,
                 categoryId: true,
+                toAccountId: true,
                 fingerprint: true,
               },
             });
@@ -345,8 +363,17 @@ export class ImportWorker {
             const { count } = await tx.transaction.createMany({
               data: rows.map((row) => ({
                 userId: job.user_id,
-                accountId: job.account_id,
-                categoryId: row.categoryId,
+                // A transfer is one row on the account the money left. In
+                // the statement of the imported account an incoming
+                // transfer reads as income, so for those two the sides
+                // swap: the money left the other account.
+                ...(row.toAccountId && row.kind === 'income'
+                  ? { accountId: row.toAccountId, toAccountId: job.account_id }
+                  : {
+                      accountId: job.account_id,
+                      toAccountId: row.toAccountId,
+                      categoryId: row.categoryId,
+                    }),
                 amount: row.amount ?? 0,
                 comment: row.description,
                 occurredAt: row.occurredAt ?? new Date(),
@@ -372,7 +399,7 @@ export class ImportWorker {
           await this.accounts.assertNotNegative(
             tx,
             job.user_id,
-            [job.account_id],
+            accountIds,
             'categories',
           );
           await tx.import.update({

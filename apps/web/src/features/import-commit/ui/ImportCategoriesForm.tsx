@@ -1,4 +1,5 @@
 import { useForm, useWatch } from 'react-hook-form';
+import { type Account, useListAccountsQuery } from '@/entities/account';
 import {
   type Category,
   KIND_OPTIONS,
@@ -26,6 +27,14 @@ import styles from './ImportCategoriesForm.module.css';
 /** The option that creates a category named as the bank's one. */
 const NEW = 'new';
 
+/**
+ * A group may go to an account instead of a category: in the statement of
+ * one account a move to another reads as an ordinary income or expense.
+ * One <select> holds both, so the value says which was picked.
+ */
+const TRANSFER = 'transfer:';
+const transferTo = (accountId: string) => `${TRANSFER}${accountId}`;
+
 interface CategoriesFormValues {
   /** Per group: a category id, NEW, or '' (not chosen). */
   groups: string[];
@@ -38,7 +47,7 @@ const kindLabel = (kind: string) =>
 
 const groupKey = (kind: string, source: string | null) => `${kind}:${source}`;
 
-const GROUP_FIELD = /^categories\.(\d+)\.categoryId$/;
+const GROUP_FIELD = /^categories[.](d+)[.](?:categoryId|toAccountId)$/;
 
 const when = (iso: string) => `${formatDay(iso)}, ${formatTime(iso)}`;
 
@@ -53,18 +62,33 @@ interface ImportCategoriesFormProps {
  */
 export function ImportCategoriesForm({ imported }: ImportCategoriesFormProps) {
   const { data: categories } = useListCategoriesQuery();
+  const { data: accounts } = useListAccountsQuery();
   // A <select> takes its default only if the option is already there:
-  // with the list still loading it would show "not chosen" over a choice.
-  if (!categories) {
+  // with the lists still loading it would show "not chosen" over a choice.
+  if (!categories || !accounts) {
     return <Skeleton height={160} />;
   }
-  return <CategoriesForm imported={imported} categories={categories} />;
+  return (
+    <CategoriesForm
+      imported={imported}
+      categories={categories}
+      // Every other account: a transfer has two sides, and one of them is
+      // the account being imported into.
+      accounts={accounts.items.filter(
+        (account) => account.id !== imported.account?.id,
+      )}
+    />
+  );
 }
 
 function CategoriesForm({
   imported,
   categories,
-}: ImportCategoriesFormProps & { categories: Category[] }) {
+  accounts,
+}: ImportCategoriesFormProps & {
+  categories: Category[];
+  accounts: Account[];
+}) {
   const [createCategory] = useCreateCategoryMutation();
   const [commit] = useCommitImportMutation();
   const { categories: groups, possibleDuplicates: duplicates } = imported;
@@ -77,7 +101,11 @@ function CategoriesForm({
     formState: { errors, isSubmitting },
   } = useForm<CategoriesFormValues>({
     defaultValues: {
-      groups: groups.map((group) => group.category?.id ?? ''),
+      groups: groups.map((group) =>
+        group.toAccount
+          ? transferTo(group.toAccount.id)
+          : (group.category?.id ?? ''),
+      ),
       // Entered by hand already: leaving it out is the safe default.
       skip: duplicates.map(() => true),
     },
@@ -126,17 +154,20 @@ function CategoriesForm({
       body: {
         // The groups still going in, each still at its index: categories.N
         // in an error is group N.
-        categories: groups.flatMap((group, index) =>
-          remaining(group) > 0
-            ? [
-                {
-                  kind: group.kind,
-                  source: group.source,
-                  categoryId: ids[index] ?? '',
-                },
-              ]
-            : [],
-        ),
+        categories: groups.flatMap((group, index) => {
+          if (remaining(group) === 0) return [];
+          const value = ids[index] ?? '';
+          const common = { kind: group.kind, source: group.source };
+          return [
+            value.startsWith(TRANSFER)
+              ? {
+                  ...common,
+                  target: 'transfer' as const,
+                  toAccountId: value.slice(TRANSFER.length),
+                }
+              : { ...common, target: 'category' as const, categoryId: value },
+          ];
+        }),
         skipLines: skippedLines,
       },
     });
@@ -248,6 +279,16 @@ function CategoriesForm({
                     <option value={NEW}>
                       + Новая категория «{group.source}»
                     </option>
+                  )}
+                  {accounts.length > 0 && (
+                    <optgroup label="Перевод между счетами">
+                      {accounts.map((account) => (
+                        <option key={account.id} value={transferTo(account.id)}>
+                          {group.kind === 'income' ? 'Со счёта' : 'На счёт'} «
+                          {account.name}»
+                        </option>
+                      ))}
+                    </optgroup>
                   )}
                 </SelectField>
               </li>

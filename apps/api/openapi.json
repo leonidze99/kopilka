@@ -3731,6 +3731,14 @@
                 "$ref": "#/components/schemas/Category"
               }
             ]
+          },
+          "toAccount": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountRef"
+              }
+            ]
           }
         },
         "required": [
@@ -3738,7 +3746,8 @@
           "source",
           "rows",
           "total",
-          "category"
+          "category",
+          "toAccount"
         ],
         "additionalProperties": false
       },
@@ -3836,26 +3845,7 @@
           "categories": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "$ref": "#/components/schemas/TransactionKind"
-                },
-                "source": {
-                  "nullable": true,
-                  "type": "string"
-                },
-                "categoryId": {
-                  "type": "string",
-                  "format": "uuid",
-                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                }
-              },
-              "required": [
-                "kind",
-                "source",
-                "categoryId"
-              ]
+              "$ref": "#/components/schemas/ImportGroupTarget"
             }
           },
           "skipLines": {
@@ -3871,6 +3861,68 @@
         },
         "required": [
           "categories"
+        ]
+      },
+      "ImportGroupTarget": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string",
+                "enum": [
+                  "category"
+                ]
+              },
+              "kind": {
+                "$ref": "#/components/schemas/TransactionKind"
+              },
+              "source": {
+                "nullable": true,
+                "type": "string"
+              },
+              "categoryId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
+            },
+            "required": [
+              "target",
+              "kind",
+              "source",
+              "categoryId"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string",
+                "enum": [
+                  "transfer"
+                ]
+              },
+              "kind": {
+                "$ref": "#/components/schemas/TransactionKind"
+              },
+              "source": {
+                "nullable": true,
+                "type": "string"
+              },
+              "toAccountId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
+            },
+            "required": [
+              "target",
+              "kind",
+              "source",
+              "toAccountId"
+            ]
+          }
         ]
       },
       "RecurringRuleList": {

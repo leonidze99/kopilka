@@ -203,6 +203,7 @@ describe('Imports (e2e)', () => {
   /** Every new group to its suggested category, or to `fallback`. */
   const choices = (imported: Import, fallback: Record<string, string> = {}) =>
     imported.categories.map((group) => ({
+      target: 'category' as const,
       kind: group.kind,
       source: group.source,
       categoryId:
@@ -411,7 +412,12 @@ describe('Imports (e2e)', () => {
     const imported = await ready(user, tbank(coffees), accountId);
     expect(imported.counts.new).toBe(2500);
     await commit(user, imported.id, [
-      { kind: 'expense', source: 'Кафе', categoryId: cafe },
+      {
+        target: 'category' as const,
+        kind: 'expense',
+        source: 'Кафе',
+        categoryId: cafe,
+      },
     ]).expect(200);
     await worker.runPending();
     expect((await get(user, imported.id)).counts.imported).toBe(2500);
@@ -445,7 +451,12 @@ describe('Imports (e2e)', () => {
         accountId,
       );
       await commit(user, imported.id, [
-        { kind: 'expense', source: 'Кафе', categoryId: cafe },
+        {
+          target: 'category' as const,
+          kind: 'expense',
+          source: 'Кафе',
+          categoryId: cafe,
+        },
       ])
         .expect(409)
         .expect(({ body }) =>
@@ -471,7 +482,12 @@ describe('Imports (e2e)', () => {
         accountId,
       );
       await commit(user, imported.id, [
-        { kind: 'expense', source: 'Кафе', categoryId: cafe },
+        {
+          target: 'category' as const,
+          kind: 'expense',
+          source: 'Кафе',
+          categoryId: cafe,
+        },
       ]).expect(200);
       // Between the confirmation and the worker: 600 of the 1000 spent.
       await http()
@@ -661,6 +677,169 @@ describe('Imports (e2e)', () => {
     });
   });
 
+  describe('transfers between own accounts', () => {
+    /** A statement with money moved to savings and back. */
+    const MOVES: Row[] = [
+      {
+        at: '01.10.2026 10:00:00',
+        amount: '-5000',
+        category: 'Переводы',
+        description: 'На накопительный',
+      },
+      {
+        at: '05.10.2026 10:00:00',
+        amount: '2000',
+        category: 'Переводы',
+        description: 'С накопительного',
+      },
+    ];
+
+    async function savings(user: TestUser) {
+      const { body } = await http()
+        .post('/api/accounts')
+        .set('Authorization', user.auth)
+        .send({ name: 'Накопления', type: 'savings', openingBalance: '10000' })
+        .expect(201);
+      return body.id as string;
+    }
+
+    it('turns a group into transfers, both ways round', async () => {
+      const { user, accountId } = await setUp();
+      const savingsId = await savings(user);
+      const imported = await ready(user, tbank(MOVES), accountId);
+
+      await commit(user, imported.id, [
+        {
+          target: 'transfer' as const,
+          kind: 'expense',
+          source: 'Переводы',
+          toAccountId: savingsId,
+        },
+        {
+          target: 'transfer' as const,
+          kind: 'income',
+          source: 'Переводы',
+          toAccountId: savingsId,
+        },
+      ]).expect(200);
+      await worker.runPending();
+
+      const list = await transactions(user);
+      expect(list).toHaveLength(2);
+      for (const item of list) expect(item.type).toBe('transfer');
+
+      // Out of the card into savings...
+      const out = list.find((t) => t.amount === '5000.00');
+      expect(out).toMatchObject({
+        account: { id: accountId },
+        toAccount: { id: savingsId },
+      });
+      // ...and the incoming line is the same transfer the other way: the
+      // money left savings, whatever the statement of the card calls it.
+      const back = list.find((t) => t.amount === '2000.00');
+      expect(back).toMatchObject({
+        account: { id: savingsId },
+        toAccount: { id: accountId },
+      });
+    });
+
+    it('moves both balances and leaves the totals alone', async () => {
+      const { user, accountId, salary } = await setUp();
+      const savingsId = await savings(user);
+      // Money to spend from: an account that may not go negative is checked.
+      await http()
+        .post('/api/transactions')
+        .set('Authorization', user.auth)
+        .send({
+          type: 'income',
+          accountId,
+          categoryId: salary,
+          amount: '20000',
+          occurredAt: new Date(),
+        })
+        .expect(201);
+      const imported = await ready(user, tbank(MOVES), accountId);
+
+      await commit(user, imported.id, [
+        {
+          target: 'transfer' as const,
+          kind: 'expense',
+          source: 'Переводы',
+          toAccountId: savingsId,
+        },
+        {
+          target: 'transfer' as const,
+          kind: 'income',
+          source: 'Переводы',
+          toAccountId: savingsId,
+        },
+      ]).expect(200);
+      await worker.runPending();
+
+      const { body: accounts } = await http()
+        .get('/api/accounts')
+        .set('Authorization', user.auth)
+        .expect(200);
+      const card = accounts.items.find(
+        (a: { id: string }) => a.id === accountId,
+      );
+      const saved = accounts.items.find(
+        (a: { id: string }) => a.id === savingsId,
+      );
+      expect(card.balance).toBe('17000.00');
+      expect(saved.balance).toBe('13000.00');
+
+      // Transfers are neither income nor expense: the month's totals only
+      // know about the salary.
+      const { body: summary } = await http()
+        .get('/api/transactions/summary')
+        .set('Authorization', user.auth)
+        .expect(200);
+      expect(summary).toMatchObject({ income: '20000.00', expense: '0.00' });
+    });
+
+    it('remembers the choice for the next statement', async () => {
+      const { user, accountId } = await setUp();
+      const savingsId = await savings(user);
+      const first = await ready(user, tbank([MOVES[0]!]), accountId);
+      await commit(user, first.id, [
+        {
+          target: 'transfer' as const,
+          kind: 'expense',
+          source: 'Переводы',
+          toAccountId: savingsId,
+        },
+      ]).expect(200);
+      await worker.runPending();
+
+      const second = await ready(
+        user,
+        tbank([{ ...MOVES[0]!, at: '09.10.2026 10:00:00' }]),
+        accountId,
+      );
+
+      const group = second.categories.find((g) => g.source === 'Переводы');
+      expect(group?.category).toBeNull();
+      expect(group?.toAccount).toMatchObject({ id: savingsId });
+    });
+
+    it('refuses a transfer to the account being imported into', async () => {
+      const { user, accountId } = await setUp();
+      const imported = await ready(user, tbank([MOVES[0]!]), accountId);
+
+      const res = await commit(user, imported.id, [
+        {
+          target: 'transfer' as const,
+          kind: 'expense',
+          source: 'Переводы',
+          toAccountId: accountId,
+        },
+      ]).expect(400);
+
+      expect(res.body.details[0].field).toBe('categories.0.toAccountId');
+    });
+  });
+
   describe('possible duplicates', () => {
     const manual = (user: TestUser, body: object) =>
       http()
@@ -845,14 +1024,34 @@ describe('Imports (e2e)', () => {
       await map(user, imported, accountId).expect(200);
       await worker.runPending();
       await commit(user, imported.id, [
-        { kind: 'expense', source: 'Кафе', categoryId: cafe },
+        {
+          target: 'category' as const,
+          kind: 'expense',
+          source: 'Кафе',
+          categoryId: cafe,
+        },
       ])
         .expect(400)
         .expect(({ body }) => expect(body.details[0].field).toBe('categories'));
       await commit(user, imported.id, [
-        { kind: 'expense', source: 'Кафе', categoryId: salary },
-        { kind: 'expense', source: 'Супермаркеты', categoryId: cafe },
-        { kind: 'income', source: 'Зарплата', categoryId: salary },
+        {
+          target: 'category' as const,
+          kind: 'expense',
+          source: 'Кафе',
+          categoryId: salary,
+        },
+        {
+          target: 'category' as const,
+          kind: 'expense',
+          source: 'Супермаркеты',
+          categoryId: cafe,
+        },
+        {
+          target: 'category' as const,
+          kind: 'income',
+          source: 'Зарплата',
+          categoryId: salary,
+        },
       ])
         .expect(400)
         .expect(({ body }) =>

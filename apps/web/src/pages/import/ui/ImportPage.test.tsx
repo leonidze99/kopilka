@@ -83,6 +83,7 @@ const parsed = (current: Import): Import => ({
       rows: 2,
       total: '500.00',
       category: null,
+      toAccount: null,
     },
     {
       kind: 'expense',
@@ -90,6 +91,7 @@ const parsed = (current: Import): Import => ({
       rows: 1,
       total: '1840.50',
       category: FOOD,
+      toAccount: null,
     },
     {
       kind: 'income',
@@ -97,6 +99,7 @@ const parsed = (current: Import): Import => ({
       rows: 1,
       total: '50000.00',
       category: SALARY,
+      toAccount: null,
     },
   ],
 });
@@ -284,9 +287,24 @@ describe('ImportPage', () => {
       expect(sent.commits).toEqual([
         {
           categories: [
-            { kind: 'expense', source: 'Кафе', categoryId: cafe?.id },
-            { kind: 'expense', source: 'Супермаркеты', categoryId: FOOD.id },
-            { kind: 'income', source: 'Зарплата', categoryId: SALARY.id },
+            {
+              target: 'category',
+              kind: 'expense',
+              source: 'Кафе',
+              categoryId: cafe?.id,
+            },
+            {
+              target: 'category',
+              kind: 'expense',
+              source: 'Супермаркеты',
+              categoryId: FOOD.id,
+            },
+            {
+              target: 'category',
+              kind: 'income',
+              source: 'Зарплата',
+              categoryId: SALARY.id,
+            },
           ],
           skipLines: [],
         },
@@ -301,6 +319,59 @@ describe('ImportPage', () => {
       );
     },
   );
+
+  it('sends a group as transfers to another account', async () => {
+    const savings = {
+      id: '0199d0a4-0000-7000-8000-0000000acc02',
+      name: 'Накопления',
+      type: 'savings',
+      openingBalance: '0.00',
+      allowNegative: false,
+      balance: '0.00',
+    } as const;
+    mockAccount({
+      accounts: [MAIN_ACCOUNT, savings],
+      categories: [FOOD, SALARY],
+    });
+    const sent = mockImports(parsed(uploaded()));
+    const { user } = renderApp(`/import/${ID}`, { session: 'authenticated' });
+
+    // In the statement of the card a move to savings reads as an expense;
+    // the account is offered beside the categories.
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'Категория для «Кафе»' }),
+      'На счёт «Накопления»',
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Категория для «Зарплата»' }),
+      'Со счёта «Накопления»',
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Импортировать 4 операции' }),
+    );
+
+    await screen.findByRole('progressbar', { name: 'Создаём операции' });
+    expect(sent.commits[0]?.categories).toEqual([
+      {
+        target: 'transfer',
+        kind: 'expense',
+        source: 'Кафе',
+        toAccountId: savings.id,
+      },
+      {
+        target: 'category',
+        kind: 'expense',
+        source: 'Супермаркеты',
+        categoryId: FOOD.id,
+      },
+      {
+        target: 'transfer',
+        kind: 'income',
+        source: 'Зарплата',
+        toAccountId: savings.id,
+      },
+    ]);
+  });
 
   it('says what is wrong with a file the API refuses', async () => {
     mockAccount();
@@ -428,8 +499,18 @@ describe('ImportPage', () => {
     await vi.waitFor(() => expect(commits).toHaveLength(1));
     expect(commits[0]).toEqual({
       categories: [
-        { kind: 'expense', source: 'Кафе', categoryId: FOOD.id },
-        { kind: 'income', source: 'Зарплата', categoryId: SALARY.id },
+        {
+          target: 'category',
+          kind: 'expense',
+          source: 'Кафе',
+          categoryId: FOOD.id,
+        },
+        {
+          target: 'category',
+          kind: 'income',
+          source: 'Зарплата',
+          categoryId: SALARY.id,
+        },
       ],
       skipLines: [5],
     });

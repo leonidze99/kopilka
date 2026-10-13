@@ -73,17 +73,38 @@ export const importMappingSchema = z
   })
   .meta({ id: 'ImportMappingRequest' });
 
+const importGroupTargetFields = {
+  kind: transactionKindSchema,
+  /** The bank's category; null for rows without one. */
+  source: z.string().nullable(),
+};
+
+/**
+ * What one group of new rows becomes. A statement of one account shows a
+ * transfer to another of the user's accounts as an ordinary income or
+ * expense; saying so here turns those rows into transfers instead, with no
+ * category, as the app records them.
+ */
+export const importGroupTargetSchema = z
+  .discriminatedUnion('target', [
+    z.object({
+      target: z.literal('category'),
+      ...importGroupTargetFields,
+      categoryId: z.uuid('Выберите категорию'),
+    }),
+    z.object({
+      target: z.literal('transfer'),
+      ...importGroupTargetFields,
+      /** The account on the other side; not the one being imported into. */
+      toAccountId: z.uuid('Выберите счёт'),
+    }),
+  ])
+  .meta({ id: 'ImportGroupTarget' });
+
 export const importCommitSchema = z
   .object({
-    /** A category for every group in `Import.categories`. */
-    categories: z.array(
-      z.object({
-        kind: transactionKindSchema,
-        /** The bank's category; null for rows without one. */
-        source: z.string().nullable(),
-        categoryId: z.uuid('Выберите категорию'),
-      }),
-    ),
+    /** A target for every group in `Import.categories`. */
+    categories: z.array(importGroupTargetSchema),
     /** Rows not to import: possible duplicates the user chose to skip. */
     skipLines: z.array(z.int().min(2)).max(50_000).default([]),
   })
@@ -115,6 +136,8 @@ export const importCategoryGroupSchema = z
     total: z.string(),
     /** Remembered from a previous import or found by name; null: choose. */
     category: categorySchema.nullable(),
+    /** Remembered instead of a category: these rows are transfers. */
+    toAccount: accountRefSchema.nullable(),
   })
   .meta({ id: 'ImportCategoryGroup' });
 
