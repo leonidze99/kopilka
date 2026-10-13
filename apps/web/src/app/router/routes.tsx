@@ -1,23 +1,33 @@
 import { Navigate, type RouteObject } from 'react-router';
-import { AccountsPage } from '@/pages/accounts';
-import { CategoriesPage } from '@/pages/categories';
 import { ForgotPasswordPage } from '@/pages/forgot-password';
-import { ImportDetailsPage, ImportPage } from '@/pages/import';
 import { LoginPage } from '@/pages/login';
-import { RecurringPage } from '@/pages/recurring';
 import { RegisterPage } from '@/pages/register';
 import { ResetPasswordPage } from '@/pages/reset-password';
-import { SettingsPage } from '@/pages/settings';
-import { TransactionsPage } from '@/pages/transactions';
+import { PageLoader } from '@/shared/ui';
 import { AppLayout } from '../layouts/AppLayout';
 import { RootLayout } from '../layouts/RootLayout';
 import { GuestOnly, RequireAuth } from './guards';
+
+/**
+ * Pages of the app load as separate chunks: the first screen carries the
+ * shell and the router, not the transaction list, the import wizard and the
+ * charts. The router waits for the chunk before it switches, so a page never
+ * half-renders; the first load shows HydrateFallback meanwhile.
+ *
+ * The pages of a signed-out visitor stay in the first chunk: together they
+ * weigh a few kilobytes, and they are what that visitor sees first — a
+ * second round trip to show a login form buys nothing.
+ */
+const page =
+  (load: () => Promise<Record<string, React.ComponentType>>, name: string) =>
+  async () => ({ Component: (await load())[name]! });
 
 export const routes: RouteObject[] = [
   {
     // Holds the toaster, so a toast raised before a redirect is still shown
     // on the page it lands on, even in another layout.
     element: <RootLayout />,
+    HydrateFallback: PageLoader,
     children: [
       {
         element: <RequireAuth />,
@@ -25,13 +35,40 @@ export const routes: RouteObject[] = [
           {
             element: <AppLayout />,
             children: [
-              { path: '/', element: <TransactionsPage /> },
-              { path: '/accounts', element: <AccountsPage /> },
-              { path: '/categories', element: <CategoriesPage /> },
-              { path: '/recurring', element: <RecurringPage /> },
-              { path: '/import', element: <ImportPage /> },
-              { path: '/import/:id', element: <ImportDetailsPage /> },
-              { path: '/settings', element: <SettingsPage /> },
+              {
+                path: '/',
+                lazy: page(
+                  () => import('@/pages/transactions'),
+                  'TransactionsPage',
+                ),
+              },
+              {
+                path: '/accounts',
+                lazy: page(() => import('@/pages/accounts'), 'AccountsPage'),
+              },
+              {
+                path: '/categories',
+                lazy: page(
+                  () => import('@/pages/categories'),
+                  'CategoriesPage',
+                ),
+              },
+              {
+                path: '/recurring',
+                lazy: page(() => import('@/pages/recurring'), 'RecurringPage'),
+              },
+              {
+                path: '/import',
+                lazy: page(() => import('@/pages/import'), 'ImportPage'),
+              },
+              {
+                path: '/import/:id',
+                lazy: page(() => import('@/pages/import'), 'ImportDetailsPage'),
+              },
+              {
+                path: '/settings',
+                lazy: page(() => import('@/pages/settings'), 'SettingsPage'),
+              },
             ],
           },
         ],

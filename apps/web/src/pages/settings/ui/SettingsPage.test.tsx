@@ -74,10 +74,10 @@ describe('SettingsPage', () => {
       await screen.findByRole('link', { name: 'Безопасность аккаунта' }),
     );
 
-    expect(router.state.location.pathname).toBe('/settings');
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Безопасность' }),
     ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/settings');
   });
 
   it('lists the devices, this one first, and signs another out', async () => {

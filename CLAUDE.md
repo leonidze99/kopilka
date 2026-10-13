@@ -175,7 +175,9 @@ CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, д
 - Тесты: Vitest + RTL + MSW 3 (`pnpm --filter web test`). `src/test/render.tsx` — `renderApp(path, { session })` поднимает реальные store, роуты и guard'ы. Запрос без MSW-обработчика **валит тест** (`src/test/setup.ts`; в MSW 3 опция называется `onUnhandledFrame`, а стратегия `'error'` сама тест не валит). `FormData` и `File` в тестах — нодовские (подменены в `setup.ts`): jsdom-овские не читает fetch из Node, загрузка файла падала с `reading '_buffer'`.
 - API для фронта — `/api` на том же origin (`VITE_API_URL` переопределяет). В dev Vite проксирует `/api` на `:3000` (`API_PROXY_TARGET`), так что кука `Path=/api/auth` работает как в проде.
 
-Не сделано на фронте: e2e на Cypress (в плане), обработка `Retry-After` в тексте ошибки (fetchBaseQuery не отдаёт заголовки в `error`), code splitting (бандл ~560 КБ, ~178 КБ gzip — заметную часть даёт Zod из shared).
+Не сделано на фронте: e2e на Cypress (в плане), обработка `Retry-After` в тексте ошибки (fetchBaseQuery не отдаёт заголовки в `error`).
+
+Code splitting (`apps/web/src/app/router/routes.tsx`): страницы приложения грузятся отдельными чанками через `lazy` у маршрутов, `HydrateFallback` у корневого — лоадер на первую загрузку. Страницы анонима (вход, регистрация, забыли/сброс пароля) остались в первом чанке: вместе это пара килобайт, и это первый экран — лишний round trip ради формы входа не нужен. Первая загрузка 199 → 179 КБ gzip; страницы: лента 10.6, импорт 8.8, регулярные 3.3, счета 2.6, настройки 2.0, категории 1.8 КБ gzip. Главное не в разовой экономии: новая страница больше не увеличивает первый чанк. Остаток первого чанка — react, RTK Query, react-router, react-hook-form и Zod со схемами shared (нужны форме входа, отложить нельзя).
 
 Категории и транзакции (API + фронт). Решения:
 

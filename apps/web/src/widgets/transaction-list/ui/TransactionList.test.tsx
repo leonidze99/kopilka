@@ -264,7 +264,7 @@ describe('TransactionList', () => {
         session: 'authenticated',
       });
 
-      expect(screen.getByRole('searchbox')).toHaveValue('метро');
+      expect(await screen.findByRole('searchbox')).toHaveValue('метро');
       expect(await screen.findByText('Ничего не найдено')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Сбросить поиск' }));
