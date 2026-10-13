@@ -15,6 +15,14 @@ import type { Env } from '../config/env.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
+  activeLock,
+  type LockPolicy,
+  type LockState,
+  NO_FAILURES,
+  nextFailure,
+  retryAfterSeconds,
+} from './login-lock.js';
+import {
   type ClientInfo,
   type IssuedRefreshToken,
   RefreshTokenService,
@@ -33,6 +41,21 @@ export interface Session {
 
 const userSelect = { id: true, email: true } as const;
 
+/**
+ * Policy, not deployment settings, so they stay here while the limit and
+ * the first lock are configurable: a failure an hour after the previous one
+ * starts the count again, and an escalating lock never passes an hour.
+ */
+const FAILURE_WINDOW_MINUTES = 60;
+const MAX_LOCK_MINUTES = 60;
+
+/** The lock columns of the user row, as the raw SELECT returns them. */
+interface LockRow {
+  failed_login_attempts: number;
+  last_failed_login_at: Date | null;
+  locked_until: Date | null;
+}
+
 const unauthorized = (message: string) =>
   new AppException('UNAUTHORIZED', message, HttpStatus.UNAUTHORIZED);
 
@@ -40,6 +63,7 @@ const unauthorized = (message: string) =>
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly accessTtlSeconds: number;
+  private readonly lockPolicy: LockPolicy;
 
   // Verified against when the email is unknown, so that a login attempt
   // for a nonexistent user takes as long as one with a wrong password
@@ -55,6 +79,12 @@ export class AuthService {
     this.accessTtlSeconds = config.get('JWT_ACCESS_TTL_SECONDS', {
       infer: true,
     });
+    this.lockPolicy = {
+      maxFailures: config.get('LOGIN_MAX_FAILURES', { infer: true }),
+      lockMinutes: config.get('LOGIN_LOCK_MINUTES', { infer: true }),
+      maxLockMinutes: MAX_LOCK_MINUTES,
+      failureWindowMinutes: FAILURE_WINDOW_MINUTES,
+    };
   }
 
   async register(
@@ -102,11 +132,25 @@ export class AuthService {
     client: ClientInfo,
   ): Promise<Session> {
     const user = await this.prisma.user.findUnique({ where: { email } });
+    const now = new Date();
+
+    // A locked account is refused before argon2 runs, so guessing at one
+    // costs the server nothing. The right password is refused as well, or
+    // the lock would not stop the attack it exists for; the way back in for
+    // the owner is a password reset, which clears the lock.
+    const locked = user && activeLock(user, now);
+    if (locked) throw this.lockedOut(locked, now);
+
     const valid = user
       ? await verify(user.passwordHash, password)
       : await verify(await this.dummyHash, password).then(() => false);
 
     if (!user || !valid) {
+      // Counted only for an account that exists: a row per unknown address
+      // would let anyone fill the table, and whether an address is
+      // registered is already discoverable through registration.
+      const lockedNow = user ? await this.countFailure(user.id, now) : null;
+      if (lockedNow) throw this.lockedOut(lockedNow, now);
       // One message for both cases: do not reveal which emails exist.
       throw new AppException(
         'INVALID_CREDENTIALS',
@@ -114,7 +158,77 @@ export class AuthService {
         HttpStatus.UNAUTHORIZED,
       );
     }
+
+    // The counter walks back to zero only on a correct password; writing on
+    // every sign-in would add a row update nobody needs.
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: NO_FAILURES,
+      });
+    }
     return this.session(user, await this.refreshTokens.issue(user.id, client));
+  }
+
+  /**
+   * Records one failed attempt; returns when the account opens again if
+   * this attempt locked it, null otherwise.
+   *
+   * Read and write under one `SELECT ... FOR UPDATE`: two attempts arriving
+   * together would otherwise read the same count and the later write would
+   * swallow the earlier one, so a burst of parallel guesses would count as
+   * a single failure.
+   */
+  private countFailure(userId: string, now: Date): Promise<Date | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const [row] = await tx.$queryRaw<LockRow[]>`
+        SELECT failed_login_attempts, last_failed_login_at, locked_until
+        FROM users
+        WHERE id = ${userId}::uuid
+        FOR UPDATE
+      `;
+      // Gone: the account was deleted while the password was being verified.
+      if (!row) return null;
+
+      const current: LockState = {
+        failedLoginAttempts: Number(row.failed_login_attempts),
+        lastFailedLoginAt: row.last_failed_login_at,
+        lockedUntil: row.locked_until,
+      };
+      // A parallel attempt locked it while this one was waiting for the row;
+      // attempts during a lock do not extend it.
+      const already = activeLock(current, now);
+      if (already) return already;
+
+      const next = nextFailure(current, now, this.lockPolicy);
+      await tx.user.update({ where: { id: userId }, data: next });
+      if (next.lockedUntil) {
+        this.logger.warn({
+          msg: 'Account locked after repeated failed sign-ins',
+          userId,
+          attempts: next.failedLoginAttempts,
+          lockedUntil: next.lockedUntil,
+        });
+      }
+      return next.lockedUntil;
+    });
+  }
+
+  private lockedOut(lockedUntil: Date, now: Date): AppException {
+    const seconds = retryAfterSeconds(lockedUntil, now);
+    return new AppException(
+      'ACCOUNT_LOCKED',
+      'Too many failed sign-in attempts',
+      HttpStatus.TOO_MANY_REQUESTS,
+      // The frontend cannot read Retry-After (fetchBaseQuery drops response
+      // headers), so the wait is in the message shown to the user too.
+      [
+        {
+          message: `Слишком много неудачных попыток входа. Попробуйте через ${Math.ceil(seconds / 60)} мин.`,
+        },
+      ],
+      { 'Retry-After': String(seconds) },
+    );
   }
 
   async refresh(
@@ -173,7 +287,12 @@ export class AuthService {
     // CPU, no reason to hold a connection meanwhile.
     const passwordHash = await hash(newPassword);
     const endedSessions = await this.prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: userId }, data: { passwordHash } });
+      // Whoever knows the current password owns the account: a lockout
+      // left by someone guessing at it goes away with the change.
+      await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash, ...NO_FAILURES },
+      });
       return this.refreshTokens.end(tx, { userId, id: { not: sessionId } });
     });
     this.logger.log({ userId, endedSessions }, 'Password changed');

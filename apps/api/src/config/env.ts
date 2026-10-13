@@ -39,6 +39,11 @@ export const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(900),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  // Account lockout (see auth/login-lock.ts). Failed sign-ins in a row that
+  // lock an account, and the first lock in minutes (it doubles with each
+  // further failure, up to an hour). The throttler's per-IP limit stays.
+  LOGIN_MAX_FAILURES: z.coerce.number().int().min(1).default(10),
+  LOGIN_LOCK_MINUTES: z.coerce.number().int().min(1).default(5),
   // The built web app (apps/web/dist) to serve from this process; the
   // Docker image sets it. Unset: API only, as in development.
   WEB_DIST_DIR: z.string().min(1).optional(),

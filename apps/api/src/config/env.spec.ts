@@ -19,6 +19,8 @@ describe('envSchema', () => {
       TRUST_PROXY_HOPS: 0,
       JWT_ACCESS_TTL_SECONDS: 900,
       REFRESH_TOKEN_TTL_DAYS: 30,
+      LOGIN_MAX_FAILURES: 10,
+      LOGIN_LOCK_MINUTES: 5,
       JOBS_ENABLED: true,
     });
   });

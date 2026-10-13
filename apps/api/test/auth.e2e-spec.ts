@@ -133,6 +133,93 @@ describe('Auth (e2e)', () => {
     });
   });
 
+  describe('account lockout', () => {
+    // LOGIN_MAX_FAILURES; the first lock (LOGIN_LOCK_MINUTES) is 5 minutes.
+    const LIMIT = 10;
+
+    const wrongLogin = (email: string) =>
+      http()
+        .post('/api/auth/login')
+        .send({ email, password: 'wrong password' });
+
+    const rightLogin = (email: string, password = PASSWORD) =>
+      http().post('/api/auth/login').send({ email, password });
+
+    /** A fresh account one failed attempt away from being locked. */
+    const almostLocked = async () => {
+      const email = newEmail();
+      await register(email).expect(201);
+      for (let i = 0; i < LIMIT - 1; i++) await wrongLogin(email).expect(401);
+      return email;
+    };
+
+    it('locks the account on the attempt that reaches the limit', async () => {
+      const email = await almostLocked();
+
+      const locked = await wrongLogin(email).expect(429);
+      const body = apiErrorSchema.parse(locked.body);
+      expect(body.code).toBe('ACCOUNT_LOCKED');
+      expect(body.details?.[0]?.message).toMatch(/через 5 мин/);
+      const retryAfter = Number(locked.headers['retry-after']);
+      expect(retryAfter).toBeGreaterThan(0);
+      expect(retryAfter).toBeLessThanOrEqual(300);
+
+      // The right password is refused as well, or the lock would not stop
+      // the attack it exists for.
+      const asOwner = await rightLogin(email).expect(429);
+      expect(asOwner.body.code).toBe('ACCOUNT_LOCKED');
+    });
+
+    it('counts attempts that arrive together as separate failures', async () => {
+      const email = newEmail();
+      await register(email).expect(201);
+
+      // All at once: without SELECT ... FOR UPDATE they would read the same
+      // count and overwrite each other, so ten guesses would count as one.
+      const responses = await Promise.all(
+        Array.from({ length: LIMIT }, () => wrongLogin(email)),
+      );
+      // Exactly one of them is the attempt that reached the limit.
+      expect(responses.filter((res) => res.status === 429)).toHaveLength(1);
+      await rightLogin(email).expect(429);
+    });
+
+    it('opens the account when the lock expires and forgets the failures', async () => {
+      const email = await almostLocked();
+      await wrongLogin(email).expect(429);
+
+      // Five minutes into the past instead of waiting five minutes.
+      await prisma.user.update({
+        where: { email },
+        data: { lockedUntil: new Date(Date.now() - 1000) },
+      });
+      await rightLogin(email).expect(200);
+
+      const user = await prisma.user.findUniqueOrThrow({ where: { email } });
+      expect(user.failedLoginAttempts).toBe(0);
+      expect(user.lockedUntil).toBeNull();
+    });
+
+    it('lifts the lock when the password is changed', async () => {
+      const email = newEmail();
+      const accessToken = (await register(email).expect(201)).body
+        .accessToken as string;
+      for (let i = 0; i < LIMIT - 1; i++) await wrongLogin(email).expect(401);
+      await wrongLogin(email).expect(429);
+
+      // Signing in is locked, this session is not: the current password
+      // proves the account is the user's.
+      const newPassword = 'another correct horse';
+      await http()
+        .post('/api/auth/password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: PASSWORD, newPassword })
+        .expect(204);
+
+      await rightLogin(email, newPassword).expect(200);
+    });
+  });
+
   describe('access token', () => {
     it('is required by default and resolves the current user', async () => {
       const { body } = await register().expect(201);

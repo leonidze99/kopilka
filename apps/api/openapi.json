@@ -2724,6 +2724,7 @@
           "VALIDATION_FAILED",
           "UNAUTHORIZED",
           "INVALID_CREDENTIALS",
+          "ACCOUNT_LOCKED",
           "FORBIDDEN",
           "NOT_FOUND",
           "CONFLICT",

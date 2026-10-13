@@ -12,6 +12,8 @@ export class AppException extends HttpException {
     message: string,
     status: HttpStatus,
     readonly details?: ErrorDetail[],
+    /** Response headers the client needs, e.g. Retry-After on a 429. */
+    readonly headers?: Record<string, string>,
   ) {
     super(message, status);
   }

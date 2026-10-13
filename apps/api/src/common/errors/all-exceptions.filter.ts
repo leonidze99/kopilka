@@ -77,6 +77,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
     const [status, body] = this.toError(exception);
+    if (exception instanceof AppException && exception.headers) {
+      response.set(exception.headers);
+    }
 
     // Errors raised by body-parser (malformed JSON, oversized body) happen
     // before the pino-http middleware runs: there is no request id yet and

@@ -30,6 +30,12 @@ export function errorMessage(error: unknown): string {
   switch (apiError.code) {
     case 'INVALID_CREDENTIALS':
       return 'Неверный email или пароль';
+    case 'ACCOUNT_LOCKED':
+      // The API says how long the wait is.
+      return (
+        apiError.details?.[0]?.message ??
+        'Слишком много неудачных попыток входа. Попробуйте позже.'
+      );
     case 'RATE_LIMITED':
       return 'Слишком много попыток. Попробуйте через минуту.';
     case 'VALIDATION_FAILED':

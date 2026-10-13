@@ -31,6 +31,14 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  /// Failed sign-ins in a row; a successful one (or a password change)
+  /// clears them. The throttler counts per IP, which a distributed attack
+  /// on one account walks around; these count per account (login-lock.ts).
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lastFailedLoginAt   DateTime? @map("last_failed_login_at") @db.Timestamptz(3)
+  /// Until then every sign-in is refused, the right password included.
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(3)
+
   accounts       Account[]
   recurringRules RecurringRule[]
   imports        Import[]

@@ -9,6 +9,8 @@ export const errorCodeSchema = z
     'VALIDATION_FAILED',
     'UNAUTHORIZED',
     'INVALID_CREDENTIALS',
+    // Too many failed sign-ins for this account; see the Retry-After header.
+    'ACCOUNT_LOCKED',
     'FORBIDDEN',
     'NOT_FOUND',
     'CONFLICT',

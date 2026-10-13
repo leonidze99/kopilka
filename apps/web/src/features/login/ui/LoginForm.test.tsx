@@ -73,6 +73,28 @@ describe('LoginForm', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
+  it('shows how long a locked account has to wait', async () => {
+    server.use(
+      http.post(apiUrl('/auth/login'), () =>
+        apiError(429, 'ACCOUNT_LOCKED', 'Too many failed sign-in attempts', [
+          // No field: the API puts the wait in the message for the user,
+          // because Retry-After is not readable from fetchBaseQuery.
+          {
+            message:
+              'Слишком много неудачных попыток входа. Попробуйте через 5 мин.',
+          },
+        ]),
+      ),
+    );
+    const { user } = renderApp('/login');
+
+    await fill(user, USER.email, 'wrong-password');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Попробуйте через 5 мин.',
+    );
+  });
+
   it('reports a network failure', async () => {
     server.use(http.post(apiUrl('/auth/login'), () => HttpResponse.error()));
     const { user } = renderApp('/login');
