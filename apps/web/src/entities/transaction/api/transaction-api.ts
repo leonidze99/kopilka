@@ -56,10 +56,12 @@ type TransactionInput = RequestBody<'/transactions', 'post'>;
 export type ExportParams = QueryParams<'/transactions/export', 'get'>;
 
 // Every write moves money: account balances and budget spending change too.
-const WRITE_TAGS = ['Transaction', 'Account', 'Budget'] as const;
+const WRITE_TAGS = ['Transaction', 'Account', 'Budget', 'Goal'] as const;
 
 export const transactionApi = baseApi
-  .enhanceEndpoints({ addTagTypes: ['Transaction', 'Account', 'Budget'] })
+  .enhanceEndpoints({
+    addTagTypes: ['Transaction', 'Account', 'Budget', 'Goal'],
+  })
   .injectEndpoints({
     endpoints: (build) => ({
       /**

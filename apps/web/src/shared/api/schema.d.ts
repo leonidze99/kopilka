@@ -369,6 +369,51 @@ export interface paths {
         patch: operations["CategoriesController_rename"];
         trace?: never;
     };
+    "/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Saving goals with their progress
+         * @description What is saved is the balance of the account each goal counts; the monthly amount is what makes the date.
+         */
+        get: operations["GoalsController_list"];
+        put?: never;
+        /** Start saving on an account */
+        post: operations["GoalsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/goals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace a goal
+         * @description The account it counts may change with it.
+         */
+        put: operations["GoalsController_replace"];
+        post?: never;
+        /**
+         * Give up a goal
+         * @description The account and its money stay as they are.
+         */
+        delete: operations["GoalsController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/imports": {
         parameters: {
             query?: never;
@@ -788,6 +833,41 @@ export interface components {
         UpdateCategoryRequest: {
             name: string;
         };
+        GoalList: components["schemas"]["Goal"][];
+        Goal: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            account: components["schemas"]["AccountRef"];
+            targetAmount: string;
+            targetDate: components["schemas"]["CalendarDate"] | null;
+            saved: string;
+            remaining: string;
+            percent: number;
+            monthly: string | null;
+        };
+        AccountRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: components["schemas"]["AccountType"];
+        };
+        /**
+         * Format: date
+         * @example 2026-10-05
+         */
+        CalendarDate: string;
+        GoalInput: {
+            /** Format: uuid */
+            accountId: string;
+            name: string;
+            /**
+             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+             * @example 1234.56
+             */
+            targetAmount: string;
+            targetDate?: components["schemas"]["CalendarDate"] | null;
+        };
         ImportSummaryList: components["schemas"]["ImportSummary"][];
         ImportSummary: {
             /** Format: uuid */
@@ -802,12 +882,6 @@ export interface components {
         };
         /** @enum {string} */
         ImportStatus: "uploading" | "uploaded" | "parsing" | "ready" | "importing" | "done" | "failed" | "undone";
-        AccountRef: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            type: components["schemas"]["AccountType"];
-        };
         ImportCounts: {
             new: number;
             duplicate: number;
@@ -932,11 +1006,6 @@ export interface components {
             lastError: string | null;
             category: components["schemas"]["Category"];
         };
-        /**
-         * Format: date
-         * @example 2026-10-05
-         */
-        CalendarDate: string;
         /** @enum {string} */
         RecurringUnit: "day" | "week" | "month";
         RecurringTransferRule: {
@@ -2281,6 +2350,182 @@ export interface operations {
             };
             /** @description CONFLICT: clashes with existing data */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    GoalsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalList"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    GoalsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoalInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Goal"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    GoalsController_replace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoalInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Goal"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    GoalsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

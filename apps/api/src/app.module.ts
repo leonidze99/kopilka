@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { AccountsModule } from './accounts/accounts.module.js';
 import { BudgetsModule } from './budgets/budgets.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
+import { GoalsModule } from './goals/goals.module.js';
 import { ImportsModule } from './imports/imports.module.js';
 import { MetricsModule } from './metrics/metrics.module.js';
 import { RecurringModule } from './recurring/recurring.module.js';
@@ -50,6 +51,7 @@ import { TransactionsModule } from './transactions/transactions.module.js';
     AccountsModule,
     BudgetsModule,
     CategoriesModule,
+    GoalsModule,
     ImportsModule,
     MetricsModule,
     RecurringModule,

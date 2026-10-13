@@ -10,7 +10,8 @@ export type Account = AccountList['items'][number];
 
 export const accountApi = baseApi
   // Transactions show the names of their accounts: a rename refetches them.
-  .enhanceEndpoints({ addTagTypes: ['Account', 'Transaction'] })
+  // A balance is what a saving goal counts as saved.
+  .enhanceEndpoints({ addTagTypes: ['Account', 'Transaction', 'Goal'] })
   .injectEndpoints({
     endpoints: (build) => ({
       /** With balances and their total, computed by the API. */
@@ -37,12 +38,12 @@ export const accountApi = baseApi
           method: 'PATCH',
           body,
         }),
-        invalidatesTags: ['Account', 'Transaction'],
+        invalidatesTags: ['Account', 'Transaction', 'Goal'],
       }),
 
       deleteAccount: build.mutation<void, string>({
         query: (id) => ({ url: `/accounts/${id}`, method: 'DELETE' }),
-        invalidatesTags: ['Account'],
+        invalidatesTags: ['Account', 'Goal'],
       }),
     }),
   });

@@ -24,12 +24,15 @@ interface AccountData {
   /** Limits of the month, whatever the month asked. */
   budgets?: Budget[];
   recurring?: RecurringRule[];
+  goals?: Goal[];
 }
 
 type RecurringRule = Schemas['RecurringRule'];
 type RecurringInput = Schemas['RecurringInput'];
 
 type Budget = Schemas['Budget'];
+type Goal = Schemas['Goal'];
+type GoalInput = Schemas['GoalInput'];
 type SetBudget = Schemas['SetBudgetRequest'] & { categoryId: string };
 
 // Test data only: the real API sums money exactly in the database.
@@ -56,10 +59,12 @@ export function mockAccount({
   monthly = [],
   budgets = [],
   recurring = [],
+  goals = [],
 }: AccountData = {}) {
   const state = {
     budgets: [...budgets],
     recurring: [...recurring],
+    goals: [...goals],
     accounts: accounts.map((account) => ({ ...account })),
     categories: categories.map((category) => ({ ...category })),
     transactions: [...transactions],
@@ -68,9 +73,23 @@ export function mockAccount({
     accounts: [] as CreateAccount[],
     budgets: [] as SetBudget[],
     recurring: [] as RecurringInput[],
+    goals: [] as GoalInput[],
     categories: [] as CreateCategory[],
     transactions: [] as TransactionInput[],
     replacements: [] as TransactionInput[],
+  };
+
+  /** The progress of a goal: the balance of its account against the target. */
+  const withProgress = (goal: Goal): Goal => {
+    const account = state.accounts.find((a) => a.id === goal.account.id);
+    const saved = Math.max(Number(account?.balance ?? 0), 0);
+    const target = Number(goal.targetAmount);
+    return {
+      ...goal,
+      saved: saved.toFixed(2),
+      remaining: Math.max(target - saved, 0).toFixed(2),
+      percent: Math.min(100, Math.floor((saved / target) * 100)),
+    };
   };
 
   /** A transaction as the API builds it from a request body. */
@@ -197,6 +216,35 @@ export function mockAccount({
     http.get(apiUrl('/transactions/by-category'), () =>
       HttpResponse.json(categoryTotals),
     ),
+
+    // Saving goals: what is saved is the balance of the account, as the
+    // real API counts it.
+    http.get(apiUrl('/goals'), () =>
+      HttpResponse.json(state.goals.map(withProgress)),
+    ),
+    http.post(apiUrl('/goals'), async ({ request }) => {
+      const body = (await request.json()) as GoalInput;
+      sent.goals.push(body);
+      const account = state.accounts.find((a) => a.id === body.accountId);
+      if (!account) throw new Error(`unknown account ${body.accountId}`);
+      const goal = {
+        id: newId(),
+        name: body.name,
+        account: ref(account),
+        targetAmount: Number(body.targetAmount).toFixed(2),
+        targetDate: body.targetDate ?? null,
+        saved: '0.00',
+        remaining: '0.00',
+        percent: 0,
+        monthly: null,
+      };
+      state.goals.push(goal);
+      return HttpResponse.json(withProgress(goal), { status: 201 });
+    }),
+    http.delete(`${API_URL}/goals/:id`, ({ params }) => {
+      state.goals = state.goals.filter((goal) => goal.id !== params.id);
+      return new HttpResponse(null, { status: 204 });
+    }),
 
     http.get(apiUrl('/recurring'), () => HttpResponse.json(state.recurring)),
     http.post(apiUrl('/recurring'), async ({ request }) => {

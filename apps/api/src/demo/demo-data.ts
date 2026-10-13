@@ -73,6 +73,12 @@ export interface DemoData {
     amount: string | null;
     effectiveFrom: string;
   }[];
+  goal: {
+    account: AccountKey;
+    name: string;
+    targetAmount: string;
+    targetDate: string;
+  };
 }
 
 const ACCOUNTS: DemoData['accounts'] = [
@@ -355,5 +361,12 @@ export function buildDemoData(now: Date): DemoData {
         effectiveFrom: `${months.at(-2) ?? thisMonth}-01`,
       },
     ],
+    // Saving on the account that may not go negative, half a year out.
+    goal: {
+      account: 'savings',
+      name: 'На отпуск',
+      targetAmount: '300000.00',
+      targetDate: `${addMonths(`${thisMonth}-01`, 6)}`,
+    },
   };
 }

@@ -114,6 +114,16 @@ export async function seedDemo(
         })),
       });
 
+      await tx.goal.create({
+        data: {
+          userId,
+          accountId: idOf(accounts, data.goal.account) ?? '',
+          name: data.goal.name,
+          targetAmount: data.goal.targetAmount,
+          targetDate: toDateColumn(data.goal.targetDate),
+        },
+      });
+
       // The rule the API enforces on every write: an account that must not
       // go negative is not below zero. Generated data could break it.
       const overdrawn = await tx.$queryRaw<{ name: string }[]>`

@@ -28,18 +28,78 @@ describe('AccountsPage', () => {
     expect(screen.getByText(/^1\s750,50\s₽/)).toBeInTheDocument();
   });
 
+  it('shows a goal against the balance of its account', async () => {
+    mockAccount({
+      accounts: [{ ...MAIN_ACCOUNT, balance: '50000.00' }],
+      goals: [
+        {
+          id: '0199d0a4-7777-7000-8000-000000000001',
+          name: 'На отпуск',
+          account: {
+            id: MAIN_ACCOUNT.id,
+            name: MAIN_ACCOUNT.name,
+            type: 'card',
+          },
+          targetAmount: '200000.00',
+          targetDate: null,
+          // The API counts these from the balance; so does the mock.
+          saved: '0.00',
+          remaining: '0.00',
+          percent: 0,
+          monthly: null,
+        },
+      ],
+    });
+    renderApp('/accounts', { session: 'authenticated' });
+
+    const goal = await screen.findByRole('button', { name: /На отпуск/ });
+    // Intl groups thousands with a no-break space; read it as a plain one.
+    const text = goal.textContent?.split(String.fromCharCode(160)).join(' ');
+    expect(text).toContain('50 000,00 ₽ из 200 000,00 ₽');
+    expect(text).toContain('осталось 150 000,00 ₽');
+    expect(
+      screen.getByRole('progressbar', { name: /На отпуск/ }),
+    ).toHaveAttribute('aria-valuenow', '25');
+  });
+
+  it('starts a goal on an account', async () => {
+    const { sent } = mockAccount();
+    const { user } = renderApp('/accounts', { session: 'authenticated' });
+    await screen.findByText('Целей пока нет');
+
+    const form = within(
+      screen.getByRole('heading', { name: 'Новая цель' }).closest('section')!,
+    );
+    await user.type(form.getByLabelText('Название'), 'На отпуск');
+    await user.selectOptions(form.getByLabelText('Счёт'), MAIN_ACCOUNT.name);
+    await user.type(form.getByLabelText('Сколько накопить'), '200 000');
+    await user.click(form.getByRole('button', { name: 'Добавить' }));
+
+    expect(await screen.findByText('Цель добавлена')).toBeInTheDocument();
+    expect(sent.goals).toEqual([
+      {
+        name: 'На отпуск',
+        accountId: MAIN_ACCOUNT.id,
+        targetAmount: '200000',
+        targetDate: null,
+      },
+    ]);
+  });
+
   it('creates an account that must not go negative', async () => {
     const { sent } = mockAccount();
     const { user } = renderApp('/accounts', { session: 'authenticated' });
     await screen.findByRole('button', { name: /Основной счёт/ });
 
-    await user.click(screen.getByRole('radio', { name: 'Наличные' }));
-    await user.type(screen.getByLabelText('Название'), 'Кошелёк');
-    await user.type(screen.getByLabelText('Начальный остаток'), '1 500');
-    await user.click(
-      screen.getByRole('switch', { name: 'Не уходить в минус' }),
+    // The page also has the goal form, which has a "Название" of its own.
+    const form = within(
+      screen.getByRole('heading', { name: 'Новый счёт' }).closest('section')!,
     );
-    await user.click(screen.getByRole('button', { name: 'Добавить счёт' }));
+    await user.click(form.getByRole('radio', { name: 'Наличные' }));
+    await user.type(form.getByLabelText('Название'), 'Кошелёк');
+    await user.type(form.getByLabelText('Начальный остаток'), '1 500');
+    await user.click(form.getByRole('switch', { name: 'Не уходить в минус' }));
+    await user.click(form.getByRole('button', { name: 'Добавить счёт' }));
 
     expect(
       await screen.findByRole('button', { name: /Кошелёк/ }),

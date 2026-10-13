@@ -64,6 +64,7 @@ model User {
   sessions         Session[]
   passwordResets   PasswordReset[]
   budgetAlertsSent BudgetAlert[]
+  goals            Goal[]
 
   @@map("users")
 }
@@ -112,6 +113,7 @@ model Account {
   recurring    RecurringRule[]      @relation("RecurringAccount")
   recurringIn  RecurringRule[]      @relation("RecurringTarget")
   imports      Import[]
+  goal         Goal?
   importRows   ImportRow[]          @relation("ImportRowTarget")
   importRules  ImportCategoryRule[] @relation("ImportRuleTarget")
 
@@ -243,6 +245,33 @@ model Budget {
   @@unique([categoryId, effectiveFrom])
   @@index([userId])
   @@map("budgets")
+}
+
+/// Saving up for something on one account. What is saved is the balance of
+/// that account, not a number of its own: money put aside and then spent is
+/// gone from the goal too, with nothing to keep in step.
+/// SQL-only: CHECK (target_amount > 0).
+model Goal {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  accountId    String    @map("account_id") @db.Uuid
+  name         String    @db.VarChar(64)
+  targetAmount Decimal   @map("target_amount") @db.Decimal(14, 2)
+  /// When it should be reached; without it the goal has no deadline.
+  targetDate   DateTime? @map("target_date") @db.Date
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Goes with the account it counts; the composite key keeps it the user's.
+  account Account @relation(fields: [accountId, userId], references: [id, userId], onDelete: Cascade)
+
+  // One goal per account: the balance can only stand for one of them.
+  // The pair rather than the column alone is also what the composite
+  // foreign key above needs to be one-to-one.
+  @@unique([accountId, userId])
+  @@index([userId])
+  @@map("goals")
 }
 
 /// A budget overspend already mailed about. One row per category and month

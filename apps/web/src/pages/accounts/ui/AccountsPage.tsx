@@ -1,7 +1,9 @@
 import { Upload } from 'lucide-react';
 import { CreateAccountForm } from '@/features/account-form';
+import { GoalForm } from '@/features/goal-form';
 import { ButtonLink, Panel } from '@/shared/ui';
 import { AccountList } from '@/widgets/account-list';
+import { GoalList } from '@/widgets/goal-list';
 import styles from '../../page.module.css';
 
 export function AccountsPage() {
@@ -20,10 +22,16 @@ export function AccountsPage() {
         </ButtonLink>
       </div>
       <div className={styles.columns}>
-        <AccountList />
+        <div className={styles.stack}>
+          <AccountList />
+          <GoalList />
+        </div>
         <div className={styles.aside}>
           <Panel title="Новый счёт">
             <CreateAccountForm />
+          </Panel>
+          <Panel title="Новая цель">
+            <GoalForm />
           </Panel>
         </div>
       </div>
