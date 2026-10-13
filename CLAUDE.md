@@ -1,8 +1,8 @@
 # Kopilka
 
-Пет-проект: трекер личных финансов (доходы/расходы, категории, бюджеты, аналитика). Цель — фуллстек-проект для портфолио и прокачки бэкенд-навыков до уровня senior.
+Трекер личных финансов (доходы/расходы, категории, бюджеты, аналитика).
 
-Автор — frontend-разработчик (React/TS, 6+ лет, финтех), бэкенд осваивает. Объясняй бэкенд-решения, не только пиши код. Ответы — кратко и по делу.
+Автор — frontend-разработчик (React/TS, 6+ лет, финтех).
 
 ## Окружение
 
@@ -167,7 +167,7 @@ e2e API на Testcontainers (`apps/api/test/utils/test-database.ts`, `test/globa
 Деплой (платформа ещё не выбрана; образ проверен локально):
 
 - **Все маршруты API — под `/api`** (`setGlobalPrefix`, `API_PREFIX` в `apps/api/src/common/http/api-prefix.ts`), включая health: `/api/health/live|ready`. Пути в остальных разделах CLAUDE.md и в OpenAPI — без префикса: документ строится с `ignoreGlobalPrefix` и `servers: ['/api']`, поэтому фронтовые типы остались `'/transactions'`. Вне префикса — только `/docs` (не в production) и фронт.
-- Один процесс отдаёт и API, и собранный фронт (`WEB_DIST_DIR`, `apps/api/src/web-app.ts`, e2e — `test/web-app.e2e-spec.ts`): `/assets/*` — `immutable` на год, любой GET-запрос страницы вне `/api` без расширения — `index.html` с `no-cache`, отсутствующий файл — 404. Причина одного origin — кука `SameSite=Strict` и отсутствие CORS. Регистрируется в `setupApp` до `app.init()`, иначе её перехватит 404 роутера Nest.
+- Один процесс отдаёт и API, и собранный фронт (`WEB_DIST_DIR` — относительный путь считается от рабочего каталога процесса; `apps/api/src/web-app.ts`, e2e — `test/web-app.e2e-spec.ts`): `/assets/*` — `immutable` на год, любой GET-запрос страницы вне `/api` без расширения — `index.html` с `no-cache`, отсутствующий файл — 404. Причина одного origin — кука `SameSite=Strict` и отсутствие CORS. Регистрируется в `setupApp` до `app.init()`, иначе её перехватит 404 роутера Nest.
 - CSP от helmet (`script-src 'self'`) запрещает инлайн-скрипты: скрипт темы — файлом `apps/web/public/theme-init.js`.
 - `Dockerfile` (multi-stage, `node:22-bookworm-slim`): `build` (всё + сборка shared → web → api), `migrate` (на базе build: Prisma CLI + openssl, `prisma migrate deploy`), `runtime` — по умолчанию (prod-зависимости api, `--ignore-scripts`, три `dist`, `USER node`, `HEALTHCHECK`, `node dist/main.js` напрямую — SIGTERM доходит до приложения). Миграции — отдельным шагом релиза, не при старте приложения.
 - Известный компромисс: образ ~890 МБ, из них ~200 МБ — Prisma CLI с деревом (Studio, TypeScript): lockfile разрешает `@prisma/client` вместе с его optional peer `prisma`, и `--prod` его оставляет (`pnpm deploy` — тоже). Убрать — вынести схему и CLI в отдельный пакет.

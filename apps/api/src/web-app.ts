@@ -1,4 +1,4 @@
-import { extname, join } from 'node:path';
+import { extname, join, resolve } from 'node:path';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
 import { API_PREFIX } from './common/http/api-prefix.js';
@@ -11,7 +11,16 @@ const YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
  * there is no CORS to configure. Must run before app.init(), ahead of the
  * Nest router and its 404.
  */
-export function serveWebApp(app: NestExpressApplication, dir: string): void {
+export function serveWebApp(
+  app: NestExpressApplication,
+  directory: string,
+): void {
+  // WEB_DIST_DIR may be relative to where the process was started, which is
+  // what .env.example suggests; res.sendFile below takes absolute paths only
+  // and answers 500 otherwise, and static files would be resolved against
+  // the working directory anyway.
+  const dir = resolve(directory);
+
   app.useStaticAssets(dir, {
     // index.html is sent by the fallback below, with its own caching.
     index: false,

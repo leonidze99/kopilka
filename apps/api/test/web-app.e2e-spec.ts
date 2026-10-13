@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { createTestApp } from './utils/create-test-app.js';
@@ -41,6 +41,23 @@ describe('Web app on the same origin (e2e)', () => {
       expect(res.headers['content-security-policy']).toBeDefined();
     },
   );
+
+  it('takes a directory relative to the working directory', async () => {
+    // What .env.example suggests (WEB_DIST_DIR=../web/dist): sending the
+    // page from a relative path used to be a 500.
+    const relativeApp = await createTestApp({
+      webDistDir: relative(process.cwd(), dir),
+    });
+    try {
+      const res = await request(relativeApp.getHttpServer())
+        .get('/categories')
+        .set('Accept', 'text/html')
+        .expect(200);
+      expect(res.text).toContain('<title>app</title>');
+    } finally {
+      await relativeApp.close();
+    }
+  });
 
   it('caches hashed assets for good', async () => {
     const res = await http().get('/assets/index-abc123.js').expect(200);
