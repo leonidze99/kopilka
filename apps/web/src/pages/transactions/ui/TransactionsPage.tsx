@@ -28,6 +28,7 @@ function useOperationsView() {
     type: parseType(params.get('type')),
     categoryId: params.get('category') ?? undefined,
     accountId: params.get('account') ?? undefined,
+    tagId: params.get('tag') ?? undefined,
   };
 
   const update = useCallback(
@@ -61,8 +62,8 @@ function useOperationsView() {
     setMonth: (next: Month) =>
       // The current month is the default: keep the URL clean.
       update({ month: next === currentMonth() ? undefined : next }),
-    setFilter: ({ type, categoryId, accountId }: ListFilter) =>
-      update({ type, category: categoryId, account: accountId }),
+    setFilter: ({ type, categoryId, accountId, tagId }: ListFilter) =>
+      update({ type, category: categoryId, account: accountId, tag: tagId }),
   };
 }
 

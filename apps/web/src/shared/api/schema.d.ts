@@ -564,6 +564,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tags of the user, by name */
+        get: operations["TagsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tags/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a tag
+         * @description Its transactions stay, without it.
+         */
+        delete: operations["TagsController_remove"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename a tag
+         * @description Refused with CONFLICT if another tag has the name (case and ё/е aside).
+         */
+        patch: operations["TagsController_rename"];
+        trace?: never;
+    };
     "/transactions/export": {
         parameters: {
             query?: never;
@@ -1071,6 +1112,14 @@ export interface components {
             /** @default true */
             active: boolean;
         };
+        Tag: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        RenameTagRequest: {
+            name: string;
+        };
         /** @enum {string} */
         TransactionType: "income" | "expense" | "transfer";
         TransactionPage: {
@@ -1091,6 +1140,7 @@ export interface components {
             account: components["schemas"]["AccountRef"];
             /** Format: uuid */
             recurringRuleId: string | null;
+            tags: components["schemas"]["Tag"][];
             category: components["schemas"]["Category"] | null;
             splits: components["schemas"]["TransactionSplit"][];
         };
@@ -1112,6 +1162,7 @@ export interface components {
             account: components["schemas"]["AccountRef"];
             /** Format: uuid */
             recurringRuleId: string | null;
+            tags: components["schemas"]["Tag"][];
             toAccount: components["schemas"]["AccountRef"];
         };
         TransactionSummary: {
@@ -1147,6 +1198,8 @@ export interface components {
             /** Format: date-time */
             occurredAt: string;
             comment?: string;
+            /** @default [] */
+            tags: string[];
         };
         TransactionSplitInput: {
             /** Format: uuid */
@@ -1172,6 +1225,8 @@ export interface components {
             /** Format: date-time */
             occurredAt: string;
             comment?: string;
+            /** @default [] */
+            tags: string[];
         };
     };
     responses: never;
@@ -3053,6 +3108,132 @@ export interface operations {
             };
         };
     };
+    TagsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tag"][];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    TagsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    TagsController_rename: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameTagRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tag"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     TransactionsController_export: {
         parameters: {
             query: {
@@ -3061,6 +3242,7 @@ export interface operations {
                 categoryId?: string;
                 accountId?: string;
                 type?: components["schemas"]["TransactionType"];
+                tagId?: string;
                 q?: string;
                 timeZone: string;
             };
@@ -3109,6 +3291,7 @@ export interface operations {
                 categoryId?: string;
                 accountId?: string;
                 type?: components["schemas"]["TransactionType"];
+                tagId?: string;
                 q?: string;
             };
             header?: never;
@@ -3200,6 +3383,7 @@ export interface operations {
             query?: {
                 from?: string;
                 to?: string;
+                tagId?: string;
             };
             header?: never;
             path?: never;
@@ -3240,6 +3424,7 @@ export interface operations {
             query?: {
                 from?: string;
                 to?: string;
+                tagId?: string;
                 kind?: components["schemas"]["TransactionKind"];
             };
             header?: never;

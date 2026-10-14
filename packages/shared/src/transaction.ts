@@ -3,6 +3,7 @@ import { accountRefSchema } from './account.js';
 import { categorySchema, transactionKindSchema } from './category.js';
 import { amountSchema, toKopecks } from './money.js';
 import { timeZoneSchema } from './recurring.js';
+import { tagSchema, transactionTagsSchema } from './tag.js';
 
 /**
  * Income and expense take their kind from the category; a transfer moves
@@ -23,6 +24,8 @@ const inputFields = {
     .trim()
     .max(280, 'Комментарий не длиннее 280 символов')
     .optional(),
+  /** By name; a new name makes a new tag. None if left out. */
+  tags: transactionTagsSchema.default([]),
 };
 
 /** One category's share of a split income or expense. */
@@ -164,6 +167,8 @@ const outputFields = {
   account: accountRefSchema,
   /** Made by this recurring rule; null for one entered by hand. */
   recurringRuleId: z.uuid().nullable(),
+  /** By name. */
+  tags: z.array(tagSchema),
 };
 
 export const transactionSplitSchema = z
@@ -206,6 +211,8 @@ const transactionFilters = {
   /** Money that left or reached the account: transfers count for both. */
   accountId: z.uuid().optional(),
   type: transactionTypeSchema.optional(),
+  /** Transactions with this tag. */
+  tagId: z.uuid().optional(),
   /**
    * A piece of the comment, anywhere in it: "такс" finds "Яндекс Такси".
    * Case and ё/е do not matter.
@@ -246,6 +253,8 @@ export const transactionPageSchema = z
 export const transactionSummaryQuerySchema = z.object({
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
+  /** Only transactions with this tag: what a trip cost. */
+  tagId: z.uuid().optional(),
 });
 
 export const transactionSummarySchema = z
@@ -260,6 +269,8 @@ export const transactionSummarySchema = z
 export const categoryTotalsQuerySchema = z.object({
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
+  /** Only transactions with this tag. */
+  tagId: z.uuid().optional(),
   /** Which side to break down; expenses by default. */
   kind: transactionKindSchema.default('expense'),
 });

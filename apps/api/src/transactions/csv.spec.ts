@@ -43,14 +43,19 @@ describe('csv', () => {
       createdAt: new Date(),
       recurringRuleId: null,
       account: { id: 'acc', name: 'Карта', type: 'card' },
+      tags: [] as { id: string; name: string }[],
     };
 
-    it('names the category of an expense and leaves the target empty', () => {
+    it('names the category and the tags of an expense, no target', () => {
       const expense = {
         ...base,
         type: 'expense',
         category: { id: 'cat', kind: 'expense', name: 'Продукты' },
         splits: [],
+        tags: [
+          { id: 't1', name: 'Отпуск' },
+          { id: 't2', name: 'Сочи' },
+        ],
       } as Transaction;
 
       expect(transactionCsvRows(expense, 'Europe/Moscow')).toEqual([
@@ -62,6 +67,7 @@ describe('csv', () => {
           '',
           '1234,50',
           'Пятёрочка',
+          'Отпуск, Сочи',
         ],
       ]);
     });
@@ -92,6 +98,7 @@ describe('csv', () => {
           '',
           '1000,00',
           'Пятёрочка',
+          '',
         ],
         [
           '12.10.2026 22:30',
@@ -101,6 +108,7 @@ describe('csv', () => {
           '',
           '234,50',
           'Пятёрочка',
+          '',
         ],
       ]);
     });
@@ -121,6 +129,7 @@ describe('csv', () => {
           'Карта',
           'Накопления',
           '1234,50',
+          '',
           '',
         ],
       ]);

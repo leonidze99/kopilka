@@ -23,6 +23,7 @@ import { AppException } from '../common/errors/app.exception.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { tagSelect, TagsService } from '../tags/tags.service.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
 import { categorizedAmount, categorizedJoin } from './parts.js';
 
@@ -40,6 +41,10 @@ const transactionSelect = {
     select: { amount: true, category: { select: categorySelect } },
     orderBy: [{ amount: 'desc' }, { category: { name: 'asc' } }],
   },
+  tags: {
+    select: { tag: { select: tagSelect } },
+    orderBy: { tag: { nameKey: 'asc' } },
+  },
 } satisfies Prisma.TransactionSelect;
 
 type TransactionRow = Prisma.TransactionGetPayload<{
@@ -54,9 +59,14 @@ function toTransaction({
   toAccount,
   category,
   splits,
+  tags,
   ...row
 }: TransactionRow): Transaction {
-  const common = { ...row, amount: row.amount.toFixed(2) };
+  const common = {
+    ...row,
+    amount: row.amount.toFixed(2),
+    tags: tags.map(({ tag }) => tag),
+  };
   if (toAccount) return { type: 'transfer', ...common, toAccount };
   // Without a category there are parts (the deferred trigger checks it),
   // all of one kind (the service does).
@@ -75,6 +85,12 @@ function toTransaction({
 
 const notFound = () =>
   new AppException('NOT_FOUND', 'Transaction not found', HttpStatus.NOT_FOUND);
+
+/** For the totals: only the transactions with this tag. */
+const tagged = (tagId: string) => Prisma.sql`EXISTS (
+  SELECT 1 FROM transaction_tags tt
+  WHERE tt.transaction_id = t.id AND tt.tag_id = ${tagId}::uuid
+)`;
 
 /**
  * As transactions.comment_search is generated: lower case, ё as е. JS
@@ -140,6 +156,7 @@ export class TransactionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accounts: AccountsService,
+    private readonly tags: TagsService,
   ) {}
 
   /**
@@ -208,6 +225,7 @@ export class TransactionsService {
         ],
       });
     }
+    if (query.tagId) and.push({ tags: { some: { tagId: query.tagId } } });
     // A transfer belongs to both of its accounts.
     if (query.accountId) {
       and.push({
@@ -277,11 +295,12 @@ export class TransactionsService {
    */
   async summary(
     userId: string,
-    { from, to }: TransactionSummaryQuery,
+    { from, to, tagId }: TransactionSummaryQuery,
   ): Promise<TransactionSummary> {
     const conditions = [Prisma.sql`t.user_id = ${userId}::uuid`];
     if (from) conditions.push(Prisma.sql`t.occurred_at >= ${from}`);
     if (to) conditions.push(Prisma.sql`t.occurred_at < ${to}`);
+    if (tagId) conditions.push(tagged(tagId));
 
     const rows = await this.prisma.$queryRaw<
       { kind: TransactionKind; total: Prisma.Decimal }[]
@@ -312,7 +331,7 @@ export class TransactionsService {
    */
   async byCategory(
     userId: string,
-    { from, to, kind }: CategoryTotalsQuery,
+    { from, to, kind, tagId }: CategoryTotalsQuery,
   ): Promise<CategoryTotal[]> {
     const conditions = [
       Prisma.sql`t.user_id = ${userId}::uuid`,
@@ -320,6 +339,7 @@ export class TransactionsService {
     ];
     if (from) conditions.push(Prisma.sql`t.occurred_at >= ${from}`);
     if (to) conditions.push(Prisma.sql`t.occurred_at < ${to}`);
+    if (tagId) conditions.push(tagged(tagId));
 
     const rows = await this.prisma.$queryRaw<
       {
@@ -410,6 +430,7 @@ export class TransactionsService {
         select: { id: true },
       });
       await this.writeSplits(tx, userId, id, dto);
+      await this.writeTags(tx, userId, id, dto.tags);
       await this.accounts.assertNotNegative(
         tx,
         userId,
@@ -440,6 +461,7 @@ export class TransactionsService {
       // The parts are replaced as a whole, as the transaction is.
       await tx.transactionSplit.deleteMany({ where: { transactionId: id } });
       await this.writeSplits(tx, userId, id, dto);
+      await this.writeTags(tx, userId, id, dto.tags);
       await this.accounts.assertNotNegative(
         tx,
         userId,
@@ -483,6 +505,20 @@ export class TransactionsService {
     return [row.account_id, row.to_account_id]
       .filter((accountId) => accountId !== null)
       .map((accountId) => ({ id: accountId, field: 'id' }));
+  }
+
+  /** Its tags, by name, as the only ones: new names become new tags. */
+  private async writeTags(
+    tx: Tx,
+    userId: string,
+    transactionId: string,
+    names: string[],
+  ) {
+    await tx.transactionTag.deleteMany({ where: { transactionId } });
+    const tagIds = await this.tags.resolve(tx, userId, names);
+    await tx.transactionTag.createMany({
+      data: tagIds.map((tagId) => ({ transactionId, tagId, userId })),
+    });
   }
 
   /** The parts of a split transaction; nothing for any other. */

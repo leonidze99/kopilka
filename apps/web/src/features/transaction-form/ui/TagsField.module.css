@@ -1,0 +1,79 @@
+/* Laid out as TextField: label, a box that looks like an input, error. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* The chips and the input in one bordered box, wrapping as it fills. */
+.box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.box:hover:not(:focus-within) {
+  border-color: var(--color-text-subtle);
+}
+
+.box:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+
+.box[data-invalid] {
+  border-color: var(--color-danger);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.input {
+  flex: 1;
+  min-width: 96px;
+  height: 30px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+}
+
+/* The box shows the focus; a ring of its own would be a box in a box. */
+.input:focus,
+.input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.input::placeholder {
+  color: var(--color-text-subtle);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+}

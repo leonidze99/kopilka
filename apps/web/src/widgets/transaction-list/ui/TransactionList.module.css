@@ -250,3 +250,23 @@
   /* A ring of the panel's color separates it from the one beneath. */
   box-shadow: 0 0 0 2px var(--color-surface);
 }
+
+/* The tags of a row, one line under the comment. */
+.tags {
+  display: flex;
+  gap: 4px;
+  margin-top: 3px;
+  overflow: hidden;
+}
+
+/* What the tag the list is narrowed to came to, over all time. */
+.tagTotals {
+  margin: -4px 0 12px;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.tagTotals strong {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}

@@ -25,7 +25,10 @@ interface AccountData {
   budgets?: Budget[];
   recurring?: RecurringRule[];
   goals?: Goal[];
+  tags?: Tag[];
 }
+
+type Tag = Schemas['Tag'];
 
 type RecurringRule = Schemas['RecurringRule'];
 type RecurringInput = Schemas['RecurringInput'];
@@ -60,6 +63,7 @@ export function mockAccount({
   budgets = [],
   recurring = [],
   goals = [],
+  tags = [],
 }: AccountData = {}) {
   const state = {
     budgets: [...budgets],
@@ -68,6 +72,7 @@ export function mockAccount({
     accounts: accounts.map((account) => ({ ...account })),
     categories: categories.map((category) => ({ ...category })),
     transactions: [...transactions],
+    tags: tags.map((tag) => ({ ...tag })),
   };
   const sent = {
     accounts: [] as CreateAccount[],
@@ -77,7 +82,20 @@ export function mockAccount({
     categories: [] as CreateCategory[],
     transactions: [] as TransactionInput[],
     replacements: [] as TransactionInput[],
+    tagRenames: [] as { id: string; name: string }[],
   };
+
+  /** The tags named, made if new; as the API, case aside. */
+  const tagsNamed = (names: string[] = []) =>
+    names.map((name) => {
+      const existing = state.tags.find(
+        (tag) => tag.name.toLowerCase() === name.trim().toLowerCase(),
+      );
+      if (existing) return existing;
+      const created = { id: newId(), name: name.trim() };
+      state.tags.push(created);
+      return created;
+    });
 
   /** The progress of a goal: the balance of its account against the target. */
   const withProgress = (goal: Goal): Goal => {
@@ -105,6 +123,7 @@ export function mockAccount({
       createdAt: new Date().toISOString(),
       account: ref(account),
       recurringRuleId: null,
+      tags: tagsNamed(body.tags),
     };
     if (body.type === 'transfer') {
       const to = state.accounts.find((a) => a.id === body.toAccountId);
@@ -204,6 +223,30 @@ export function mockAccount({
     }),
     http.delete(`${API_URL}/categories/:id`, ({ params }) => {
       state.categories = state.categories.filter((c) => c.id !== params.id);
+      return new HttpResponse(null, { status: 204 });
+    }),
+
+    http.get(apiUrl('/tags'), () =>
+      HttpResponse.json(
+        [...state.tags].sort((a, b) => a.name.localeCompare(b.name)),
+      ),
+    ),
+    http.patch(`${API_URL}/tags/:id`, async ({ params, request }) => {
+      const { name } = (await request.json()) as { name: string };
+      const tag = state.tags.find((t) => t.id === params.id);
+      if (!tag) return new HttpResponse(null, { status: 404 });
+      sent.tagRenames.push({ id: tag.id, name });
+      tag.name = name;
+      for (const t of state.transactions)
+        t.tags = t.tags.map((other) =>
+          other.id === tag.id ? { ...tag } : other,
+        );
+      return HttpResponse.json(tag);
+    }),
+    http.delete(`${API_URL}/tags/:id`, ({ params }) => {
+      state.tags = state.tags.filter((t) => t.id !== params.id);
+      for (const t of state.transactions)
+        t.tags = t.tags.filter((other) => other.id !== params.id);
       return new HttpResponse(null, { status: 204 });
     }),
 

@@ -18,3 +18,4 @@ export { Toaster } from './toast/Toaster';
 export { MonthSwitcher } from './month-switcher/MonthSwitcher';
 export { Switch } from './switch/Switch';
 export { SearchField } from './search-field/SearchField';
+export { Chip } from './chip/Chip';

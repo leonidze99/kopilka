@@ -78,6 +78,7 @@ export const emptyAccount = () => [
     HttpResponse.json(emptyMonths(new URL(request.url))),
   ),
   http.get(apiUrl('/budgets'), () => HttpResponse.json(NO_BUDGETS)),
+  http.get(apiUrl('/tags'), () => HttpResponse.json([])),
 ];
 
 const NO_BUDGETS = {
@@ -118,6 +119,7 @@ export const transaction = (
     occurredAt: string;
     category: TestCategory;
     splits: { category: TestCategory; amount: string }[];
+    tags: { id: string; name: string }[];
   }> = {},
 ) => {
   const splits = overrides.splits ?? [];
@@ -131,6 +133,7 @@ export const transaction = (
     createdAt: '2026-10-05T12:00:00.000Z',
     account: accountRef,
     recurringRuleId: null,
+    tags: [] as { id: string; name: string }[],
     ...overrides,
     category,
     splits,

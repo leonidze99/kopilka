@@ -118,6 +118,60 @@ describe('CategoriesPage', () => {
     expect(state.categories).toEqual([{ ...FOOD, name: 'Еда' }]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+
+  describe('tags', () => {
+    const TRIP = { id: '0199d0a4-0000-7000-8000-0000000071a9', name: 'Отпуск' };
+
+    it('says where tags come from while there are none', async () => {
+      mockAccount();
+      renderApp('/categories', { session: 'authenticated' });
+
+      expect(
+        await (await panel('Теги')).findByText('Тегов пока нет'),
+      ).toBeInTheDocument();
+    });
+
+    it('renames a tag', async () => {
+      const { state } = mockAccount({ tags: [TRIP] });
+      const { user } = renderApp('/categories', { session: 'authenticated' });
+
+      await user.click(
+        await (await panel('Теги')).findByRole('button', { name: TRIP.name }),
+      );
+      const dialog = within(screen.getByRole('dialog', { name: 'Тег' }));
+      await user.clear(dialog.getByLabelText('Название'));
+      await user.type(dialog.getByLabelText('Название'), 'Сочи');
+      await user.click(dialog.getByRole('button', { name: 'Сохранить' }));
+
+      expect(
+        await (await panel('Теги')).findByRole('button', { name: 'Сочи' }),
+      ).toBeInTheDocument();
+      expect(state.tags).toEqual([{ ...TRIP, name: 'Сочи' }]);
+    });
+
+    it('deletes a tag after confirmation', async () => {
+      const { state } = mockAccount({ tags: [TRIP] });
+      const { user } = renderApp('/categories', { session: 'authenticated' });
+
+      await user.click(
+        await (await panel('Теги')).findByRole('button', { name: TRIP.name }),
+      );
+      const dialog = within(screen.getByRole('dialog', { name: 'Тег' }));
+      await user.click(
+        dialog.getByRole('button', { name: 'Удалить тег «Отпуск»' }),
+      );
+      await user.click(
+        dialog.getByRole('button', {
+          name: 'Подтвердите: Удалить тег «Отпуск»',
+        }),
+      );
+
+      expect(
+        await (await panel('Теги')).findByText('Тегов пока нет'),
+      ).toBeInTheDocument();
+      expect(state.tags).toEqual([]);
+    });
+  });
 });
 
 /** Clicks a category in a panel and returns the dialog it opens. */

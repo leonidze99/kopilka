@@ -35,6 +35,7 @@ export function EditTransactionForm({
         amount: transaction.amount.replace('.', ','),
         occurredAt: toDateTimeLocal(new Date(transaction.occurredAt)),
         comment: transaction.comment ?? '',
+        tags: transaction.tags.map((tag) => tag.name),
         splits:
           transaction.type === 'transfer'
             ? []

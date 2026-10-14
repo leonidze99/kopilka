@@ -41,12 +41,13 @@ export type TransactionType = Transaction['type'];
 
 /**
  * What the list shows: a period (none: all time), narrowed to a type,
- * category or account, and to comments containing `q`.
+ * category or account, to a tag, and to comments containing `q`.
  */
 export interface TransactionFilter extends Partial<Period> {
   type?: TransactionType;
   categoryId?: string;
   accountId?: string;
+  tagId?: string;
   q?: string;
 }
 
@@ -55,12 +56,13 @@ type TransactionInput = RequestBody<'/transactions', 'post'>;
 /** The filters of the feed plus the reader's time zone, for the CSV. */
 export type ExportParams = QueryParams<'/transactions/export', 'get'>;
 
-// Every write moves money: account balances and budget spending change too.
-const WRITE_TAGS = ['Transaction', 'Account', 'Budget', 'Goal'] as const;
+// Every write moves money: account balances and budget spending change
+// too. A new tag name makes a new tag.
+const WRITE_TAGS = ['Transaction', 'Account', 'Budget', 'Goal', 'Tag'] as const;
 
 export const transactionApi = baseApi
   .enhanceEndpoints({
-    addTagTypes: ['Transaction', 'Account', 'Budget', 'Goal'],
+    addTagTypes: ['Transaction', 'Account', 'Budget', 'Goal', 'Tag'],
   })
   .injectEndpoints({
     endpoints: (build) => ({
@@ -85,7 +87,11 @@ export const transactionApi = baseApi
         providesTags: ['Transaction'],
       }),
 
-      transactionSummary: build.query<TransactionSummary, Period>({
+      /** Over a period, or of one tag over all time. */
+      transactionSummary: build.query<
+        TransactionSummary,
+        Partial<Period> & { tagId?: string }
+      >({
         query: (period) => ({
           url: '/transactions/summary' satisfies ApiPath,
           params: period,

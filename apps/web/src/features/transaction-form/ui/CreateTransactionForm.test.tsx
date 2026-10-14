@@ -53,6 +53,7 @@ describe('CreateTransactionForm', () => {
         // The picked wall-clock time in the user's time zone.
         occurredAt: new Date('2026-10-05T14:30').toISOString(),
         comment: 'Ужин',
+        tags: [],
       },
     ]);
     // Ready for the next one; the category is kept.
@@ -263,6 +264,75 @@ describe('CreateTransactionForm', () => {
         expect.objectContaining({ categoryId: HOME.id, amount: '300' }),
       ]);
       expect(sent.transactions[0]).not.toHaveProperty('splits');
+    });
+  });
+
+  describe('tags', () => {
+    const TRIP = { id: '0199d0a4-0000-7000-8000-0000000071a9', name: 'Отпуск' };
+
+    it('sends the tags typed, an existing one with its own spelling, and keeps them for the next entry', async () => {
+      const { sent } = mockAccount({ categories: [FOOD], tags: [TRIP] });
+      const { user } = renderApp('/', { session: 'authenticated' });
+      await categoriesLoaded();
+
+      await user.selectOptions(screen.getByLabelText('Категория'), FOOD.name);
+      await user.type(screen.getByLabelText('Сумма'), '700');
+      const tags = screen.getByLabelText('Теги');
+      // Enter adds and does not submit; so do a comma and leaving the field.
+      await user.type(tags, 'отпуск{Enter}Сочи,Море');
+      await user.tab();
+      const chosen = screen.getByRole('list', { name: 'Выбранные теги' });
+      expect(
+        within(chosen)
+          .getAllByRole('listitem')
+          .map((item) => item.textContent),
+      ).toEqual(['Отпуск', 'Сочи', 'Море']);
+      await user.click(
+        screen.getByRole('button', { name: 'Убрать тег «Море»' }),
+      );
+      await user.click(
+        screen.getByRole('button', { name: 'Добавить операцию' }),
+      );
+
+      expect(await screen.findByText('Операция добавлена')).toBeInTheDocument();
+      expect(sent.transactions).toEqual([
+        expect.objectContaining({ amount: '700', tags: ['Отпуск', 'Сочи'] }),
+      ]);
+      // Entries of a trip come in a row.
+      expect(
+        within(
+          screen.getByRole('list', { name: 'Выбранные теги' }),
+        ).getAllByRole('listitem'),
+      ).toHaveLength(2);
+    });
+
+    it('takes the last tag back with Backspace in an empty field', async () => {
+      mockAccount({ categories: [FOOD] });
+      const { user } = renderApp('/', { session: 'authenticated' });
+      await categoriesLoaded();
+
+      const tags = screen.getByLabelText('Теги');
+      await user.type(tags, 'Ремонт{Enter}{Backspace}');
+
+      expect(
+        screen.queryByRole('list', { name: 'Выбранные теги' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('splits pasted names at the commas, the last one left to finish', async () => {
+      mockAccount({ categories: [FOOD] });
+      const { user } = renderApp('/', { session: 'authenticated' });
+      await categoriesLoaded();
+
+      await user.click(screen.getByLabelText('Теги'));
+      await user.paste('Отпуск, Сочи,Мо');
+
+      expect(
+        within(screen.getByRole('list', { name: 'Выбранные теги' }))
+          .getAllByRole('listitem')
+          .map((item) => item.textContent),
+      ).toEqual(['Отпуск', 'Сочи']);
+      expect(screen.getByLabelText('Теги')).toHaveValue('Мо');
     });
   });
 });

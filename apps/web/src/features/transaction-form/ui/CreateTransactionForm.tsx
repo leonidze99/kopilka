@@ -15,6 +15,7 @@ const emptyValues = (
   // Local time: <input type="datetime-local"> has no time zone.
   occurredAt: toDateTimeLocal(new Date()),
   comment: '',
+  tags: [],
   splits: [],
   ...keep,
 });
@@ -50,11 +51,12 @@ export function CreateTransactionForm({
             ? 'Перевод сохранён'
             : 'Операция добавлена',
         );
-        // Keep type, category and accounts: entries of a kind come in a row.
+        // Keep type, category, accounts and tags: entries of a kind come in a row.
         reset(
           emptyValues({
             type: values.type,
             accountId: values.accountId,
+            tags: values.tags,
             ...(values.type === 'transfer'
               ? { toAccountId: values.toAccountId }
               : // After a split receipt the next entry starts plain.

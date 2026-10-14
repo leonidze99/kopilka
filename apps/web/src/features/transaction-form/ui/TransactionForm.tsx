@@ -20,6 +20,7 @@ import {
   TextField,
 } from '@/shared/ui';
 import { SplitFields } from './SplitFields';
+import { TagsField } from './TagsField';
 import styles from './TransactionForm.module.css';
 
 const TYPE_OPTIONS = [
@@ -41,6 +42,8 @@ export interface TransactionFormValues {
   amount: string;
   occurredAt: string;
   comment: string;
+  /** By name; a new one becomes a tag when the transaction is saved. */
+  tags: string[];
   /** The parts of a split income or expense; empty: one category. */
   splits: { categoryId: string; amount: string }[];
 }
@@ -138,6 +141,7 @@ export function TransactionForm({
         'occurredAt',
         'comment',
         'splits',
+        'tags',
         // e.g. "splits.1.categoryId": a part in a category of another kind.
         ...getValues('splits').flatMap((_, index) => [
           `splits.${index}.categoryId` as const,
@@ -311,6 +315,24 @@ export function TransactionForm({
           {...register('comment')}
         />
       </div>
+      <Controller
+        control={control}
+        name="tags"
+        render={({ field }) => (
+          <TagsField
+            value={field.value}
+            onChange={field.onChange}
+            // The list as a whole, or the first name that is wrong.
+            error={
+              errors.tags?.message ??
+              errors.tags?.root?.message ??
+              (Array.isArray(errors.tags)
+                ? errors.tags.find(Boolean)?.message
+                : undefined)
+            }
+          />
+        )}
+      />
       <Button type="submit" loading={isSubmitting}>
         {submitLabel}
       </Button>

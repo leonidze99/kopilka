@@ -18,7 +18,9 @@ import {
   transactionTitle,
   type TransactionType,
   useListTransactionsInfiniteQuery,
+  useTransactionSummaryQuery,
 } from '@/entities/transaction';
+import { useListTagsQuery } from '@/entities/tag';
 import { DeleteTransactionButton } from '@/features/transaction-delete';
 import { ExportCsvButton } from '@/features/transaction-export';
 import { EditTransactionForm } from '@/features/transaction-form';
@@ -36,6 +38,7 @@ import {
 } from '@/shared/lib';
 import {
   Button,
+  Chip,
   Dialog,
   EmptyState,
   FormError,
@@ -46,11 +49,13 @@ import {
 } from '@/shared/ui';
 import styles from './TransactionList.module.css';
 
-/** Narrows the list: one type, one category or one account. */
+/** Narrows the list: one type, category, account or tag. */
 export interface ListFilter {
   type?: TransactionType;
   categoryId?: string;
   accountId?: string;
+  /** Over all months, as the search: a trip is all of its spending. */
+  tagId?: string;
 }
 
 interface TransactionListProps {
@@ -142,10 +147,14 @@ export function TransactionList({
   query,
   onQueryChange,
 }: TransactionListProps) {
-  // A search looks through every month: "такси" means all the rides.
-  const shown = query
-    ? { ...filter, q: query }
-    : { ...monthPeriod(month), ...filter };
+  // A search looks through every month: "такси" means all the rides; a
+  // tag too: "Отпуск" is the whole trip, whichever months it took.
+  const allTime = !!query || !!filter.tagId;
+  const shown = {
+    ...(!allTime && monthPeriod(month)),
+    ...filter,
+    ...(query && { q: query }),
+  };
   const {
     data,
     error,
@@ -170,13 +179,14 @@ export function TransactionList({
         <>
           <ExportCsvButton
             params={shown}
-            name={`kopilka-${query ? 'search' : month}`}
+            name={`kopilka-${query ? 'search' : filter.tagId ? 'tag' : month}`}
           />
           <FilterSelect filter={filter} onChange={onFilterChange} />
         </>
       }
     >
       <CommentSearch query={query} onChange={onQueryChange} />
+      {filter.tagId && <TagTotals tagId={filter.tagId} />}
       {error && <FormError message={errorMessage(error)} />}
       {isLoading && <ListSkeleton />}
       {!isLoading && !error && transactions.length === 0 && !filtered && (
@@ -343,6 +353,7 @@ function RowContent({
               </>
             )}
           </span>
+          <RowTags transaction={transaction} />
         </span>
         <span className={styles.side}>
           <span className={`${styles.amount} ${styles.transfer}`}>
@@ -402,6 +413,7 @@ function RowContent({
             )}
           </span>
         )}
+        <RowTags transaction={transaction} />
       </span>
       <span className={styles.side}>
         <span className={`${styles.amount} ${styles[transaction.type]}`}>
@@ -416,13 +428,53 @@ function RowContent({
   );
 }
 
+/** The tags of a row, under its comment. */
+function RowTags({ transaction }: { transaction: Transaction }) {
+  if (transaction.tags.length === 0) return null;
+  return (
+    <>
+      {/* One phrase for a screen reader: the chips would run together. */}
+      <span className="visually-hidden">
+        {`Теги: ${transaction.tags.map((tag) => tag.name).join(', ')}`}
+      </span>
+      <span className={styles.tags} aria-hidden>
+        {transaction.tags.map((tag) => (
+          <Chip key={tag.id}>{tag.name}</Chip>
+        ))}
+      </span>
+    </>
+  );
+}
+
+/** What a tag came to, over all time: the list shows all its months. */
+function TagTotals({ tagId }: { tagId: string }) {
+  const { data: tags } = useListTagsQuery();
+  const { data: summary } = useTransactionSummaryQuery({ tagId });
+  const tag = tags?.find((candidate) => candidate.id === tagId);
+  if (!tag || !summary) return null;
+  const income = Number(summary.income) > 0;
+  return (
+    <p className={styles.tagTotals} aria-live="polite">
+      «{tag.name}» за всё время: расходы{' '}
+      <strong>{formatMoney(summary.expense)}</strong>
+      {income && (
+        <>
+          , доходы <strong>{formatMoney(summary.income)}</strong>
+        </>
+      )}
+    </p>
+  );
+}
+
 const ALL = '';
 const TYPE_PREFIX = 'type:';
 const ACCOUNT_PREFIX = 'account:';
+const TAG_PREFIX = 'tag:';
 
 /**
- * One control for "all / a type / an account / a category": the list
- * shows one slice at a time, like the chart and the account strip set it.
+ * One control for "all / a type / an account / a category / a tag": the
+ * list shows one slice at a time, like the chart and the account strip
+ * set it.
  */
 function FilterSelect({
   filter,
@@ -433,13 +485,16 @@ function FilterSelect({
 }) {
   const { data: categories = [] } = useListCategoriesQuery();
   const { data: accounts } = useListAccountsQuery();
+  const { data: tags = [] } = useListTagsQuery();
   const value = filter.categoryId
     ? filter.categoryId
     : filter.accountId
       ? `${ACCOUNT_PREFIX}${filter.accountId}`
-      : filter.type
-        ? `${TYPE_PREFIX}${filter.type}`
-        : ALL;
+      : filter.tagId
+        ? `${TAG_PREFIX}${filter.tagId}`
+        : filter.type
+          ? `${TYPE_PREFIX}${filter.type}`
+          : ALL;
 
   return (
     <div className={styles.filter}>
@@ -457,6 +512,8 @@ function FilterSelect({
             });
           else if (next.startsWith(ACCOUNT_PREFIX))
             onChange({ accountId: next.slice(ACCOUNT_PREFIX.length) });
+          else if (next.startsWith(TAG_PREFIX))
+            onChange({ tagId: next.slice(TAG_PREFIX.length) });
           else onChange({ categoryId: next });
         }}
       >
@@ -484,6 +541,15 @@ function FilterSelect({
               ))}
           </optgroup>
         ))}
+        {tags.length > 0 && (
+          <optgroup label="Теги (за всё время)">
+            {tags.map((tag) => (
+              <option key={tag.id} value={`${TAG_PREFIX}${tag.id}`}>
+                {tag.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
       </SelectField>
     </div>
   );

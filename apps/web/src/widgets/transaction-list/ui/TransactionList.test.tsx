@@ -80,6 +80,7 @@ describe('TransactionList', () => {
       recurringRuleId: null,
       account: { id: MAIN_ACCOUNT.id, name: MAIN_ACCOUNT.name, type: 'card' },
       toAccount: { id: cash.id, name: cash.name, type: 'cash' },
+      tags: [] as { id: string; name: string }[],
     } as const;
     mockAccount({ accounts: [MAIN_ACCOUNT, cash], transactions: [transfer] });
     const { user } = renderApp('/', { session: 'authenticated' });
@@ -351,6 +352,55 @@ describe('TransactionList', () => {
           ],
         }),
       ]);
+    });
+  });
+
+  describe('tags', () => {
+    const TRIP = { id: '0199d0a4-0000-7000-8000-0000000071a9', name: 'Отпуск' };
+
+    it('shows the tags of a row', async () => {
+      mockAccount({
+        categories: [FOOD],
+        tags: [TRIP],
+        transactions: [transaction({ comment: 'Ужин', tags: [TRIP] })],
+      });
+      renderApp('/', { session: 'authenticated' });
+      await screen.findByText('Ужин');
+
+      expect(
+        screen.getByRole('button', { name: /Ужин.*Теги: Отпуск/ }),
+      ).toBeInTheDocument();
+    });
+
+    it('narrows the list to a tag over all months, with what it came to', async () => {
+      mockAccount({
+        categories: [FOOD],
+        tags: [TRIP],
+        summary: { income: '0.00', expense: '1700.00', balance: '-1700.00' },
+      });
+      const queries: URLSearchParams[] = [];
+      server.use(
+        http.get(apiUrl('/transactions'), ({ request }) => {
+          queries.push(new URL(request.url).searchParams);
+          return HttpResponse.json({ items: [], nextCursor: null });
+        }),
+      );
+      const { user, router } = renderApp('/?month=2026-03', {
+        session: 'authenticated',
+      });
+      await screen.findByRole('option', { name: TRIP.name });
+
+      await user.selectOptions(screen.getByLabelText('Показать'), TRIP.name);
+
+      expect(
+        await screen.findByText(/«Отпуск» за всё время: расходы/),
+      ).toHaveTextContent(/1\s700,00\s₽/);
+      const last = queries.at(-1);
+      expect(last?.get('tagId')).toBe(TRIP.id);
+      expect(last?.has('from')).toBe(false);
+      expect(router.state.location.search).toBe(
+        `?month=2026-03&tag=${TRIP.id}`,
+      );
     });
   });
 });

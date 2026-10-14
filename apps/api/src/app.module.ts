@@ -14,6 +14,7 @@ import { GoalsModule } from './goals/goals.module.js';
 import { ImportsModule } from './imports/imports.module.js';
 import { MetricsModule } from './metrics/metrics.module.js';
 import { RecurringModule } from './recurring/recurring.module.js';
+import { TagsModule } from './tags/tags.module.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { createValidationPipe } from './common/errors/validation.pipe.js';
 import { createLoggerParams } from './common/logging/logger.config.js';
@@ -55,6 +56,7 @@ import { TransactionsModule } from './transactions/transactions.module.js';
     ImportsModule,
     MetricsModule,
     RecurringModule,
+    TagsModule,
     TransactionsModule,
   ],
   controllers: [AppController],

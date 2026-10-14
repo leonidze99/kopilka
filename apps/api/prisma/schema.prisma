@@ -65,6 +65,7 @@ model User {
   passwordResets   PasswordReset[]
   budgetAlertsSent BudgetAlert[]
   goals            Goal[]
+  tags             Tag[]
 
   @@map("users")
 }
@@ -168,6 +169,7 @@ model Transaction {
   import            Import?            @relation(fields: [importId], references: [id], onDelete: SetNull)
   similarImportRows ImportRow[]        @relation("SimilarImportRows")
   splits            TransactionSplit[]
+  tags              TransactionTag[]
 
   // Idempotency key: one transaction per occurrence of a rule, whatever
   // retries or a second runner do.
@@ -175,7 +177,8 @@ model Transaction {
   // The same for statement rows: a row imported twice into one account is
   // one transaction (INSERT ... ON CONFLICT DO NOTHING).
   @@unique([accountId, importFingerprint])
-  // Target of the composite foreign key from transaction_splits.
+  // Target of the composite foreign keys from transaction_splits and
+  // transaction_tags.
   @@unique([id, userId])
   @@index([importId])
   // Trigrams: LIKE '%такс%' finds "Яндекс Такси" through the index.
@@ -219,6 +222,48 @@ model TransactionSplit {
   // Totals and budgets of a category.
   @@index([categoryId])
   @@map("transaction_splits")
+}
+
+/// A label across categories: "Отпуск" is cafes, transport and a hotel.
+/// Made on the fly by the name typed on a transaction; one tag per name
+/// whatever its case or ё/е (name_key).
+model Tag {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// As first typed, or as renamed.
+  name      String   @db.VarChar(32)
+  /// lower(name) with ё as е: what two names must differ in. GENERATED
+  /// ALWAYS in SQL, as transactions.comment_search: never set it.
+  nameKey   String   @default(dbgenerated("lower(translate((name)::text, 'ёЁ'::text, 'еЕ'::text))")) @map("name_key")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions TransactionTag[]
+
+  // "Отпуск" and "отпуск" are one tag; also the index of the user's tags.
+  @@unique([userId, nameKey])
+  // Target of the composite foreign key from transaction_tags.
+  @@unique([id, userId])
+  @@map("tags")
+}
+
+/// A tag on a transaction. Goes with either of them: a tag is a label, and
+/// deleting one takes it off its transactions rather than being refused.
+model TransactionTag {
+  transactionId String @map("transaction_id") @db.Uuid
+  tagId         String @map("tag_id") @db.Uuid
+  userId        String @map("user_id") @db.Uuid
+
+  // Composite keys: a transaction is tagged only with its user's tags.
+  transaction Transaction @relation(fields: [transactionId, userId], references: [id, userId], onDelete: Cascade)
+  tag         Tag         @relation(fields: [tagId, userId], references: [id, userId], onDelete: Cascade)
+
+  // Leads with transaction_id: the tags of a transaction.
+  @@id([transactionId, tagId])
+  // The transactions of a tag: the filter, its totals, the cascade.
+  @@index([tagId])
+  @@map("transaction_tags")
 }
 
 /// A monthly income, expense or transfer the server creates on its day
