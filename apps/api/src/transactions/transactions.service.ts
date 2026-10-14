@@ -23,6 +23,7 @@ import { AppException } from '../common/errors/app.exception.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { receiptSelect } from '../receipts/receipts.service.js';
 import { tagSelect, TagsService } from '../tags/tags.service.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
 import { categorizedAmount, categorizedJoin } from './parts.js';
@@ -45,6 +46,7 @@ const transactionSelect = {
     select: { tag: { select: tagSelect } },
     orderBy: { tag: { nameKey: 'asc' } },
   },
+  receipts: { select: receiptSelect, orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.TransactionSelect;
 
 type TransactionRow = Prisma.TransactionGetPayload<{

@@ -335,4 +335,42 @@ describe('CreateTransactionForm', () => {
       expect(screen.getByLabelText('Теги')).toHaveValue('Мо');
     });
   });
+
+  describe('receipt photos', () => {
+    const photo = (name: string) =>
+      new File([new Uint8Array(64)], name, { type: 'image/jpeg' });
+
+    it('sends the photos picked to the transaction once it is saved', async () => {
+      const { sent, state } = mockAccount({ categories: [FOOD] });
+      const { user } = renderApp('/', { session: 'authenticated' });
+      await categoriesLoaded();
+
+      await user.selectOptions(screen.getByLabelText('Категория'), FOOD.name);
+      await user.type(screen.getByLabelText('Сумма'), '450');
+      await user.upload(screen.getByLabelText('Добавить фото чека'), [
+        photo('one.jpg'),
+        photo('two.jpg'),
+        photo('three.jpg'),
+      ]);
+      // Changed my mind about one of them: not sent yet, simply dropped.
+      await user.click(
+        screen.getByRole('button', { name: 'Убрать: Фото чека 2' }),
+      );
+      expect(sent.receipts).toEqual([]);
+      await user.click(
+        screen.getByRole('button', { name: 'Добавить операцию' }),
+      );
+
+      expect(await screen.findByText('Операция добавлена')).toBeInTheDocument();
+      const created = state.transactions[0]!;
+      expect(sent.receipts).toEqual([
+        { transactionId: created.id, name: 'one.jpg' },
+        { transactionId: created.id, name: 'three.jpg' },
+      ]);
+      // The next entry starts without them.
+      expect(
+        screen.queryByRole('button', { name: /Убрать: Фото чека/ }),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

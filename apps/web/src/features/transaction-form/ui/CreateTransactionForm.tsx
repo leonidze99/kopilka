@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react';
 import { useCreateTransactionMutation } from '@/entities/transaction';
 import { toDateTimeLocal } from '@/shared/lib';
 import { toast } from '@/shared/ui';
+import { usePendingReceipts } from './PendingReceipts';
 import { TransactionForm, type TransactionFormValues } from './TransactionForm';
 
 const emptyValues = (
@@ -29,6 +30,7 @@ export function CreateTransactionForm({
   onCreated,
 }: CreateTransactionFormProps) {
   const [createTransaction] = useCreateTransactionMutation();
+  const receipts = usePendingReceipts();
 
   return (
     <TransactionForm
@@ -39,12 +41,18 @@ export function CreateTransactionForm({
           Добавить операцию
         </>
       }
-      submit={(values) =>
-        createTransaction({
+      attachments={receipts.gallery}
+      submit={async (values) => {
+        receipts.clearError();
+        const result = await createTransaction({
           ...values,
           occurredAt: values.occurredAt.toISOString(),
-        })
-      }
+        });
+        // The photos need the id: they go up once the transaction exists,
+        // while the submit button still spins.
+        if (result.data) await receipts.send(result.data.id);
+        return result;
+      }}
       onSuccess={(values, reset) => {
         toast(
           values.type === 'transfer'

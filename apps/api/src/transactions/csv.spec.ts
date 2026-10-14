@@ -44,6 +44,7 @@ describe('csv', () => {
       recurringRuleId: null,
       account: { id: 'acc', name: 'Карта', type: 'card' },
       tags: [] as { id: string; name: string }[],
+      receipts: [],
     };
 
     it('names the category and the tags of an expense, no target', () => {
@@ -118,7 +119,7 @@ describe('csv', () => {
         ...base,
         type: 'transfer',
         comment: null,
-        toAccount: { id: 'acc2', name: 'Накопления' },
+        toAccount: { id: 'acc2', name: 'Накопления', type: 'savings' },
       } as Transaction;
 
       expect(transactionCsvRows(transfer, 'UTC')).toEqual([

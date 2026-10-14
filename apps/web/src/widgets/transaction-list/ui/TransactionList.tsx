@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   ChevronRight,
   ReceiptText,
+  Paperclip,
   Repeat,
   SearchX,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ import {
 import { useListTagsQuery } from '@/entities/tag';
 import { DeleteTransactionButton } from '@/features/transaction-delete';
 import { ExportCsvButton } from '@/features/transaction-export';
+import { TransactionReceipts } from '@/features/receipt-attach';
 import { EditTransactionForm } from '@/features/transaction-form';
 import {
   dayKey,
@@ -164,13 +166,18 @@ export function TransactionList({
     isFetchingNextPage,
   } = useListTransactionsInfiniteQuery(shown);
   const transactions = data?.pages.flatMap((page) => page.items) ?? [];
-  const [editing, setEditing] = useState<Transaction>();
+  // By id, read from the list: a photo added in the dialog refetches the
+  // list, and the dialog shows the transaction as it is now.
+  const [editingId, setEditingId] = useState<string>();
+  const editing = transactions.find(
+    (transaction) => transaction.id === editingId,
+  );
   const filtered =
     !!query || Object.values(filter).some((value) => value !== undefined);
   // With one account, naming it on every row is noise.
   const { data: accounts } = useListAccountsQuery();
   const showAccount = (accounts?.items.length ?? 0) > 1;
-  const closeEditor = () => setEditing(undefined);
+  const closeEditor = () => setEditingId(undefined);
 
   return (
     <Panel
@@ -223,7 +230,7 @@ export function TransactionList({
                   type="button"
                   className={styles.item}
                   aria-haspopup="dialog"
-                  onClick={() => setEditing(transaction)}
+                  onClick={() => setEditingId(transaction.id)}
                 >
                   <RowContent
                     transaction={transaction}
@@ -260,6 +267,12 @@ export function TransactionList({
           <EditTransactionForm
             transaction={editing}
             onSaved={closeEditor}
+            attachments={
+              <TransactionReceipts
+                transactionId={editing.id}
+                receipts={editing.receipts}
+              />
+            }
             footer={
               <DeleteTransactionButton
                 transaction={editing}
@@ -273,14 +286,23 @@ export function TransactionList({
   );
 }
 
-/** Made by a recurring rule, not by hand. */
+/** Made by a recurring rule, not by hand; with a photo of the receipt. */
 function RecurringMark({ transaction }: { transaction: Transaction }) {
-  if (!transaction.recurringRuleId) return null;
   return (
-    <span className={styles.recurring} title="Регулярная операция">
-      <Repeat size={13} aria-hidden />
-      <span className="visually-hidden">регулярная</span>
-    </span>
+    <>
+      {transaction.recurringRuleId && (
+        <span className={styles.recurring} title="Регулярная операция">
+          <Repeat size={13} aria-hidden />
+          <span className="visually-hidden">регулярная</span>
+        </span>
+      )}
+      {transaction.receipts.length > 0 && (
+        <span className={styles.recurring} title="Есть фото чека">
+          <Paperclip size={13} aria-hidden />
+          <span className="visually-hidden">есть фото чека</span>
+        </span>
+      )}
+    </>
   );
 }
 

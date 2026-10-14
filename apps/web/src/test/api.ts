@@ -1,7 +1,7 @@
 import type { ApiError, AuthResponse, ErrorCode } from '@kopilka/shared';
 import { http, HttpResponse } from 'msw';
 import { API_URL } from '@/shared/config/env';
-import type { ApiPath } from '@/shared/api';
+import type { ApiPath, Schemas } from '@/shared/api';
 
 export const apiUrl = (path: ApiPath) => `${API_URL}${path}`;
 
@@ -106,6 +106,8 @@ const accountRef = {
   type: 'card',
 } as const;
 
+type Receipt = Schemas['Receipt'];
+
 type TestCategory = { id: string; kind: 'income' | 'expense'; name: string };
 
 /**
@@ -120,6 +122,7 @@ export const transaction = (
     category: TestCategory;
     splits: { category: TestCategory; amount: string }[];
     tags: { id: string; name: string }[];
+    receipts: Receipt[];
   }> = {},
 ) => {
   const splits = overrides.splits ?? [];
@@ -134,6 +137,7 @@ export const transaction = (
     account: accountRef,
     recurringRuleId: null,
     tags: [] as { id: string; name: string }[],
+    receipts: [] as Receipt[],
     ...overrides,
     category,
     splits,

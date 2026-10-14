@@ -40,9 +40,16 @@
   align-items: start;
 }
 
+/* Sticky, and scrolled on its own when taller than the window: the form of
+   a transaction with tags and photos is, on a laptop screen, and a sticky
+   block taller than the window has its bottom out of reach. */
 .aside {
   position: sticky;
   top: calc(var(--header-height) + 20px);
+  max-height: calc(100dvh - var(--header-height) - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--radius-lg);
 }
 
 /* A floating "add" button for narrow screens, where the aside is hidden. */
@@ -86,6 +93,8 @@
   .aside {
     position: static;
     order: -1;
+    max-height: none;
+    overflow: visible;
   }
 
   .wideOnly {

@@ -13,6 +13,7 @@ import { CategoriesModule } from './categories/categories.module.js';
 import { GoalsModule } from './goals/goals.module.js';
 import { ImportsModule } from './imports/imports.module.js';
 import { MetricsModule } from './metrics/metrics.module.js';
+import { ReceiptsModule } from './receipts/receipts.module.js';
 import { RecurringModule } from './recurring/recurring.module.js';
 import { TagsModule } from './tags/tags.module.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
@@ -55,6 +56,7 @@ import { TransactionsModule } from './transactions/transactions.module.js';
     GoalsModule,
     ImportsModule,
     MetricsModule,
+    ReceiptsModule,
     RecurringModule,
     TagsModule,
     TransactionsModule,

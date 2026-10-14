@@ -1,90 +1,23 @@
-import { HttpStatus } from '@nestjs/common';
-import busboy from 'busboy';
 import { CsvError, parse } from 'csv-parse';
 import type { Request } from 'express';
 import { pipeline, Readable } from 'node:stream';
-import { AppException } from '../common/errors/app.exception.js';
+import {
+  invalidFile,
+  receiveUpload,
+  type UploadedFile,
+} from '../common/upload/receive-upload.js';
 
 /** A statement is kilobytes; ten years of one are a few megabytes. */
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 /** Enough to tell the encoding and see the header line. */
 const SNIFF_BYTES = 64 * 1024;
 
-const invalidFile = (
-  message: string,
-  detail: string,
-  status = HttpStatus.BAD_REQUEST,
-) =>
-  new AppException('VALIDATION_FAILED', message, status, [
-    { field: 'file', message: detail },
-  ]);
-
-export const fileTooLarge = () =>
-  invalidFile(
-    'File too large',
-    `Файл больше ${MAX_FILE_BYTES / 1024 / 1024} МБ`,
-    HttpStatus.PAYLOAD_TOO_LARGE,
-  );
-
-export interface UploadedFile {
-  name: string;
-  /** Errors with fileTooLarge() as soon as the limit is crossed. */
-  content: Readable;
-  /** Reads the rest of the request into nowhere: lets an early error respond. */
-  discard(): void;
-}
-
-/**
- * The "file" part of a multipart/form-data request, as a stream: nothing
- * is buffered whole, in memory or on disk. The size limit cuts the stream
- * off as it is crossed, not after the whole upload has arrived.
- */
-export function receiveFile(req: Request): Promise<UploadedFile> {
-  return new Promise((resolve, reject) => {
-    let parser: busboy.Busboy;
-    try {
-      parser = busboy({
-        headers: req.headers,
-        limits: { files: 1, fileSize: MAX_FILE_BYTES, fields: 10, parts: 11 },
-      });
-    } catch {
-      // Not multipart/form-data at all.
-      reject(invalidFile('Expected multipart/form-data', 'Выберите файл'));
-      return;
-    }
-    const discard = () => {
-      req.unpipe(parser);
-      req.resume();
-    };
-
-    parser.on('file', (field, stream, info) => {
-      if (field !== 'file') {
-        stream.resume();
-        return;
-      }
-      stream.once('limit', () => stream.destroy(fileTooLarge()));
-      resolve({
-        name: info.filename || 'statement.csv',
-        content: stream,
-        discard,
-      });
-    });
-    // No file part in the whole request (after resolve() this is a no-op).
-    parser.once('close', () =>
-      reject(invalidFile('No file in the request', 'Выберите файл')),
-    );
-    parser.once('error', (error) => {
-      discard();
-      reject(
-        invalidFile(
-          `Malformed multipart body: ${(error as Error).message}`,
-          'Не удалось получить файл',
-        ),
-      );
-    });
-    req.pipe(parser);
+/** The statement of a multipart upload, as a stream (see receiveUpload). */
+export const receiveFile = (req: Request): Promise<UploadedFile> =>
+  receiveUpload(req, {
+    maxBytes: MAX_FILE_BYTES,
+    defaultName: 'statement.csv',
   });
-}
 
 /**
  * Russian banks export Windows-1251 as often as UTF-8. Valid UTF-8 is

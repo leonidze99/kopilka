@@ -25,6 +25,14 @@ HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
   this.dispatchEvent(new Event('close'));
 };
 
+// jsdom has no object URLs; receipt photos are shown through them.
+if (!('createObjectURL' in URL)) {
+  Object.assign(URL, {
+    createObjectURL: () => `blob:test/${crypto.randomUUID()}`,
+    revokeObjectURL: () => {},
+  });
+}
+
 // A request without a handler fails the test: nothing reaches the network
 // by accident, and an unexpected call (e.g. a refresh) is caught.
 // The 'error' strategy alone only prints and aborts the request; the app

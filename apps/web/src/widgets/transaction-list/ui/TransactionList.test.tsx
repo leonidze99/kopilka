@@ -4,6 +4,7 @@ import {
   within,
 } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
+import type { Schemas } from '@/shared/api';
 import { mockAccount } from '@/test/account';
 import { apiUrl, FOOD, MAIN_ACCOUNT, SALARY, transaction } from '@/test/api';
 import { renderApp } from '@/test/render';
@@ -81,6 +82,7 @@ describe('TransactionList', () => {
       account: { id: MAIN_ACCOUNT.id, name: MAIN_ACCOUNT.name, type: 'card' },
       toAccount: { id: cash.id, name: cash.name, type: 'cash' },
       tags: [] as { id: string; name: string }[],
+      receipts: [] as Schemas['Receipt'][],
     } as const;
     mockAccount({ accounts: [MAIN_ACCOUNT, cash], transactions: [transfer] });
     const { user } = renderApp('/', { session: 'authenticated' });

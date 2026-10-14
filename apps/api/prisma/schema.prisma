@@ -170,6 +170,7 @@ model Transaction {
   similarImportRows ImportRow[]        @relation("SimilarImportRows")
   splits            TransactionSplit[]
   tags              TransactionTag[]
+  receipts          Receipt[]
 
   // Idempotency key: one transaction per occurrence of a rule, whatever
   // retries or a second runner do.
@@ -222,6 +223,36 @@ model TransactionSplit {
   // Totals and budgets of a category.
   @@index([categoryId])
   @@map("transaction_splits")
+}
+
+/// A photo of a receipt on a transaction. Kept in the database, not on
+/// disk: an instance's disk does not survive a redeploy, and a row goes
+/// into the backups and away with its transaction for free. Behind
+/// ReceiptsService, so moving the bytes to object storage changes one file.
+/// Stored as re-encoded WebP, never the upload itself: smaller, and with
+/// the EXIF gone — a phone photo carries where it was taken.
+/// SQL-only: CHECK (width > 0 AND height > 0).
+model Receipt {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  transactionId String   @map("transaction_id") @db.Uuid
+  /// Of the image, after the resize.
+  width         Int
+  height        Int
+  /// Bytes of `image`.
+  size          Int
+  image         Bytes
+  /// A small copy for the form: a list of them should not load megabytes.
+  thumbnail     Bytes
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  // Composite key: a receipt is on a transaction of its own user. Goes
+  // with the transaction.
+  transaction Transaction @relation(fields: [transactionId, userId], references: [id, userId], onDelete: Cascade)
+
+  // The receipts of a transaction, in the order they came.
+  @@index([transactionId, createdAt])
+  @@map("receipts")
 }
 
 /// A label across categories: "Отпуск" is cafes, transport and a hotel.

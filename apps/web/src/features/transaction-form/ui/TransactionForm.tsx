@@ -83,6 +83,8 @@ interface TransactionFormProps {
     values: TransactionInputDto,
     reset: (values: TransactionFormValues) => void,
   ) => void;
+  /** Above the submit button, after the fields: the receipt photos. */
+  attachments?: ReactNode;
   /** Extra controls under the submit button, e.g. delete. */
   footer?: ReactNode;
 }
@@ -93,6 +95,7 @@ export function TransactionForm({
   submitLabel,
   submit,
   onSuccess,
+  attachments,
   footer,
 }: TransactionFormProps) {
   const { data: categories = [] } = useListCategoriesQuery();
@@ -333,6 +336,7 @@ export function TransactionForm({
           />
         )}
       />
+      {attachments}
       <Button type="submit" loading={isSubmitting}>
         {submitLabel}
       </Button>

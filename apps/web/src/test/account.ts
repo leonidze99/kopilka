@@ -82,6 +82,7 @@ export function mockAccount({
     categories: [] as CreateCategory[],
     transactions: [] as TransactionInput[],
     replacements: [] as TransactionInput[],
+    receipts: [] as { transactionId: string; name: string }[],
     tagRenames: [] as { id: string; name: string }[],
   };
 
@@ -124,6 +125,7 @@ export function mockAccount({
       account: ref(account),
       recurringRuleId: null,
       tags: tagsNamed(body.tags),
+      receipts: [] as Schemas['Receipt'][],
     };
     if (body.type === 'transfer') {
       const to = state.accounts.find((a) => a.id === body.toAccountId);
@@ -265,12 +267,49 @@ export function mockAccount({
       sent.replacements.push(body);
       const index = state.transactions.findIndex((t) => t.id === params.id);
       if (index < 0) return new HttpResponse(null, { status: 404 });
-      const replaced = build(body, String(params.id));
+      // The photos are not part of the body: they stay with the transaction.
+      const replaced = {
+        ...build(body, String(params.id)),
+        receipts: state.transactions[index]!.receipts,
+      };
       state.transactions[index] = replaced;
       return HttpResponse.json(replaced);
     }),
     http.delete(`${API_URL}/transactions/:id`, ({ params }) => {
       state.transactions = state.transactions.filter((t) => t.id !== params.id);
+      return new HttpResponse(null, { status: 204 });
+    }),
+
+    // Receipt photos: stored as metadata, served as a few bytes of "image".
+    http.post(
+      `${API_URL}/transactions/:id/receipts`,
+      async ({ params, request }) => {
+        const file = (await request.formData()).get('file') as File;
+        sent.receipts.push({
+          transactionId: String(params.id),
+          name: file.name,
+        });
+        const transaction = state.transactions.find((t) => t.id === params.id);
+        if (!transaction) return new HttpResponse(null, { status: 404 });
+        const receipt = {
+          id: newId(),
+          width: 800,
+          height: 1200,
+          size: file.size,
+          createdAt: new Date().toISOString(),
+        };
+        transaction.receipts = [...transaction.receipts, receipt];
+        return HttpResponse.json(receipt, { status: 201 });
+      },
+    ),
+    http.get(`${API_URL}/receipts/:id/:variant`, () =>
+      HttpResponse.arrayBuffer(new Uint8Array([82, 73, 70, 70]).buffer, {
+        headers: { 'Content-Type': 'image/webp' },
+      }),
+    ),
+    http.delete(`${API_URL}/receipts/:id`, ({ params }) => {
+      for (const t of state.transactions)
+        t.receipts = t.receipts.filter((r) => r.id !== params.id);
       return new HttpResponse(null, { status: 204 });
     }),
 

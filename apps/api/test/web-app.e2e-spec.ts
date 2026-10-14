@@ -42,6 +42,14 @@ describe('Web app on the same origin (e2e)', () => {
     },
   );
 
+  it('lets the page show images from blob: URLs (receipt photos)', async () => {
+    const res = await page('/').expect(200);
+
+    expect(res.headers['content-security-policy']).toMatch(
+      /img-src 'self' data: blob:/,
+    );
+  });
+
   it('takes a directory relative to the working directory', async () => {
     // What .env.example suggests (WEB_DIST_DIR=../web/dist): sending the
     // page from a relative path used to be a 500.

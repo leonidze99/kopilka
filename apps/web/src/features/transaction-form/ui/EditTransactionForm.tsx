@@ -10,12 +10,15 @@ import { TransactionForm } from './TransactionForm';
 interface EditTransactionFormProps {
   transaction: Transaction;
   onSaved: () => void;
+  /** Above the submit button: the receipt photos. */
+  attachments?: ReactNode;
   footer?: ReactNode;
 }
 
 export function EditTransactionForm({
   transaction,
   onSaved,
+  attachments,
   footer,
 }: EditTransactionFormProps) {
   const [replaceTransaction] = useReplaceTransactionMutation();
@@ -55,6 +58,7 @@ export function EditTransactionForm({
         toast('Изменения сохранены');
         onSaved();
       }}
+      attachments={attachments}
       footer={footer}
     />
   );

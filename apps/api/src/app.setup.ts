@@ -31,6 +31,10 @@ export function setupApp(app: NestExpressApplication): void {
           // locally it breaks /docs over plain HTTP (Safari even on
           // localhost, every browser on a LAN address).
           upgradeInsecureRequests: isProduction ? [] : null,
+          // helmet's default plus blob:. A receipt photo needs the access
+          // token, which <img> cannot send: the web app fetches it and
+          // shows it from a blob: URL of its own.
+          imgSrc: ["'self'", 'data:', 'blob:'],
         },
       },
     }),

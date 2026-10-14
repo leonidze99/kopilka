@@ -3,6 +3,7 @@ import { accountRefSchema } from './account.js';
 import { categorySchema, transactionKindSchema } from './category.js';
 import { amountSchema, toKopecks } from './money.js';
 import { timeZoneSchema } from './recurring.js';
+import { receiptSchema } from './receipt.js';
 import { tagSchema, transactionTagsSchema } from './tag.js';
 
 /**
@@ -169,6 +170,8 @@ const outputFields = {
   recurringRuleId: z.uuid().nullable(),
   /** By name. */
   tags: z.array(tagSchema),
+  /** Photos of receipts, in the order they were added. */
+  receipts: z.array(receiptSchema),
 };
 
 export const transactionSplitSchema = z
