@@ -10,7 +10,7 @@ import { AppException } from '../common/errors/app.exception.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { categorizedAmount, categorizedJoin } from '../transactions/parts.js';
+import { tagSpent } from '../transactions/parts.js';
 
 export const tagSelect = { id: true, name: true } as const;
 
@@ -23,10 +23,7 @@ export class TagsService {
 
   /**
    * By name, each with its budget. What a budgeted tag has cost is summed
-   * by Postgres over all time: a correlated subquery per tag with a limit
-   * only, finding the tag's transactions through the tag_id index. Parts
-   * of a split expense count through categorizedJoin (they add up to the
-   * transaction); income and transfers with the tag do not count.
+   * by Postgres over all time (tagSpent), for tags with a limit only.
    */
   async list(userId: string): Promise<TagDetails[]> {
     const rows = await this.prisma.$queryRaw<
@@ -38,13 +35,8 @@ export class TagsService {
       }[]
     >`
       SELECT g.id, g.name, g.budget,
-             CASE WHEN g.budget IS NOT NULL THEN COALESCE((
-               SELECT SUM(${categorizedAmount})
-               FROM transaction_tags tt
-               JOIN transactions t ON t.id = tt.transaction_id
-               ${categorizedJoin}
-               WHERE tt.tag_id = g.id AND c.kind = 'expense'
-             ), 0) END AS spent
+             CASE WHEN g.budget IS NOT NULL
+               THEN ${tagSpent(Prisma.sql`g.id`)} END AS spent
       FROM tags g
       WHERE g.user_id = ${userId}::uuid
       ORDER BY g.name_key

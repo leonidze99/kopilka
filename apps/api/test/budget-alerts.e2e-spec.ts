@@ -149,6 +149,104 @@ describe('Budget alerts (e2e)', () => {
     expect(mailer.to(fixture.user.email)).toHaveLength(0);
   });
 
+  describe('tag budgets', () => {
+    /** An expense of the fixture with the tag "Отпуск"; under the category limit. */
+    const spendOnTrip = (
+      fixture: Awaited<ReturnType<typeof setUp>>,
+      amount: string,
+      occurredAt = `${MONTH}-15T12:00:00.000Z`,
+    ) =>
+      http()
+        .post('/api/transactions')
+        .set(fixture.auth)
+        .send({
+          type: 'expense',
+          categoryId: fixture.food.id,
+          accountId: fixture.accountId,
+          amount,
+          occurredAt,
+          tags: ['Отпуск'],
+        })
+        .expect(201);
+
+    const tripBudget = async (
+      fixture: Awaited<ReturnType<typeof setUp>>,
+      amount: string | null,
+    ) => {
+      const { body: tags } = await http()
+        .get('/api/tags')
+        .set(fixture.auth)
+        .expect(200);
+      const trip = (tags as { id: string; name: string }[]).find(
+        (tag) => tag.name === 'Отпуск',
+      )!;
+      await http()
+        .put(`/api/tags/${trip.id}/budget`)
+        .set(fixture.auth)
+        .send({ amount })
+        .expect(204);
+      return trip.id;
+    };
+
+    it('mails once when a tag passes its budget, over all its months', async () => {
+      const fixture = await setUp();
+      await spendOnTrip(fixture, '3000');
+      // Another year: a tag budget has no months.
+      await spendOnTrip(fixture, '2600', '2025-07-01T12:00:00.000Z');
+      const tagId = await tripBudget(fixture, '5000');
+
+      expect(await run(fixture)).toBe(1);
+
+      const [mail] = mailer.to(fixture.user.email);
+      expect(mail?.subject).toBe('Бюджет тега «Отпуск» превышен');
+      expect(plain(mail?.text)).toContain('Потрачено 5 600,00');
+      expect(plain(mail?.text)).toContain('из 5 000,00');
+      expect(plain(mail?.text)).toContain('на 600,00');
+      // The link opens the tag's transactions.
+      expect(mail?.text).toContain(`/?tag=${tagId}`);
+
+      await spendOnTrip(fixture, '100');
+      expect(await run(fixture)).toBe(0);
+      expect(mailer.to(fixture.user.email)).toHaveLength(1);
+    });
+
+    it('writes again once a raised limit is passed too', async () => {
+      const fixture = await setUp();
+      await spendOnTrip(fixture, '6000');
+      await tripBudget(fixture, '5000');
+      expect(await run(fixture)).toBe(1);
+
+      await tripBudget(fixture, '10000');
+      expect(await run(fixture)).toBe(0);
+
+      await spendOnTrip(fixture, '4000');
+      expect(await run(fixture)).toBe(1);
+      expect(mailer.to(fixture.user.email)[1]?.subject).toBe(
+        'Бюджет тега «Отпуск» превышен',
+      );
+    });
+
+    it('says nothing within the budget, without one, or with letters off', async () => {
+      const fixture = await setUp();
+      await spendOnTrip(fixture, '4999.99');
+      await tripBudget(fixture, '5000');
+      expect(await run(fixture)).toBe(0);
+
+      await spendOnTrip(fixture, '1');
+      await tripBudget(fixture, null);
+      expect(await run(fixture)).toBe(0);
+
+      await tripBudget(fixture, '5000');
+      await http()
+        .put('/api/auth/notifications')
+        .set(fixture.auth)
+        .send({ budgetAlerts: false })
+        .expect(200);
+      expect(await run(fixture)).toBe(0);
+      expect(mailer.to(fixture.user.email)).toHaveLength(0);
+    });
+  });
+
   it('does not count a category whose limit was taken away', async () => {
     const fixture = await setUp();
     await spend(fixture, '31000');

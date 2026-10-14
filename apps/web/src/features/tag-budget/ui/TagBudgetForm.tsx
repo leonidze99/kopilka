@@ -59,7 +59,8 @@ export function TagBudgetForm({ tag, onDone }: TagBudgetFormProps) {
         {...register('amount')}
       />
       <p className={styles.hint}>
-        Считаются все расходы с этим тегом, за любые месяцы.
+        Считаются все расходы с этим тегом, за любые месяцы. Когда они перейдут
+        лимит, придёт письмо (если оно включено в настройках).
       </p>
       <Button type="submit" variant="secondary" loading={isSubmitting}>
         {tag.budget ? 'Изменить бюджет' : 'Задать бюджет'}

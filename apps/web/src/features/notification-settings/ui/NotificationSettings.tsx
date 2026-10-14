@@ -20,7 +20,7 @@ export function NotificationSettings() {
     <>
       <Switch
         label="Письма о перерасходе"
-        description="Одно письмо на категорию в месяц, когда траты перешли лимит"
+        description="Когда траты перешли лимит: по категории — одно письмо в месяц, по тегу — одно на каждый лимит"
         checked={user?.budgetAlerts ?? false}
         disabled={isLoading || !user}
         onChange={(event) =>

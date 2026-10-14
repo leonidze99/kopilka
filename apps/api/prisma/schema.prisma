@@ -64,6 +64,7 @@ model User {
   sessions         Session[]
   passwordResets   PasswordReset[]
   budgetAlertsSent BudgetAlert[]
+  tagAlertsSent    TagBudgetAlert[]
   goals            Goal[]
   tags             Tag[]
 
@@ -275,6 +276,7 @@ model Tag {
 
   user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions TransactionTag[]
+  budgetAlerts TagBudgetAlert[]
 
   // "Отпуск" and "отпуск" are one tag; also the index of the user's tags.
   @@unique([userId, nameKey])
@@ -413,6 +415,27 @@ model BudgetAlert {
   @@unique([categoryId, month])
   @@index([userId])
   @@map("budget_alerts")
+}
+
+/// A letter sent when a tag's spending passed its budget (BudgetAlertsService).
+/// A tag budget has no months: the key is the limit itself, so raising the
+/// limit and passing it again is news, the same overspend every hour is not.
+model TagBudgetAlert {
+  id     String   @id @default(uuid(7)) @db.Uuid
+  userId String   @map("user_id") @db.Uuid
+  tagId  String   @map("tag_id") @db.Uuid
+  /// What the numbers were when the letter went out.
+  limit  Decimal  @db.Decimal(14, 2)
+  spent  Decimal  @db.Decimal(14, 2)
+  sentAt DateTime @default(now()) @map("sent_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId, userId], references: [id, userId], onDelete: Cascade)
+
+  // One letter per tag and limit; leads with tag_id for the job's lookup.
+  @@unique([tagId, limit])
+  @@index([userId])
+  @@map("tag_budget_alerts")
 }
 
 enum ImportStatus {

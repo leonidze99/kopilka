@@ -20,6 +20,19 @@ export const categorizedJoin = Prisma.sql`
 export const categorizedAmount = Prisma.sql`COALESCE(s.amount, t.amount)`;
 
 /**
+ * Spent under one tag over all time: its budget's measure. Expenses only,
+ * a split one counting through its parts (they add up to it). A correlated
+ * subquery finding the tag's transactions through the tag_id index.
+ */
+export const tagSpent = (tagId: Prisma.Sql) => Prisma.sql`COALESCE((
+  SELECT SUM(${categorizedAmount})
+  FROM transaction_tags tt
+  JOIN transactions t ON t.id = tt.transaction_id
+  ${categorizedJoin}
+  WHERE tt.tag_id = ${tagId} AND c.kind = 'expense'
+), 0)`;
+
+/**
  * Spent in one category over [from, to): its transactions plus its parts of
  * split ones. Two sums rather than the join above, as each finds its rows
  * through an index on category_id — a correlated subquery runs per budget.
