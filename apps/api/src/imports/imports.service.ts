@@ -22,6 +22,7 @@ import { AppException } from '../common/errors/app.exception.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { readCsv, receiveFile } from './csv-upload.js';
+import { WHOLE_FILE } from './whole-file.js';
 import { ImportWorker } from './import.worker.js';
 import { suggestColumns } from './presets.js';
 
@@ -327,7 +328,7 @@ export class ImportsService {
           attempts: 0,
         },
       });
-    });
+    }, WHOLE_FILE);
     this.worker.kick();
     return this.get(userId, id);
   }
@@ -568,7 +569,7 @@ export class ImportsService {
           attempts: 0,
         },
       });
-    });
+    }, WHOLE_FILE);
     this.worker.kick();
     return this.get(userId, id);
   }
@@ -620,7 +621,7 @@ export class ImportsService {
         where: { id },
         data: { status: 'undone', undoneRows: count },
       });
-    });
+    }, WHOLE_FILE);
     return this.get(userId, id);
   }
 

@@ -1,6 +1,12 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { server } from './server';
+
+// Pages are lazy chunks (routes.tsx): the first findBy… of a test file
+// waits for Vite to transform the page in that worker, which with every
+// worker busy took longer than the default 1 s, and a random first test
+// failed. Waiting only costs time while the element is not there yet.
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom brings its own FormData and File, but fetch here is Node's
 // (undici), which cannot read them: an upload fails with "reading

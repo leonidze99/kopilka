@@ -8,6 +8,7 @@ import type { Env } from '../config/env.js';
 import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { parseRow } from './parse-row.js';
+import { WHOLE_FILE } from './whole-file.js';
 
 interface Job {
   id: string;
@@ -232,7 +233,7 @@ export class ImportWorker {
         ) AS c
         WHERE i.id = ${job.id}::uuid
       `;
-    });
+    }, WHOLE_FILE);
   }
 
   /**

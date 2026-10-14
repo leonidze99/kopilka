@@ -22,6 +22,10 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
+      // A test renders the app and waits for it several times (see the
+      // asyncUtilTimeout in setup.ts): 5 s for all of it is too little on a
+      // loaded machine.
+      testTimeout: 15_000,
       // Generated API types, not tests.
       exclude: ['**/node_modules/**', 'src/shared/api/schema.d.ts'],
     },
