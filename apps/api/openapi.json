@@ -2797,6 +2797,7 @@
     },
     "/tags": {
       "get": {
+        "description": "A budget is a limit over all time; spent counts the expenses with the tag.",
         "operationId": "TagsController_list",
         "parameters": [],
         "responses": {
@@ -2807,7 +2808,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Tag"
+                    "$ref": "#/components/schemas/TagDetails"
                   }
                 }
               }
@@ -2824,7 +2825,7 @@
             }
           }
         },
-        "summary": "Tags of the user, by name",
+        "summary": "Tags of the user, by name, with their budgets",
         "tags": [
           "tags"
         ]
@@ -2950,6 +2951,71 @@
           }
         },
         "summary": "Delete a tag",
+        "tags": [
+          "tags"
+        ]
+      }
+    },
+    "/tags/{id}/budget": {
+      "put": {
+        "description": "What the tag may cost over all time. `amount: null` takes the limit off.",
+        "operationId": "TagsController_setBudget",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTagBudgetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Set the budget of a tag",
         "tags": [
           "tags"
         ]
@@ -3423,6 +3489,81 @@
           }
         },
         "summary": "Totals per category over a period, largest first",
+        "tags": [
+          "transactions"
+        ]
+      }
+    },
+    "/transactions/by-tag": {
+      "get": {
+        "description": "Only tags with transactions in the period. A transaction with two tags counts in both: the totals overlap.",
+        "operationId": "TransactionsController_byTag",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "expense",
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionKind"
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagTotals"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Totals per tag over a period, largest first",
         "tags": [
           "transactions"
         ]
@@ -5226,6 +5367,59 @@
           "timeZone"
         ]
       },
+      "TagDetails": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "budget": {
+            "nullable": true,
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "string"
+              },
+              "spent": {
+                "type": "string"
+              },
+              "remaining": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "limit",
+              "spent",
+              "remaining"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "budget"
+        ],
+        "additionalProperties": false
+      },
+      "RenameTagRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
       "Tag": {
         "type": "object",
         "properties": {
@@ -5244,17 +5438,18 @@
         ],
         "additionalProperties": false
       },
-      "RenameTagRequest": {
+      "SetTagBudgetRequest": {
         "type": "object",
         "properties": {
-          "name": {
+          "amount": {
+            "nullable": true,
             "type": "string",
-            "minLength": 1,
-            "maxLength": 32
+            "description": "Positive decimal with up to 2 fraction digits, e.g. \"1234.56\"",
+            "example": "1234.56"
           }
         },
         "required": [
-          "name"
+          "amount"
         ]
       },
       "TransactionType": {
@@ -5496,6 +5691,28 @@
         },
         "required": [
           "category",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "TagTotals": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TagTotal"
+        }
+      },
+      "TagTotal": {
+        "type": "object",
+        "properties": {
+          "tag": {
+            "$ref": "#/components/schemas/Tag"
+          },
+          "total": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
           "total"
         ],
         "additionalProperties": false

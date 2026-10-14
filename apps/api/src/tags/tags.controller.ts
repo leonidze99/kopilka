@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Put,
 } from '@nestjs/common';
 import {
   ApiNoContentResponse,
@@ -18,7 +19,11 @@ import {
 import {
   type RenameTagDto,
   renameTagSchema,
+  type SetTagBudgetDto,
+  setTagBudgetSchema,
   type Tag,
+  type TagDetails,
+  tagDetailsSchema,
   tagSchema,
 } from '@kopilka/shared';
 import { z } from 'zod';
@@ -26,7 +31,7 @@ import { type AuthUser, CurrentUser } from '../auth/current-user.decorator.js';
 import { ApiErrorResponses } from '../common/openapi/api-error-responses.decorator.js';
 import { TagsService } from './tags.service.js';
 
-const tagListSchema = z.array(tagSchema);
+const tagListSchema = z.array(tagDetailsSchema);
 
 // No POST: a tag is made by naming it on a transaction.
 @ApiTags('tags')
@@ -36,9 +41,13 @@ export class TagsController {
   constructor(private readonly tags: TagsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Tags of the user, by name' })
+  @ApiOperation({
+    summary: 'Tags of the user, by name, with their budgets',
+    description:
+      'A budget is a limit over all time; spent counts the expenses with the tag.',
+  })
   @ApiOkResponse({ standardSchema: tagListSchema })
-  list(@CurrentUser() user: AuthUser): Promise<Tag[]> {
+  list(@CurrentUser() user: AuthUser): Promise<TagDetails[]> {
     return this.tags.list(user.id);
   }
 
@@ -56,6 +65,23 @@ export class TagsController {
     @Body({ schema: renameTagSchema }) dto: RenameTagDto,
   ): Promise<Tag> {
     return this.tags.rename(user.id, id, dto);
+  }
+
+  @Put(':id/budget')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Set the budget of a tag',
+    description:
+      'What the tag may cost over all time. `amount: null` takes the limit off.',
+  })
+  @ApiNoContentResponse()
+  @ApiErrorResponses(400, 404)
+  setBudget(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body({ schema: setTagBudgetSchema }) dto: SetTagBudgetDto,
+  ): Promise<void> {
+    return this.tags.setBudget(user.id, id, dto);
   }
 
   @Delete(':id')

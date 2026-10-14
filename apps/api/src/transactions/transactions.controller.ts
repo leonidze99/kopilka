@@ -34,6 +34,10 @@ import {
   type MonthlyTotalsQuery,
   monthlyTotalsQuerySchema,
   monthlyTotalsSchema,
+  type TagTotal,
+  type TagTotalsQuery,
+  tagTotalsQuerySchema,
+  tagTotalsSchema,
   type Transaction,
   type TransactionPage,
   transactionPageSchema,
@@ -157,6 +161,21 @@ export class TransactionsController {
     @Query({ schema: categoryTotalsQuerySchema }) query: CategoryTotalsQuery,
   ): Promise<CategoryTotal[]> {
     return this.transactions.byCategory(user.id, query);
+  }
+
+  @Get('by-tag')
+  @ApiOperation({
+    summary: 'Totals per tag over a period, largest first',
+    description:
+      'Only tags with transactions in the period. A transaction with two tags counts in both: the totals overlap.',
+  })
+  @ApiOkResponse({ standardSchema: tagTotalsSchema })
+  @ApiErrorResponses(400)
+  byTag(
+    @CurrentUser() user: AuthUser,
+    @Query({ schema: tagTotalsQuerySchema }) query: TagTotalsQuery,
+  ): Promise<TagTotal[]> {
+    return this.transactions.byTag(user.id, query);
   }
 
   @Get('monthly')

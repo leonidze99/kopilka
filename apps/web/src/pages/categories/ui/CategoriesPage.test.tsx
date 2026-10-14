@@ -146,7 +146,64 @@ describe('CategoriesPage', () => {
       expect(
         await (await panel('Теги')).findByRole('button', { name: 'Сочи' }),
       ).toBeInTheDocument();
-      expect(state.tags).toEqual([{ ...TRIP, name: 'Сочи' }]);
+      expect(state.tags).toEqual([{ ...TRIP, name: 'Сочи', budget: null }]);
+    });
+
+    it('sets a budget for a tag and shows what it has cost', async () => {
+      const { sent } = mockAccount({ tags: [TRIP] });
+      const { user } = renderApp('/categories', { session: 'authenticated' });
+
+      await user.click(
+        await (await panel('Теги')).findByRole('button', { name: TRIP.name }),
+      );
+      const dialog = within(screen.getByRole('dialog', { name: 'Тег' }));
+      await user.type(dialog.getByLabelText('Бюджет на всё время'), '150 000');
+      await user.click(dialog.getByRole('button', { name: 'Задать бюджет' }));
+
+      const budgets = await (
+        await panel('Теги')
+      ).findByRole('list', { name: 'Бюджеты тегов' });
+      expect(within(budgets).getByRole('button')).toHaveTextContent(
+        /Отпуск.*0,00\s₽ из 150\s000,00\s₽.*Осталось 150\s000,00\s₽/,
+      );
+      expect(sent.tagBudgets).toEqual([{ id: TRIP.id, amount: '150000' }]);
+    });
+
+    it('shows an overspent tag budget and takes it off', async () => {
+      const { sent } = mockAccount({
+        tags: [
+          {
+            ...TRIP,
+            budget: {
+              limit: '3000.00',
+              spent: '4000.00',
+              remaining: '-1000.00',
+            },
+          },
+        ],
+      });
+      const { user } = renderApp('/categories', { session: 'authenticated' });
+
+      const budgets = await (
+        await panel('Теги')
+      ).findByRole('list', { name: 'Бюджеты тегов' });
+      const row = within(budgets).getByRole('button');
+      expect(row).toHaveTextContent(
+        /4\s000,00\s₽ из 3\s000,00\s₽.*Перерасход 1\s000,00\s₽/,
+      );
+
+      await user.click(row);
+      const dialog = within(screen.getByRole('dialog', { name: 'Тег' }));
+      expect(dialog.getByLabelText('Бюджет на всё время')).toHaveValue(
+        '3000,00',
+      );
+      await user.click(dialog.getByRole('button', { name: 'Убрать бюджет' }));
+
+      await screen.findByText('Бюджет тега убран');
+      expect(
+        (await panel('Теги')).queryByRole('list', { name: 'Бюджеты тегов' }),
+      ).not.toBeInTheDocument();
+      expect(sent.tagBudgets).toEqual([{ id: TRIP.id, amount: null }]);
     });
 
     it('deletes a tag after confirmation', async () => {

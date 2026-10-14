@@ -6,6 +6,8 @@ import type {
   ListTransactionsQuery,
   MonthlyTotal,
   MonthlyTotalsQuery,
+  TagTotal,
+  TagTotalsQuery,
   Transaction,
   TransactionInputDto,
   TransactionKind,
@@ -361,6 +363,42 @@ export class TransactionsService {
 
     return rows.map(({ total, ...category }) => ({
       category,
+      total: new Prisma.Decimal(total).toFixed(2),
+    }));
+  }
+
+  /**
+   * Totals per tag of one kind, largest first; only tags with transactions
+   * in the period. A transaction with two tags counts in both, so the
+   * totals overlap. Parts of a split one count through categorizedJoin:
+   * the tag is on the whole transaction, its parts add up to it.
+   */
+  async byTag(
+    userId: string,
+    { from, to, kind }: TagTotalsQuery,
+  ): Promise<TagTotal[]> {
+    const conditions = [
+      Prisma.sql`t.user_id = ${userId}::uuid`,
+      Prisma.sql`c.kind = ${kind}::transaction_kind`,
+    ];
+    if (from) conditions.push(Prisma.sql`t.occurred_at >= ${from}`);
+    if (to) conditions.push(Prisma.sql`t.occurred_at < ${to}`);
+
+    const rows = await this.prisma.$queryRaw<
+      { id: string; name: string; total: Prisma.Decimal }[]
+    >`
+      SELECT g.id, g.name, SUM(${categorizedAmount}) AS total
+      FROM transactions t
+      JOIN transaction_tags tt ON tt.transaction_id = t.id
+      JOIN tags g ON g.id = tt.tag_id
+      ${categorizedJoin}
+      WHERE ${Prisma.join(conditions, ' AND ')}
+      GROUP BY g.id
+      ORDER BY total DESC, g.name_key
+    `;
+
+    return rows.map(({ total, ...tag }) => ({
+      tag,
       total: new Prisma.Decimal(total).toFixed(2),
     }));
   }

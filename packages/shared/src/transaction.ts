@@ -290,6 +290,26 @@ export const categoryTotalsSchema = z
   .array(categoryTotalSchema)
   .meta({ id: 'CategoryTotals' });
 
+export const tagTotalsQuerySchema = categoryTotalsQuerySchema.omit({
+  tagId: true,
+});
+
+/**
+ * A transaction with two tags counts in both: tag totals overlap and do
+ * not add up to the total of the period.
+ */
+export const tagTotalSchema = z
+  .object({
+    tag: tagSchema,
+    /** Sum over the period, always with 2 fraction digits. */
+    total: z.string(),
+  })
+  .meta({ id: 'TagTotal' });
+
+export const tagTotalsSchema = z
+  .array(tagTotalSchema)
+  .meta({ id: 'TagTotals' });
+
 export type TransactionType = z.infer<typeof transactionTypeSchema>;
 export type TransactionSplitInput = z.infer<typeof transactionSplitInputSchema>;
 export type TransactionSplit = z.infer<typeof transactionSplitSchema>;
@@ -306,3 +326,5 @@ export type TransactionSummaryQuery = z.infer<
 export type TransactionSummary = z.infer<typeof transactionSummarySchema>;
 export type CategoryTotalsQuery = z.infer<typeof categoryTotalsQuerySchema>;
 export type CategoryTotal = z.infer<typeof categoryTotalSchema>;
+export type TagTotalsQuery = z.infer<typeof tagTotalsQuerySchema>;
+export type TagTotal = z.infer<typeof tagTotalSchema>;

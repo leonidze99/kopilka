@@ -19,3 +19,4 @@ export { MonthSwitcher } from './month-switcher/MonthSwitcher';
 export { Switch } from './switch/Switch';
 export { SearchField } from './search-field/SearchField';
 export { Chip } from './chip/Chip';
+export { UsageBar, UsageRemaining } from './usage/Usage';

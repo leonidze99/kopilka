@@ -1,9 +1,16 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import type { RenameTagDto, Tag } from '@kopilka/shared';
+import type {
+  RenameTagDto,
+  SetTagBudgetDto,
+  Tag,
+  TagDetails,
+} from '@kopilka/shared';
 import type { Tx } from '../accounts/accounts.service.js';
 import { AppException } from '../common/errors/app.exception.js';
+import { Prisma } from '../generated/prisma/client.js';
 import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { categorizedAmount, categorizedJoin } from '../transactions/parts.js';
 
 export const tagSelect = { id: true, name: true } as const;
 
@@ -14,12 +21,67 @@ const notFound = () =>
 export class TagsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(userId: string): Promise<Tag[]> {
-    return this.prisma.tag.findMany({
-      where: { userId },
-      select: tagSelect,
-      orderBy: { nameKey: 'asc' },
+  /**
+   * By name, each with its budget. What a budgeted tag has cost is summed
+   * by Postgres over all time: a correlated subquery per tag with a limit
+   * only, finding the tag's transactions through the tag_id index. Parts
+   * of a split expense count through categorizedJoin (they add up to the
+   * transaction); income and transfers with the tag do not count.
+   */
+  async list(userId: string): Promise<TagDetails[]> {
+    const rows = await this.prisma.$queryRaw<
+      {
+        id: string;
+        name: string;
+        budget: Prisma.Decimal | null;
+        spent: Prisma.Decimal | null;
+      }[]
+    >`
+      SELECT g.id, g.name, g.budget,
+             CASE WHEN g.budget IS NOT NULL THEN COALESCE((
+               SELECT SUM(${categorizedAmount})
+               FROM transaction_tags tt
+               JOIN transactions t ON t.id = tt.transaction_id
+               ${categorizedJoin}
+               WHERE tt.tag_id = g.id AND c.kind = 'expense'
+             ), 0) END AS spent
+      FROM tags g
+      WHERE g.user_id = ${userId}::uuid
+      ORDER BY g.name_key
+    `;
+
+    return rows.map(({ id, name, budget, spent }) => {
+      if (budget === null) return { id, name, budget: null };
+      const limit = new Prisma.Decimal(budget);
+      const used = new Prisma.Decimal(spent ?? 0);
+      return {
+        id,
+        name,
+        budget: {
+          limit: limit.toFixed(2),
+          spent: used.toFixed(2),
+          remaining: limit.minus(used).toFixed(2),
+        },
+      };
     });
+  }
+
+  /** One limit per tag, replaced; `amount: null` takes it off. */
+  async setBudget(
+    userId: string,
+    id: string,
+    { amount }: SetTagBudgetDto,
+  ): Promise<void> {
+    try {
+      await this.prisma.tag.update({
+        where: { id_userId: { id, userId } },
+        data: { budget: amount },
+        select: { id: true },
+      });
+    } catch (error) {
+      if (isPrismaError(error, PrismaCode.NotFound)) throw notFound();
+      throw error;
+    }
   }
 
   /**

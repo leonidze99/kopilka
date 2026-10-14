@@ -1,5 +1,5 @@
 import { Plus, Target } from 'lucide-react';
-import { type CSSProperties, useState } from 'react';
+import { useState } from 'react';
 import {
   type Budget,
   type BudgetList,
@@ -21,20 +21,10 @@ import {
   FormError,
   Panel,
   Skeleton,
+  UsageBar,
+  UsageRemaining,
 } from '@/shared/ui';
 import styles from './BudgetPanel.module.css';
-
-/** Close to the limit: the bar warns before it is crossed. */
-const WARN_AT = 0.85;
-
-/** How full a budget is; display only (Number), the API did the sums. */
-function usage(budget: Pick<Budget, 'limit' | 'spent'>) {
-  const share = Number(budget.spent) / Number(budget.limit);
-  return {
-    width: `${Math.min(share, 1) * 100}%`,
-    tone: share > 1 ? 'over' : share >= WARN_AT ? 'warn' : 'ok',
-  } as const;
-}
 
 /** Limits of the month's expense categories against what was spent. */
 export function BudgetPanel({ month }: { month: Month }) {
@@ -117,7 +107,6 @@ export function BudgetPanel({ month }: { month: Month }) {
 }
 
 function Total({ total }: { total: BudgetList['total'] }) {
-  const { width, tone } = usage(total);
   return (
     <div className={styles.total}>
       <div className={styles.totalText}>
@@ -125,15 +114,14 @@ function Total({ total }: { total: BudgetList['total'] }) {
           Потрачено <strong>{formatMoney(total.spent)}</strong> из{' '}
           {formatMoney(total.limit)}
         </span>
-        <Remaining remaining={total.remaining} />
+        <UsageRemaining remaining={total.remaining} />
       </div>
-      <Bar width={width} tone={tone} />
+      <UsageBar spent={total.spent} limit={total.limit} />
     </div>
   );
 }
 
 function BudgetRow({ budget, onOpen }: { budget: Budget; onOpen: () => void }) {
-  const { width, tone } = usage(budget);
   return (
     <button
       type="button"
@@ -150,31 +138,9 @@ function BudgetRow({ budget, onOpen }: { budget: Budget; onOpen: () => void }) {
             <span className={styles.of}> из {formatMoney(budget.limit)}</span>
           </span>
         </span>
-        <Bar width={width} tone={tone} />
-        <Remaining remaining={budget.remaining} />
+        <UsageBar spent={budget.spent} limit={budget.limit} />
+        <UsageRemaining remaining={budget.remaining} />
       </span>
     </button>
-  );
-}
-
-function Bar({ width, tone }: { width: string; tone: string }) {
-  return (
-    <span className={styles.track} aria-hidden>
-      <span
-        className={`${styles.fill} ${styles[tone]}`}
-        style={{ '--width': width } as CSSProperties}
-      />
-    </span>
-  );
-}
-
-function Remaining({ remaining }: { remaining: string }) {
-  const over = remaining.startsWith('-');
-  return (
-    <span className={over ? styles.overspent : styles.left}>
-      {over
-        ? `Перерасход ${formatMoney(remaining.slice(1))}`
-        : `Осталось ${formatMoney(remaining)}`}
-    </span>
   );
 }

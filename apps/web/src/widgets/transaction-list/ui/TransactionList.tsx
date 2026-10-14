@@ -48,6 +48,7 @@ import {
   SearchField,
   SelectField,
   Skeleton,
+  UsageRemaining,
 } from '@/shared/ui';
 import styles from './TransactionList.module.css';
 
@@ -468,7 +469,10 @@ function RowTags({ transaction }: { transaction: Transaction }) {
   );
 }
 
-/** What a tag came to, over all time: the list shows all its months. */
+/**
+ * What a tag came to, over all time: the list shows all its months. With
+ * a budget, against it: the API counts the budget over the same expenses.
+ */
 function TagTotals({ tagId }: { tagId: string }) {
   const { data: tags } = useListTagsQuery();
   const { data: summary } = useTransactionSummaryQuery({ tagId });
@@ -479,9 +483,17 @@ function TagTotals({ tagId }: { tagId: string }) {
     <p className={styles.tagTotals} aria-live="polite">
       «{tag.name}» за всё время: расходы{' '}
       <strong>{formatMoney(summary.expense)}</strong>
+      {tag.budget && (
+        <>
+          {' '}
+          из {formatMoney(tag.budget.limit)} ·{' '}
+          <UsageRemaining remaining={tag.budget.remaining} />
+        </>
+      )}
       {income && (
         <>
-          , доходы <strong>{formatMoney(summary.income)}</strong>
+          {tag.budget ? ' · ' : ', '}
+          доходы <strong>{formatMoney(summary.income)}</strong>
         </>
       )}
     </p>

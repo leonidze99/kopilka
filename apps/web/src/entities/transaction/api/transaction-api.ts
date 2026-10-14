@@ -19,6 +19,9 @@ export type CategoryTotal = ResponseBody<
   200
 >[number];
 
+/** Tag totals overlap: a transaction with two tags counts in both. */
+export type TagTotal = ResponseBody<'/transactions/by-tag', 'get', 200>[number];
+
 export type MonthlyTotal = ResponseBody<
   '/transactions/monthly',
   'get',
@@ -110,6 +113,18 @@ export const transactionApi = baseApi
         providesTags: ['Transaction'],
       }),
 
+      // A tag rename invalidates Transaction too: the names here follow.
+      tagTotals: build.query<
+        TagTotal[],
+        Period & { kind: 'income' | 'expense' }
+      >({
+        query: (params) => ({
+          url: '/transactions/by-tag' satisfies ApiPath,
+          params,
+        }),
+        providesTags: ['Transaction'],
+      }),
+
       /** Every month of [from, to], empty ones as zeros; months of `timeZone`. */
       monthlyTotals: build.query<MonthlyTotal[], MonthlyTotalsParams>({
         query: (params) => ({
@@ -169,6 +184,7 @@ export const {
   useListTransactionsInfiniteQuery,
   useTransactionSummaryQuery,
   useCategoryTotalsQuery,
+  useTagTotalsQuery,
   useMonthlyTotalsQuery,
   useCreateTransactionMutation,
   useReplaceTransactionMutation,

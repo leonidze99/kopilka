@@ -1,5 +1,10 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { type Category, type Tag, transactionSchema } from '@kopilka/shared';
+import {
+  type Category,
+  type Tag,
+  type TagDetails,
+  transactionSchema,
+} from '@kopilka/shared';
 import request from 'supertest';
 import { type TestUser, testUsers } from './utils/auth.js';
 import { createTestApp } from './utils/create-test-app.js';
@@ -64,7 +69,7 @@ describe('Tags (e2e)', () => {
       .expect(200);
 
   const tagsOf = async (user: TestUser) =>
-    (await get(user, 'tags')).body as Tag[];
+    (await get(user, 'tags')).body as TagDetails[];
 
   describe('on a transaction', () => {
     it('makes new tags by name, one per name whatever its case or ё', async () => {
@@ -77,7 +82,9 @@ describe('Tags (e2e)', () => {
 
       const tags = await tagsOf(fixture.user);
       expect(tags.map((tag) => tag.name)).toEqual(['Ёлка', 'Отпуск']);
-      expect(transactionSchema.parse(res.body).tags).toEqual(tags);
+      expect(transactionSchema.parse(res.body).tags).toEqual(
+        tags.map(({ id, name }) => ({ id, name })),
+      );
     });
 
     it('finds an existing tag by name and keeps its spelling', async () => {
@@ -230,6 +237,142 @@ describe('Tags (e2e)', () => {
 
       expect(res.body.items).toEqual([]);
       expect(await tagsOf(bob.user)).toEqual([]);
+    });
+  });
+
+  describe('totals per tag', () => {
+    it('sums each tag over the period, a transaction in every tag it has', async () => {
+      const fixture = await setUp();
+      const { body: salary } = await http()
+        .post('/api/categories')
+        .set('Authorization', fixture.user.auth)
+        .send({ kind: 'income', name: 'Возвраты' })
+        .expect(201);
+      await add(fixture.user, expense(fixture, ['Отпуск', 'Сочи'], '1000'));
+      await add(fixture.user, expense(fixture, ['Отпуск'], '500'));
+      await add(fixture.user, {
+        ...expense(fixture, ['Ремонт'], '300'),
+        occurredAt: '2026-09-20T12:00:00Z',
+      }).expect(201);
+      await add(fixture.user, {
+        ...expense(fixture, ['Отпуск'], '200'),
+        type: 'income',
+        categoryId: salary.id,
+      }).expect(201);
+      const october = {
+        from: '2026-10-01T00:00:00Z',
+        to: '2026-11-01T00:00:00Z',
+      };
+
+      const expenses = await get(fixture.user, 'transactions/by-tag', october);
+      const income = await get(fixture.user, 'transactions/by-tag', {
+        ...october,
+        kind: 'income',
+      });
+
+      expect(expenses.body).toEqual([
+        { tag: { id: expect.any(String), name: 'Отпуск' }, total: '1500.00' },
+        { tag: { id: expect.any(String), name: 'Сочи' }, total: '1000.00' },
+      ]);
+      expect(income.body).toEqual([
+        { tag: { id: expect.any(String), name: 'Отпуск' }, total: '200.00' },
+      ]);
+    });
+  });
+
+  describe('budget of a tag', () => {
+    const setBudget = (user: TestUser, id: string, amount: string | null) =>
+      http()
+        .put(`/api/tags/${id}/budget`)
+        .set('Authorization', user.auth)
+        .send({ amount });
+
+    it('counts the expenses with the tag over all time against the limit', async () => {
+      const fixture = await setUp();
+      const { body: cafe } = await http()
+        .post('/api/categories')
+        .set('Authorization', fixture.user.auth)
+        .send({ kind: 'expense', name: 'Кафе' })
+        .expect(201);
+      const { body: refunds } = await http()
+        .post('/api/categories')
+        .set('Authorization', fixture.user.auth)
+        .send({ kind: 'income', name: 'Возвраты' })
+        .expect(201);
+      const { body: savings } = await http()
+        .post('/api/accounts')
+        .set('Authorization', fixture.user.auth)
+        .send({ name: 'Вклад', type: 'savings' })
+        .expect(201);
+      await add(fixture.user, expense(fixture, ['Отпуск', 'Сочи'], '1000'));
+      // Another year: a budget of a tag has no months.
+      await add(fixture.user, {
+        ...expense(fixture, ['Отпуск'], '500'),
+        occurredAt: '2025-03-01T12:00:00Z',
+      }).expect(201);
+      // A split receipt counts whole.
+      await add(fixture.user, {
+        type: 'expense',
+        accountId: fixture.accountId,
+        amount: '2500',
+        occurredAt: '2026-10-06T12:00:00Z',
+        splits: [
+          { categoryId: fixture.food.id, amount: '2000' },
+          { categoryId: cafe.id, amount: '500' },
+        ],
+        tags: ['Отпуск'],
+      }).expect(201);
+      // Neither income nor a transfer is spending.
+      await add(fixture.user, {
+        ...expense(fixture, ['Отпуск'], '300'),
+        type: 'income',
+        categoryId: refunds.id,
+      }).expect(201);
+      await add(fixture.user, {
+        type: 'transfer',
+        accountId: fixture.accountId,
+        toAccountId: savings.id,
+        amount: '200',
+        occurredAt: '2026-10-05T12:00:00Z',
+        tags: ['Отпуск'],
+      }).expect(201);
+      await add(fixture.user, expense(fixture, [], '700')).expect(201);
+      const vacation = (await tagsOf(fixture.user)).find(
+        (tag) => tag.name === 'Отпуск',
+      )!;
+
+      await setBudget(fixture.user, vacation.id, '3 000').expect(204);
+
+      expect(await tagsOf(fixture.user)).toEqual([
+        {
+          id: vacation.id,
+          name: 'Отпуск',
+          budget: { limit: '3000.00', spent: '4000.00', remaining: '-1000.00' },
+        },
+        { id: expect.any(String), name: 'Сочи', budget: null },
+      ]);
+    });
+
+    it('takes the limit off with null', async () => {
+      const fixture = await setUp();
+      await add(fixture.user, expense(fixture, ['Отпуск'])).expect(201);
+      const [tag] = await tagsOf(fixture.user);
+      await setBudget(fixture.user, tag!.id, '1000').expect(204);
+
+      await setBudget(fixture.user, tag!.id, null).expect(204);
+
+      expect((await tagsOf(fixture.user))[0]!.budget).toBeNull();
+    });
+
+    it("refuses a limit of zero and another user's tag", async () => {
+      const alice = await setUp();
+      const bob = await setUp();
+      await add(alice.user, expense(alice, ['Отпуск'])).expect(201);
+      const [tag] = await tagsOf(alice.user);
+
+      await setBudget(alice.user, tag!.id, '0').expect(400);
+      await setBudget(bob.user, tag!.id, '1000').expect(404);
+      expect((await tagsOf(alice.user))[0]!.budget).toBeNull();
     });
   });
 

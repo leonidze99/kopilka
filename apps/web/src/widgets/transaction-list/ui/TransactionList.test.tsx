@@ -404,5 +404,29 @@ describe('TransactionList', () => {
         `?month=2026-03&tag=${TRIP.id}`,
       );
     });
+
+    it('measures what a tag came to against its budget', async () => {
+      mockAccount({
+        categories: [FOOD],
+        tags: [
+          {
+            ...TRIP,
+            budget: {
+              limit: '3000.00',
+              spent: '4000.00',
+              remaining: '-1000.00',
+            },
+          },
+        ],
+        summary: { income: '0.00', expense: '4000.00', balance: '-4000.00' },
+      });
+      renderApp(`/?tag=${TRIP.id}`, { session: 'authenticated' });
+
+      expect(
+        await screen.findByText(/«Отпуск» за всё время: расходы/),
+      ).toHaveTextContent(
+        /расходы 4\s000,00\s₽ из 3\s000,00\s₽ · Перерасход 1\s000,00\s₽$/,
+      );
+    });
   });
 });

@@ -1,9 +1,10 @@
 import { Hash } from 'lucide-react';
 import { useState } from 'react';
-import { type Tag, useListTagsQuery } from '@/entities/tag';
+import { type Tag, type TagBudget, useListTagsQuery } from '@/entities/tag';
+import { TagBudgetForm } from '@/features/tag-budget';
 import { DeleteTagButton } from '@/features/tag-delete';
 import { RenameTagForm } from '@/features/tag-rename';
-import { errorMessage } from '@/shared/lib';
+import { errorMessage, formatMoney } from '@/shared/lib';
 import {
   Chip,
   Dialog,
@@ -11,17 +12,23 @@ import {
   FormError,
   Panel,
   Skeleton,
+  UsageBar,
+  UsageRemaining,
 } from '@/shared/ui';
 import styles from './TagList.module.css';
 
 /**
- * The user's tags, to rename or delete. There is no form for a new one:
- * a tag is made by naming it on a transaction.
+ * The user's tags, to rename, budget or delete. There is no form for a
+ * new one: a tag is made by naming it on a transaction. Tags with a budget
+ * come first, each with what it has cost so far.
  */
 export function TagList() {
   const { data: tags = [], error, isLoading } = useListTagsQuery();
   const [editing, setEditing] = useState<Tag>();
   const closeEditor = () => setEditing(undefined);
+  const budgeted = tags.filter(
+    (tag): tag is Tag & { budget: TagBudget } => tag.budget !== null,
+  );
 
   return (
     <Panel
@@ -41,8 +48,17 @@ export function TagList() {
       {!isLoading && !error && tags.length === 0 && (
         <EmptyState icon={<Hash size={22} />} title="Тегов пока нет">
           Их ставят на операции — «Отпуск», «Ремонт», — чтобы видеть, во что это
-          обошлось по всем категориям.
+          обошлось по всем категориям. Тегу можно задать бюджет.
         </EmptyState>
+      )}
+      {budgeted.length > 0 && (
+        <ul className={styles.budgets} aria-label="Бюджеты тегов">
+          {budgeted.map((tag) => (
+            <li key={tag.id}>
+              <BudgetRow tag={tag} onOpen={() => setEditing(tag)} />
+            </li>
+          ))}
+        </ul>
       )}
       {tags.length > 0 && (
         <ul className={styles.chips} aria-label="Теги">
@@ -56,13 +72,46 @@ export function TagList() {
 
       <Dialog open={!!editing} onClose={closeEditor} title="Тег">
         {editing && (
-          <RenameTagForm
-            tag={editing}
-            onSaved={closeEditor}
-            footer={<DeleteTagButton tag={editing} onDeleted={closeEditor} />}
-          />
+          <div className={styles.editor}>
+            <RenameTagForm tag={editing} onSaved={closeEditor} />
+            <TagBudgetForm tag={editing} onDone={closeEditor} />
+            <div className={styles.delete}>
+              <DeleteTagButton tag={editing} onDeleted={closeEditor} />
+            </div>
+          </div>
         )}
       </Dialog>
     </Panel>
+  );
+}
+
+function BudgetRow({
+  tag,
+  onOpen,
+}: {
+  tag: Tag & { budget: TagBudget };
+  onOpen: () => void;
+}) {
+  const { budget } = tag;
+  return (
+    <button
+      type="button"
+      className={styles.row}
+      aria-haspopup="dialog"
+      onClick={onOpen}
+    >
+      <span className={styles.head}>
+        <span className={styles.name}>
+          <Hash size={14} aria-hidden />
+          {tag.name}
+        </span>
+        <span className={styles.amounts}>
+          {formatMoney(budget.spent)}
+          <span className={styles.of}> из {formatMoney(budget.limit)}</span>
+        </span>
+      </span>
+      <UsageBar spent={budget.spent} limit={budget.limit} />
+      <UsageRemaining remaining={budget.remaining} />
+    </button>
   );
 }

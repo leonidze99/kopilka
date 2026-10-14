@@ -25,12 +25,16 @@ interface AccountData {
   budgets?: Budget[];
   recurring?: RecurringRule[];
   goals?: Goal[];
-  tags?: Tag[];
+  /** Without `budget`: none. */
+  tags?: (Tag & { budget?: TagDetails['budget'] })[];
+  /** What GET /transactions/by-tag answers, whatever the query. */
+  tagTotals?: Schemas['TagTotal'][];
   /** What POST /receipts/scan answers, whatever the photo. */
   scan?: Schemas['ReceiptScan'];
 }
 
 type Tag = Schemas['Tag'];
+type TagDetails = Schemas['TagDetails'];
 
 type RecurringRule = Schemas['RecurringRule'];
 type RecurringInput = Schemas['RecurringInput'];
@@ -66,6 +70,7 @@ export function mockAccount({
   recurring = [],
   goals = [],
   tags = [],
+  tagTotals = [],
   scan = { found: false, receipt: null },
 }: AccountData = {}) {
   const state = {
@@ -75,7 +80,7 @@ export function mockAccount({
     accounts: accounts.map((account) => ({ ...account })),
     categories: categories.map((category) => ({ ...category })),
     transactions: [...transactions],
-    tags: tags.map((tag) => ({ ...tag })),
+    tags: tags.map((tag): TagDetails => ({ budget: null, ...tag })),
   };
   const sent = {
     accounts: [] as CreateAccount[],
@@ -87,6 +92,7 @@ export function mockAccount({
     replacements: [] as TransactionInput[],
     receipts: [] as { transactionId: string; name: string }[],
     tagRenames: [] as { id: string; name: string }[],
+    tagBudgets: [] as { id: string; amount: string | null }[],
   };
 
   /** The tags named, made if new; as the API, case aside. */
@@ -95,9 +101,9 @@ export function mockAccount({
       const existing = state.tags.find(
         (tag) => tag.name.toLowerCase() === name.trim().toLowerCase(),
       );
-      if (existing) return existing;
+      if (existing) return { id: existing.id, name: existing.name };
       const created = { id: newId(), name: name.trim() };
-      state.tags.push(created);
+      state.tags.push({ ...created, budget: null });
       return created;
     });
 
@@ -244,9 +250,22 @@ export function mockAccount({
       tag.name = name;
       for (const t of state.transactions)
         t.tags = t.tags.map((other) =>
-          other.id === tag.id ? { ...tag } : other,
+          other.id === tag.id ? { id: tag.id, name } : other,
         );
       return HttpResponse.json(tag);
+    }),
+    http.put(`${API_URL}/tags/:id/budget`, async ({ params, request }) => {
+      const { amount } = (await request.json()) as { amount: string | null };
+      const tag = state.tags.find((t) => t.id === params.id);
+      if (!tag) return new HttpResponse(null, { status: 404 });
+      sent.tagBudgets.push({ id: tag.id, amount });
+      const spent = tag.budget?.spent ?? '0.00';
+      const limit = amount === null ? null : Number(amount).toFixed(2);
+      tag.budget =
+        limit === null
+          ? null
+          : { limit, spent, remaining: (+limit - +spent).toFixed(2) };
+      return new HttpResponse(null, { status: 204 });
     }),
     http.delete(`${API_URL}/tags/:id`, ({ params }) => {
       state.tags = state.tags.filter((t) => t.id !== params.id);
@@ -328,6 +347,9 @@ export function mockAccount({
     ),
     http.get(apiUrl('/transactions/by-category'), () =>
       HttpResponse.json(categoryTotals),
+    ),
+    http.get(apiUrl('/transactions/by-tag'), () =>
+      HttpResponse.json(tagTotals),
     ),
 
     // Saving goals: what is saved is the balance of the account, as the

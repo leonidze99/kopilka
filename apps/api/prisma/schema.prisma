@@ -266,6 +266,10 @@ model Tag {
   /// lower(name) with ё as е: what two names must differ in. GENERATED
   /// ALWAYS in SQL, as transactions.comment_search: never set it.
   nameKey   String   @default(dbgenerated("lower(translate((name)::text, 'ёЁ'::text, 'еЕ'::text))")) @map("name_key")
+  /// What the tag may cost over all time, its expenses counted; NULL: no
+  /// limit. One number, no versions: a tag is a project, not a month.
+  /// SQL-only: CHECK (budget > 0).
+  budget    Decimal? @db.Decimal(14, 2)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 

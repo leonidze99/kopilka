@@ -9,6 +9,7 @@ import { BudgetPanel } from '@/widgets/budget-panel';
 import { CategoryBreakdown } from '@/widgets/category-breakdown';
 import { MonthSummary } from '@/widgets/month-summary';
 import { MonthlyTrend } from '@/widgets/monthly-trend';
+import { TagBreakdown } from '@/widgets/tag-breakdown';
 import { type ListFilter, TransactionList } from '@/widgets/transaction-list';
 import styles from '../../page.module.css';
 
@@ -89,6 +90,11 @@ export function TransactionsPage() {
             month={month}
             selectedId={filter.categoryId}
             onSelect={(categoryId) => setFilter({ categoryId })}
+          />
+          <TagBreakdown
+            month={month}
+            selectedId={filter.tagId}
+            onSelect={(tagId) => setFilter({ tagId })}
           />
           <MonthlyTrend month={month} onSelect={setMonth} />
           <BudgetPanel month={month} />

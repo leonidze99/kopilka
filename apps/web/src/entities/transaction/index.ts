@@ -3,6 +3,7 @@ export {
   type ExportParams,
   type MonthlyTotal,
   type Period,
+  type TagTotal,
   type Transaction,
   transactionApi,
   type TransactionFilter,
@@ -15,6 +16,7 @@ export {
   useListTransactionsInfiniteQuery,
   useMonthlyTotalsQuery,
   useReplaceTransactionMutation,
+  useTagTotalsQuery,
   useTransactionSummaryQuery,
 } from './api/transaction-api';
 export { categoriesOf, transactionTitle } from './lib/categories';
