@@ -6,6 +6,7 @@ import {
 import { type ReactNode, useEffect } from 'react';
 import { Controller, type Resolver, useForm, useWatch } from 'react-hook-form';
 import { Link } from 'react-router';
+import { Split } from 'lucide-react';
 import { useListAccountsQuery } from '@/entities/account';
 import { useListCategoriesQuery } from '@/entities/category';
 import type { TransactionType } from '@/entities/transaction';
@@ -18,6 +19,7 @@ import {
   SelectField,
   TextField,
 } from '@/shared/ui';
+import { SplitFields } from './SplitFields';
 import styles from './TransactionForm.module.css';
 
 const TYPE_OPTIONS = [
@@ -39,7 +41,34 @@ export interface TransactionFormValues {
   amount: string;
   occurredAt: string;
   comment: string;
+  /** The parts of a split income or expense; empty: one category. */
+  splits: { categoryId: string; amount: string }[];
 }
+
+const schemaResolver = standardSchemaResolver(
+  transactionInputSchema,
+) as unknown as Resolver<TransactionFormValues, unknown, TransactionInputDto>;
+
+/**
+ * The form holds the fields of every type at once (the schema drops those
+ * of other types), but a category and parts are both fields of an income
+ * or expense: the contract wants one of them, so the other is left out
+ * before validation. Error paths stay those of the form's fields.
+ */
+const resolver: Resolver<
+  TransactionFormValues,
+  unknown,
+  TransactionInputDto
+> = ({ splits, categoryId, ...values }, context, options) =>
+  schemaResolver(
+    (values.type === 'transfer'
+      ? values
+      : splits.length
+        ? { ...values, splits }
+        : { ...values, categoryId }) as TransactionFormValues,
+    context,
+    options,
+  );
 
 interface TransactionFormProps {
   defaultValues: TransactionFormValues;
@@ -73,25 +102,20 @@ export function TransactionForm({
     handleSubmit,
     setError,
     setValue,
+    clearErrors,
     getValues,
     reset,
     formState: { errors, isSubmitting },
   } = useForm({
     // The API validates with the same schema: "1 234,5" is accepted on
     // both sides and sent normalized as "1234.5".
-    // The form holds the fields of every type at once; the schema keeps
-    // those of the chosen one. Its input type is the union, hence the cast.
-    resolver: standardSchemaResolver(
-      transactionInputSchema,
-    ) as unknown as Resolver<
-      TransactionFormValues,
-      unknown,
-      TransactionInputDto
-    >,
+    resolver,
     defaultValues,
   });
 
   const type = useWatch({ control, name: 'type' });
+  const splits = useWatch({ control, name: 'splits' });
+  const split = type !== 'transfer' && splits.length > 0;
   const ofKind = categories.filter((category) => category.kind === type);
 
   // Most people have one account: preselect the first one once it loads.
@@ -113,6 +137,12 @@ export function TransactionForm({
         'amount',
         'occurredAt',
         'comment',
+        'splits',
+        // e.g. "splits.1.categoryId": a part in a category of another kind.
+        ...getValues('splits').flatMap((_, index) => [
+          `splits.${index}.categoryId` as const,
+          `splits.${index}.amount` as const,
+        ]),
       ]);
       return;
     }
@@ -139,8 +169,18 @@ export function TransactionForm({
             block
             onChange={(next) => {
               field.onChange(next);
-              // A category of the other kind would only fail validation.
+              // A category of the other kind would only fail validation;
+              // the parts keep their amounts. A transfer has no parts.
               setValue('categoryId', '');
+              setValue(
+                'splits',
+                next === 'transfer'
+                  ? []
+                  : getValues('splits').map((part) => ({
+                      ...part,
+                      categoryId: '',
+                    })),
+              );
             }}
           />
         )}
@@ -186,18 +226,20 @@ export function TransactionForm({
       ) : (
         <div className={styles.group}>
           <div className={styles.row}>
-            <SelectField
-              label="Категория"
-              error={errors.categoryId?.message}
-              {...register('categoryId')}
-            >
-              <option value="">Выберите категорию</option>
-              {ofKind.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </SelectField>
+            {!split && (
+              <SelectField
+                label="Категория"
+                error={errors.categoryId?.message}
+                {...register('categoryId')}
+              >
+                <option value="">Выберите категорию</option>
+                {ofKind.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </SelectField>
+            )}
             <SelectField
               label="Счёт"
               error={errors.accountId?.message}
@@ -207,6 +249,40 @@ export function TransactionForm({
               {accountOptions}
             </SelectField>
           </div>
+          {split ? (
+            <SplitFields
+              control={control}
+              register={register}
+              setValue={setValue}
+              errors={errors}
+              categories={ofKind}
+              onJoin={() => {
+                // The largest part's category, or the first chosen.
+                setValue('categoryId', getValues('splits.0.categoryId'));
+                setValue('splits', []);
+                clearErrors('splits');
+              }}
+            />
+          ) : (
+            ofKind.length > 1 && (
+              <button
+                type="button"
+                className={styles.splitToggle}
+                onClick={() => {
+                  // The chosen category becomes the first part.
+                  setValue('splits', [
+                    { categoryId: getValues('categoryId'), amount: '' },
+                    { categoryId: '', amount: '' },
+                  ]);
+                  setValue('categoryId', '');
+                  clearErrors('categoryId');
+                }}
+              >
+                <Split size={15} aria-hidden />
+                Разделить по категориям
+              </button>
+            )
+          )}
           {ofKind.length === 0 && (
             <p className={styles.hint}>
               Категорий этого типа пока нет.{' '}

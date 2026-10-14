@@ -6,6 +6,7 @@ import { Prisma } from '../generated/prisma/client.js';
 import { type Mail, MailerService } from '../mail/mailer.service.js';
 import { isPrismaError, PrismaCode } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { categorySpent } from '../transactions/parts.js';
 
 /** A budget of the current month whose spending has passed its limit. */
 interface Overspent {
@@ -158,12 +159,11 @@ export class BudgetAlertsService {
       spending AS (
         SELECT l.user_id, l.email, l.category_id, l.amount, l.month,
                c.name AS category,
-               COALESCE((
-                 SELECT SUM(t.amount) FROM transactions t
-                 WHERE t.category_id = l.category_id
-                   AND t.occurred_at >= (l.month::timestamp AT TIME ZONE l.time_zone)
-                   AND t.occurred_at < ((l.month + interval '1 month')::timestamp AT TIME ZONE l.time_zone)
-               ), 0) AS spent
+               ${categorySpent(
+                 Prisma.sql`l.category_id`,
+                 Prisma.sql`(l.month::timestamp AT TIME ZONE l.time_zone)`,
+                 Prisma.sql`((l.month + interval '1 month')::timestamp AT TIME ZONE l.time_zone)`,
+               )} AS spent
         FROM current_limits l
         JOIN categories c ON c.id = l.category_id
         -- Already mailed about this month, or no limit any more.

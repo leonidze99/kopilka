@@ -9,6 +9,7 @@ import { AppException } from '../common/errors/app.exception.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { categorySpent } from '../transactions/parts.js';
 
 interface BudgetRow {
   id: string;
@@ -54,11 +55,11 @@ export class BudgetsService {
       SELECT c.id, c.kind, c.name,
              l.amount AS limit_amount,
              l.effective_from AS since,
-             COALESCE((
-               SELECT SUM(t.amount) FROM transactions t
-               WHERE t.category_id = c.id
-                 AND t.occurred_at >= ${from} AND t.occurred_at < ${to}
-             ), 0) AS spent
+             ${categorySpent(
+               Prisma.sql`c.id`,
+               Prisma.sql`${from}`,
+               Prisma.sql`${to}`,
+             )} AS spent
       FROM current_limits l
       JOIN categories c ON c.id = l.category_id
       -- A NULL version: the category stopped being budgeted.

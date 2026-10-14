@@ -263,7 +263,11 @@ export class ImportWorker {
          AND t.amount = r.amount
          AND t.occurred_at BETWEEN r.occurred_at - interval '2 days'
                                AND r.occurred_at + interval '2 days'
-        LEFT JOIN categories c ON c.id = t.category_id
+        -- A split one has its kind in its parts, all of one kind.
+        LEFT JOIN categories c ON c.id = COALESCE(t.category_id, (
+          SELECT s.category_id FROM transaction_splits s
+          WHERE s.transaction_id = t.id LIMIT 1
+        ))
         WHERE r.import_id = ${job.id}::uuid AND r.status = 'new'
           AND r.kind = CASE
                 WHEN t.to_account_id = ${job.account_id}::uuid THEN 'income'

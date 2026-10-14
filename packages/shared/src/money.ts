@@ -28,12 +28,18 @@ export const amountSchema = z
   .pipe(
     z
       .string()
-      .regex(AMOUNT_PATTERN, {
-        message: 'Сумма — число, не больше двух знаков после запятой',
-        // Not a number at all: the "greater than zero" check would only add noise.
-        abort: true,
-      })
-      .refine((value) => Number(value) > 0, 'Сумма должна быть больше нуля'),
+      .regex(
+        AMOUNT_PATTERN,
+        'Сумма — число, не больше двух знаков после запятой',
+      )
+      .refine((value) => Number(value) > 0, {
+        message: 'Сумма должна быть больше нуля',
+        // Not a number at all: "greater than zero" would only add noise.
+        // Not `abort` on the pattern: an aborted field stops the checks of
+        // the objects around it too, `when` included (a split transaction
+        // checks its parts with one).
+        when: ({ issues }) => issues.length === 0,
+      }),
   );
 
 /** A balance: may be zero or negative (a credit card owes money). */
@@ -52,3 +58,24 @@ export const signedAmountSchema = z
         'Сумма — число, не больше двух знаков после запятой',
       ),
   );
+
+/**
+ * "1234.5" -> 123450: an amount in whole kopecks, for adding amounts up
+ * exactly — integers are exact in a JS number up to 2^53, far beyond
+ * numeric(14,2). NaN for anything that is not an amount: the caller may
+ * get a value that failed validation.
+ */
+export function toKopecks(amount: string): number {
+  const match = /^(-?)(\d{1,12})(?:\.(\d{1,2}))?$/.exec(normalize(amount));
+  if (!match) return Number.NaN;
+  const [, sign, whole = '0', fraction = ''] = match;
+  const kopecks = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+  return sign ? -kopecks : kopecks;
+}
+
+/** 123450 -> "1234.50", the form the API speaks. */
+export function fromKopecks(kopecks: number): string {
+  const sign = kopecks < 0 ? '-' : '';
+  const abs = Math.abs(kopecks);
+  return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
+}

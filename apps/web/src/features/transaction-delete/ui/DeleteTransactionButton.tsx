@@ -1,5 +1,6 @@
 import {
   type Transaction,
+  transactionTitle,
   useDeleteTransactionMutation,
 } from '@/entities/transaction';
 import { errorMessage } from '@/shared/lib';
@@ -9,9 +10,6 @@ interface DeleteTransactionButtonProps {
   transaction: Transaction;
   onDeleted?: () => void;
 }
-
-const titleOf = (transaction: Transaction) =>
-  transaction.type === 'transfer' ? 'Перевод' : transaction.category.name;
 
 export function DeleteTransactionButton({
   transaction,
@@ -23,7 +21,7 @@ export function DeleteTransactionButton({
     <>
       <ConfirmButton
         look="text"
-        label={`Удалить операцию «${titleOf(transaction)}»`}
+        label={`Удалить операцию «${transactionTitle(transaction)}»`}
         loading={isLoading}
         onConfirm={async () => {
           const result = await deleteTransaction(transaction.id);

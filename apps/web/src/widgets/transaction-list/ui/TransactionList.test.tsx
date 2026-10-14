@@ -274,4 +274,83 @@ describe('TransactionList', () => {
       expect(router.state.location.search).toBe('');
     });
   });
+
+  describe('a split transaction', () => {
+    const HOME = {
+      id: '0199d0a4-0000-7000-8000-00000000a0e1',
+      kind: 'expense',
+      name: 'Дом',
+    } as const;
+    const receipt = () =>
+      transaction({
+        amount: '2500.00',
+        comment: 'Ашан',
+        splits: [
+          { category: FOOD, amount: '2000.00' },
+          { category: HOME, amount: '500.00' },
+        ],
+      });
+
+    it('names every category of its parts and the whole amount', async () => {
+      mockAccount({ categories: [FOOD, HOME], transactions: [receipt()] });
+      renderApp('/', { session: 'authenticated' });
+      await screen.findByText('Ашан');
+
+      expect(
+        screen.getByRole('button', {
+          name: /Продукты, Дом \(разделённая операция\).*Ашан.*−2\s500,00\s₽/,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it("shows a category's own part when the list is narrowed to it", async () => {
+      mockAccount({ categories: [FOOD, HOME], transactions: [receipt()] });
+      renderApp(`/?category=${HOME.id}`, { session: 'authenticated' });
+
+      expect(
+        await screen.findByRole('button', {
+          name: /Часть от 2\s500,00\s₽ · Ашан.*−500,00\s₽/,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('opens with its parts and saves them', async () => {
+      const { sent } = mockAccount({
+        categories: [FOOD, HOME],
+        transactions: [receipt()],
+      });
+      const { user } = renderApp('/', { session: 'authenticated' });
+
+      await user.click(await screen.findByText('Ашан'));
+      const dialog = screen.getByRole('dialog', { name: 'Операция' });
+      expect(within(dialog).getByLabelText('Категория части 1')).toHaveValue(
+        FOOD.id,
+      );
+      expect(within(dialog).getByLabelText('Сумма части 2')).toHaveValue(
+        '500,00',
+      );
+
+      const first = within(dialog).getByLabelText('Сумма части 1');
+      await user.clear(first);
+      await user.type(first, '1500');
+      await user.clear(within(dialog).getByLabelText('Сумма'));
+      await user.type(within(dialog).getByLabelText('Сумма'), '2000');
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Сохранить' }),
+      );
+
+      expect(
+        await screen.findByText('Изменения сохранены'),
+      ).toBeInTheDocument();
+      expect(sent.replacements).toEqual([
+        expect.objectContaining({
+          amount: '2000',
+          splits: [
+            { categoryId: FOOD.id, amount: '1500' },
+            { categoryId: HOME.id, amount: '500.00' },
+          ],
+        }),
+      ]);
+    });
+  });
 });

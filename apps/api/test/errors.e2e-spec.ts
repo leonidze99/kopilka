@@ -132,11 +132,12 @@ describe('Error format (e2e)', () => {
 
     const body = apiErrorSchema.parse(res.body);
     expect(body.code).toBe('VALIDATION_FAILED');
+    // categoryId last: "a category or parts" is checked after the fields.
     expect(body.details?.map((d) => d.field)).toEqual([
-      'categoryId',
       'accountId',
       'amount',
       'occurredAt',
+      'categoryId',
     ]);
   });
 

@@ -66,18 +66,32 @@ const TYPE_NAMES = {
   transfer: 'Перевод',
 } as const;
 
-/** One transaction as the columns above. */
-export function transactionCsvFields(
+/**
+ * One transaction as the columns above: a line, or a line per part of a
+ * split one. A spreadsheet then sums a category right, and the import
+ * reads the file back as transactions it can categorize.
+ */
+export function transactionCsvRows(
   transaction: Transaction,
   timeZone: string,
-): string[] {
-  return [
+): string[][] {
+  const line = (category: string, toAccount: string, amount: string) => [
     csvDateTime(transaction.occurredAt, timeZone),
     TYPE_NAMES[transaction.type],
-    transaction.type === 'transfer' ? '' : transaction.category.name,
+    category,
     transaction.account.name,
-    transaction.type === 'transfer' ? transaction.toAccount.name : '',
-    csvAmount(transaction.amount),
+    toAccount,
+    csvAmount(amount),
     transaction.comment ?? '',
   ];
+
+  if (transaction.type === 'transfer') {
+    return [line('', transaction.toAccount.name, transaction.amount)];
+  }
+  if (transaction.category) {
+    return [line(transaction.category.name, '', transaction.amount)];
+  }
+  return transaction.splits.map((split) =>
+    line(split.category.name, '', split.amount),
+  );
 }

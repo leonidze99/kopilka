@@ -24,6 +24,7 @@ import { Prisma } from '../generated/prisma/client.js';
 import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
+import { categorizedAmount, categorizedJoin } from './parts.js';
 
 const transactionSelect = {
   id: true,
@@ -35,6 +36,10 @@ const transactionSelect = {
   account: { select: accountRefSelect },
   toAccount: { select: accountRefSelect },
   category: { select: categorySelect },
+  splits: {
+    select: { amount: true, category: { select: categorySelect } },
+    orderBy: [{ amount: 'desc' }, { category: { name: 'asc' } }],
+  },
 } satisfies Prisma.TransactionSelect;
 
 type TransactionRow = Prisma.TransactionGetPayload<{
@@ -48,13 +53,24 @@ type TransactionRow = Prisma.TransactionGetPayload<{
 function toTransaction({
   toAccount,
   category,
+  splits,
   ...row
 }: TransactionRow): Transaction {
   const common = { ...row, amount: row.amount.toFixed(2) };
   if (toAccount) return { type: 'transfer', ...common, toAccount };
-  // CHECK (num_nonnulls(category_id, to_account_id) = 1) rules this out.
-  if (!category) throw new Error(`Transaction ${row.id} has no category`);
-  return { type: category.kind, ...common, category };
+  // Without a category there are parts (the deferred trigger checks it),
+  // all of one kind (the service does).
+  const kind = category?.kind ?? splits[0]?.category.kind;
+  if (!kind) throw new Error(`Transaction ${row.id} has no category`);
+  return {
+    type: kind,
+    ...common,
+    category,
+    splits: splits.map((split) => ({
+      category: split.category,
+      amount: split.amount.toFixed(2),
+    })),
+  };
 }
 
 const notFound = () =>
@@ -82,8 +98,23 @@ const invalid = (field: string, message: string, detail: string) =>
 const unknownAccount = (field: string) =>
   invalid(field, 'Account not found', 'Счёт не найден');
 
-const unknownCategory = () =>
-  invalid('categoryId', 'Category not found', 'Категория не найдена');
+const unknownCategory = (field = 'categoryId') =>
+  invalid(field, 'Category not found', 'Категория не найдена');
+
+type CategorizedInput = Exclude<TransactionInputDto, { type: 'transfer' }>;
+
+/**
+ * The categories an income or expense counts in, with the field naming
+ * each: its own, or those of its parts.
+ */
+const categoriesOf = (dto: CategorizedInput) =>
+  dto.splits
+    ? dto.splits.map((split, index) => ({
+        id: split.categoryId,
+        field: `splits.${index}.categoryId`,
+      }))
+    : // The schema requires one of the two.
+      [{ id: dto.categoryId!, field: 'categoryId' }];
 
 /** The accounts a transaction moves money on, with the field naming each. */
 const accountsOf = (dto: TransactionInputDto) => [
@@ -96,7 +127,8 @@ const accountsOf = (dto: TransactionInputDto) => [
 /** Columns to write; the other side of category/transfer is cleared. */
 const columnsOf = (dto: TransactionInputDto) => ({
   accountId: dto.accountId,
-  categoryId: dto.type === 'transfer' ? null : dto.categoryId,
+  // A split transaction has its categories in its parts.
+  categoryId: dto.type === 'transfer' ? null : (dto.categoryId ?? null),
   toAccountId: dto.type === 'transfer' ? dto.toAccountId : null,
   amount: dto.amount,
   occurredAt: dto.occurredAt,
@@ -159,6 +191,23 @@ export class TransactionsService {
     extra: Prisma.TransactionWhereInput[] = [],
   ): Prisma.TransactionWhereInput {
     const and = [...extra];
+    // A split transaction is in the category, and of the kind, of its parts.
+    if (query.categoryId) {
+      and.push({
+        OR: [
+          { categoryId: query.categoryId },
+          { splits: { some: { categoryId: query.categoryId } } },
+        ],
+      });
+    }
+    if (query.type === 'income' || query.type === 'expense') {
+      and.push({
+        OR: [
+          { category: { kind: query.type } },
+          { splits: { some: { category: { kind: query.type } } } },
+        ],
+      });
+    }
     // A transfer belongs to both of its accounts.
     if (query.accountId) {
       and.push({
@@ -167,13 +216,10 @@ export class TransactionsService {
     }
     return {
       userId,
-      categoryId: query.categoryId,
       // LIKE '%…%' on the generated comment_search column, which the
       // trigram index serves; the query is normalized the same way.
       ...(query.q && { commentSearch: { contains: searchable(query.q) } }),
-      ...(query.type === 'transfer'
-        ? { toAccountId: { not: null } }
-        : query.type && { category: { kind: query.type } }),
+      ...(query.type === 'transfer' && { toAccountId: { not: null } }),
       occurredAt: { gte: query.from, lt: query.to },
       AND: and,
     };
@@ -226,7 +272,8 @@ export class TransactionsService {
   /**
    * Totals are summed by Postgres in numeric: exact, unlike floats in JS.
    * The JOIN with categories leaves transfers out: moving money between
-   * one's own accounts is neither income nor expense.
+   * one's own accounts is neither income nor expense. A split transaction
+   * counts once: its parts add up to its amount.
    */
   async summary(
     userId: string,
@@ -239,9 +286,9 @@ export class TransactionsService {
     const rows = await this.prisma.$queryRaw<
       { kind: TransactionKind; total: Prisma.Decimal }[]
     >`
-      SELECT c.kind, SUM(t.amount) AS total
+      SELECT c.kind, SUM(${categorizedAmount}) AS total
       FROM transactions t
-      JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id
+      ${categorizedJoin}
       WHERE ${Prisma.join(conditions, ' AND ')}
       GROUP BY c.kind
     `;
@@ -260,7 +307,8 @@ export class TransactionsService {
   /**
    * Totals per category of one kind, largest first. One GROUP BY in the
    * database instead of loading transactions: the work and the result stay
-   * small however many transactions there are.
+   * small however many transactions there are. A split transaction counts
+   * in each category of its parts, with the part's amount.
    */
   async byCategory(
     userId: string,
@@ -281,9 +329,9 @@ export class TransactionsService {
         total: Prisma.Decimal;
       }[]
     >`
-      SELECT c.id, c.kind, c.name, SUM(t.amount) AS total
+      SELECT c.id, c.kind, c.name, SUM(${categorizedAmount}) AS total
       FROM transactions t
-      JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id
+      ${categorizedJoin}
       WHERE ${Prisma.join(conditions, ' AND ')}
       GROUP BY c.id
       ORDER BY total DESC, c.name
@@ -318,10 +366,10 @@ export class TransactionsService {
       ),
       totals AS (
         SELECT date_trunc('month', t.occurred_at AT TIME ZONE ${timeZone})::date AS month,
-               SUM(t.amount) FILTER (WHERE c.kind = 'income') AS income,
-               SUM(t.amount) FILTER (WHERE c.kind = 'expense') AS expense
+               SUM(${categorizedAmount}) FILTER (WHERE c.kind = 'income') AS income,
+               SUM(${categorizedAmount}) FILTER (WHERE c.kind = 'expense') AS expense
         FROM transactions t
-        JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id
+        ${categorizedJoin}
         WHERE t.user_id = ${userId}::uuid
           AND t.occurred_at >= (${`${from}-01`}::date::timestamp AT TIME ZONE ${timeZone})
           AND t.occurred_at < ((${`${to}-01`}::date + interval '1 month') AT TIME ZONE ${timeZone})
@@ -356,18 +404,19 @@ export class TransactionsService {
     return this.write(async (tx) => {
       const accounts = accountsOf(dto);
       await this.accounts.lock(tx, userId, accounts, unknownAccount);
-      await this.checkCategory(tx, userId, dto);
-      const row = await tx.transaction.create({
+      await this.checkCategories(tx, userId, dto);
+      const { id } = await tx.transaction.create({
         data: { userId, ...columnsOf(dto) },
-        select: transactionSelect,
+        select: { id: true },
       });
+      await this.writeSplits(tx, userId, id, dto);
       await this.accounts.assertNotNegative(
         tx,
         userId,
         accounts.map((account) => account.id),
         'amount',
       );
-      return toTransaction(row);
+      return this.read(tx, userId, id);
     });
   }
 
@@ -382,19 +431,22 @@ export class TransactionsService {
       const before = await this.lockTransaction(tx, userId, id);
       const accounts = [...before, ...accountsOf(dto)];
       await this.accounts.lock(tx, userId, accounts, unknownAccount);
-      await this.checkCategory(tx, userId, dto);
-      const row = await tx.transaction.update({
+      await this.checkCategories(tx, userId, dto);
+      await tx.transaction.update({
         where: { id, userId },
         data: columnsOf(dto),
-        select: transactionSelect,
+        select: { id: true },
       });
+      // The parts are replaced as a whole, as the transaction is.
+      await tx.transactionSplit.deleteMany({ where: { transactionId: id } });
+      await this.writeSplits(tx, userId, id, dto);
       await this.accounts.assertNotNegative(
         tx,
         userId,
         accounts.map((account) => account.id),
         'amount',
       );
-      return toTransaction(row);
+      return this.read(tx, userId, id);
     });
   }
 
@@ -433,29 +485,62 @@ export class TransactionsService {
       .map((accountId) => ({ id: accountId, field: 'id' }));
   }
 
+  /** The parts of a split transaction; nothing for any other. */
+  private async writeSplits(
+    tx: Tx,
+    userId: string,
+    transactionId: string,
+    dto: TransactionInputDto,
+  ) {
+    if (dto.type === 'transfer' || !dto.splits) return;
+    await tx.transactionSplit.createMany({
+      data: dto.splits.map((split) => ({
+        transactionId,
+        userId,
+        categoryId: split.categoryId,
+        amount: split.amount,
+      })),
+    });
+  }
+
+  /** The transaction as written, with its parts. */
+  private async read(tx: Tx, userId: string, id: string) {
+    const row = await tx.transaction.findUniqueOrThrow({
+      where: { id, userId },
+      select: transactionSelect,
+    });
+    return toTransaction(row);
+  }
+
   /**
    * The composite foreign key rejects another user's category, but not
-   * one of the other kind: an "expense" in a salary category.
+   * one of the other kind: an "expense" in a salary category. One query
+   * for all the categories of a split transaction.
    */
-  private async checkCategory(
+  private async checkCategories(
     tx: Tx,
     userId: string,
     dto: TransactionInputDto,
   ) {
     if (dto.type === 'transfer') return;
-    const category = await tx.category.findUnique({
-      where: { id_userId: { id: dto.categoryId, userId } },
-      select: { kind: true },
+    const wanted = categoriesOf(dto);
+    const found = await tx.category.findMany({
+      where: { userId, id: { in: wanted.map((category) => category.id) } },
+      select: { id: true, kind: true },
     });
-    if (!category) throw unknownCategory();
-    if (category.kind !== dto.type) {
-      throw invalid(
-        'categoryId',
-        'Category of another kind',
-        dto.type === 'income'
-          ? 'Это категория расходов'
-          : 'Это категория доходов',
-      );
+    const kinds = new Map(found.map(({ id, kind }) => [id, kind]));
+    for (const { id, field } of wanted) {
+      const kind = kinds.get(id);
+      if (!kind) throw unknownCategory(field);
+      if (kind !== dto.type) {
+        throw invalid(
+          field,
+          'Category of another kind',
+          dto.type === 'income'
+            ? 'Это категория расходов'
+            : 'Это категория доходов',
+        );
+      }
     }
   }
 

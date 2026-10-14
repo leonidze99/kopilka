@@ -105,19 +105,26 @@ const accountRef = {
   type: 'card',
 } as const;
 
-/** An income or an expense (by its category) as the API returns it. */
+type TestCategory = { id: string; kind: 'income' | 'expense'; name: string };
+
+/**
+ * An income or an expense (by its category) as the API returns it; with
+ * `splits`, a split one: no category of its own, its parts' kind.
+ */
 export const transaction = (
   overrides: Partial<{
     amount: string;
     comment: string | null;
     occurredAt: string;
-    category: typeof FOOD | typeof SALARY;
+    category: TestCategory;
+    splits: { category: TestCategory; amount: string }[];
   }> = {},
 ) => {
-  const category = overrides.category ?? FOOD;
+  const splits = overrides.splits ?? [];
+  const category = splits.length ? null : (overrides.category ?? FOOD);
   return {
     id: `0199d0a4-1111-7000-8000-${String(nextId++).padStart(12, '0')}`,
-    type: category.kind,
+    type: (category ?? splits[0]!.category).kind,
     amount: '100.00',
     comment: null,
     occurredAt: '2026-10-05T12:00:00.000Z',
@@ -126,5 +133,6 @@ export const transaction = (
     recurringRuleId: null,
     ...overrides,
     category,
+    splits,
   };
 };

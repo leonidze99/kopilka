@@ -25,7 +25,9 @@ export function EditTransactionForm({
       defaultValues={{
         type: transaction.type,
         categoryId:
-          transaction.type === 'transfer' ? '' : transaction.category.id,
+          transaction.type === 'transfer'
+            ? ''
+            : (transaction.category?.id ?? ''),
         accountId: transaction.account.id,
         toAccountId:
           transaction.type === 'transfer' ? transaction.toAccount.id : '',
@@ -33,6 +35,13 @@ export function EditTransactionForm({
         amount: transaction.amount.replace('.', ','),
         occurredAt: toDateTimeLocal(new Date(transaction.occurredAt)),
         comment: transaction.comment ?? '',
+        splits:
+          transaction.type === 'transfer'
+            ? []
+            : transaction.splits.map((split) => ({
+                categoryId: split.category.id,
+                amount: split.amount.replace('.', ','),
+              })),
       }}
       submitLabel="Сохранить"
       submit={(values) =>

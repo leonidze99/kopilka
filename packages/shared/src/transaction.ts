@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { accountRefSchema } from './account.js';
 import { categorySchema, transactionKindSchema } from './category.js';
-import { amountSchema } from './money.js';
+import { amountSchema, toKopecks } from './money.js';
 import { timeZoneSchema } from './recurring.js';
 
 /**
@@ -25,6 +25,84 @@ const inputFields = {
     .optional(),
 };
 
+/** One category's share of a split income or expense. */
+export const transactionSplitInputSchema = z
+  .object({
+    categoryId: z.uuid('Выберите категорию'),
+    amount: amountSchema,
+  })
+  .meta({ id: 'TransactionSplitInput' });
+
+export const MAX_SPLITS = 20;
+
+/** 123450 -> "1 234,50 ₽", for a message about kopecks. */
+const rubles = (kopecks: number) =>
+  `${new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2 }).format(kopecks / 100)} ₽`;
+
+/** An income or expense as sent, before its fields are known to be valid. */
+interface LooseCategorizedInput {
+  categoryId?: unknown;
+  splits?: unknown;
+  amount?: unknown;
+}
+
+/**
+ * A category or parts, not both; one part per category; parts adding up
+ * to the amount. Checks only what is readable: a field that is itself
+ * invalid already has its issue.
+ */
+function checkParts(input: LooseCategorizedInput, ctx: z.RefinementCtx) {
+  if (!Array.isArray(input.splits)) {
+    if (input.splits === undefined && !input.categoryId) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Выберите категорию',
+        path: ['categoryId'],
+      });
+    }
+    return;
+  }
+  if (input.categoryId) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Категория задаётся частям, не всей операции',
+      path: ['categoryId'],
+    });
+  }
+
+  const splits = input.splits as { categoryId?: unknown; amount?: unknown }[];
+  const seen = new Set<unknown>();
+  splits.forEach((split, index) => {
+    if (!split?.categoryId) return;
+    if (seen.has(split.categoryId)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Эта категория уже есть в другой части',
+        path: ['splits', index, 'categoryId'],
+      });
+    }
+    seen.add(split.categoryId);
+  });
+
+  // Kopecks: exact, unlike adding up the strings as floats. Skipped while
+  // an amount is not a positive number: its own issue says enough.
+  const kopecks = (amount: unknown) =>
+    typeof amount === 'string' ? toKopecks(amount) : Number.NaN;
+  const total = kopecks(input.amount);
+  const parts = splits.map((split) => kopecks(split?.amount));
+  if (![total, ...parts].every((value) => value > 0)) return;
+  const sum = parts.reduce((a, b) => a + b, 0);
+  if (sum === total) return;
+  ctx.addIssue({
+    code: 'custom',
+    message:
+      sum < total
+        ? `Части меньше суммы операции на ${rubles(total - sum)}`
+        : `Части больше суммы операции на ${rubles(sum - total)}`,
+    path: ['splits'],
+  });
+}
+
 /**
  * The whole transaction, for create (POST) and replace (PUT): an edit may
  * turn an expense into a transfer, which a partial update cannot express
@@ -36,9 +114,28 @@ export const transactionInputSchema = z
     z
       .object({
         type: transactionKindSchema,
-        categoryId: z.uuid('Выберите категорию'),
+        /** One category; or, for a split transaction, `splits` instead. */
+        categoryId: z.uuid('Выберите категорию').optional(),
+        /**
+         * The parts of a split transaction: at least two, one per category,
+         * all of the transaction's kind, adding up to its amount.
+         */
+        splits: z
+          .array(transactionSplitInputSchema)
+          .min(2, 'Разделите хотя бы на две части')
+          .max(MAX_SPLITS, `Не больше ${MAX_SPLITS} частей`)
+          .optional(),
         ...inputFields,
       })
+      // Also when other fields are invalid (`when`): an empty form should
+      // say "choose a category" together with everything else, not after.
+      // The value may be invalid then, hence the loose type.
+      .superRefine(
+        (input: LooseCategorizedInput, ctx) => checkParts(input, ctx),
+        {
+          when: ({ value }) => typeof value === 'object' && value !== null,
+        },
+      )
       .meta({ id: 'CategorizedTransactionInput' }),
     z
       .object({
@@ -69,13 +166,24 @@ const outputFields = {
   recurringRuleId: z.uuid().nullable(),
 };
 
+export const transactionSplitSchema = z
+  .object({
+    category: categorySchema,
+    /** With 2 fraction digits, e.g. "1234.50". */
+    amount: z.string(),
+  })
+  .meta({ id: 'TransactionSplit' });
+
 export const transactionSchema = z
   .discriminatedUnion('type', [
     z
       .object({
         type: transactionKindSchema,
         ...outputFields,
-        category: categorySchema,
+        /** null for a split transaction: its categories are in `splits`. */
+        category: categorySchema.nullable(),
+        /** The parts of a split transaction, largest first; empty if not split. */
+        splits: z.array(transactionSplitSchema),
       })
       .meta({ id: 'CategorizedTransaction' }),
     z
@@ -93,6 +201,7 @@ const transactionFilters = {
   from: z.coerce.date().optional(),
   /** Exclusive. */
   to: z.coerce.date().optional(),
+  /** A split transaction counts if one of its parts is in the category. */
   categoryId: z.uuid().optional(),
   /** Money that left or reached the account: transfers count for both. */
   accountId: z.uuid().optional(),
@@ -168,6 +277,8 @@ export const categoryTotalsSchema = z
   .meta({ id: 'CategoryTotals' });
 
 export type TransactionType = z.infer<typeof transactionTypeSchema>;
+export type TransactionSplitInput = z.infer<typeof transactionSplitInputSchema>;
+export type TransactionSplit = z.infer<typeof transactionSplitSchema>;
 export type TransactionInputDto = z.infer<typeof transactionInputSchema>;
 export type Transaction = z.infer<typeof transactionSchema>;
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;

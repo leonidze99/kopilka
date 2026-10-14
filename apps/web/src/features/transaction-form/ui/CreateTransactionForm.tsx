@@ -15,6 +15,7 @@ const emptyValues = (
   // Local time: <input type="datetime-local"> has no time zone.
   occurredAt: toDateTimeLocal(new Date()),
   comment: '',
+  splits: [],
   ...keep,
 });
 
@@ -56,7 +57,8 @@ export function CreateTransactionForm({
             accountId: values.accountId,
             ...(values.type === 'transfer'
               ? { toAccountId: values.toAccountId }
-              : { categoryId: values.categoryId }),
+              : // After a split receipt the next entry starts plain.
+                { categoryId: values.categoryId ?? '' }),
           }),
         );
         onCreated?.();

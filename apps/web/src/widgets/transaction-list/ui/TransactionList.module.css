@@ -216,8 +216,37 @@
   }
 
   .item .avatar,
+  .item .splitAvatar,
   .item .transferIcon {
     width: 36px;
     height: 36px;
   }
+}
+
+/* A split receipt: the avatars of its two largest parts, overlapping in
+   the square of one. */
+.splitAvatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+}
+
+.splitAvatarPart {
+  position: absolute;
+  width: 27px;
+  height: 27px;
+  font-size: var(--text-xs);
+}
+
+.splitAvatarPart:first-child {
+  top: 0;
+  left: 0;
+}
+
+.splitAvatarPart:last-child {
+  right: 0;
+  bottom: 0;
+  /* A ring of the panel's color separates it from the one beneath. */
+  box-shadow: 0 0 0 2px var(--color-surface);
 }

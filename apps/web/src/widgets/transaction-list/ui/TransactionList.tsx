@@ -13,7 +13,9 @@ import {
   useListCategoriesQuery,
 } from '@/entities/category';
 import {
+  categoriesOf,
   type Transaction,
+  transactionTitle,
   type TransactionType,
   useListTransactionsInfiniteQuery,
 } from '@/entities/transaction';
@@ -217,6 +219,7 @@ export function TransactionList({
                     transaction={transaction}
                     showAccount={showAccount}
                     accountId={filter.accountId}
+                    categoryId={filter.categoryId}
                     query={query}
                   />
                   <ChevronRight
@@ -276,6 +279,8 @@ interface RowContentProps {
   showAccount: boolean;
   /** The account the list is narrowed to: a transfer is out of or into it. */
   accountId?: string;
+  /** The category the list is narrowed to: a split one shows its part. */
+  categoryId?: string;
   /** The search: its matches in the comment are marked. */
   query: string;
 }
@@ -298,6 +303,7 @@ function RowContent({
   transaction,
   showAccount,
   accountId,
+  categoryId,
   query,
 }: RowContentProps) {
   const time = (
@@ -350,26 +356,59 @@ function RowContent({
     );
   }
 
+  const categories = categoriesOf(transaction);
+  // Narrowed to a category, a split receipt shows that category's part:
+  // the rows then add up to what the chart says of the category.
+  const part = transaction.splits.find(
+    (split) => split.category.id === categoryId,
+  );
+
   return (
     <>
-      <CategoryAvatar
-        category={transaction.category}
-        className={styles.avatar}
-      />
+      {categories.length > 1 ? (
+        <span className={styles.splitAvatar} aria-hidden>
+          {categories.slice(0, 2).map((category) => (
+            <CategoryAvatar
+              key={category.id}
+              category={category}
+              size="sm"
+              className={styles.splitAvatarPart}
+            />
+          ))}
+        </span>
+      ) : (
+        categories[0] && (
+          <CategoryAvatar category={categories[0]} className={styles.avatar} />
+        )
+      )}
       <span className={styles.main}>
         <span className={styles.category}>
-          {transaction.category.name}
+          {transactionTitle(transaction)}
+          {categories.length > 1 && (
+            <>
+              {/* Outside the span: a leading space inside it is dropped
+                  from the accessible name. */}{' '}
+              <span className="visually-hidden">(разделённая операция)</span>
+            </>
+          )}
           <RecurringMark transaction={transaction} />
         </span>
-        {transaction.comment && (
+        {(part || transaction.comment) && (
           <span className={styles.comment}>
-            <Comment text={transaction.comment} query={query} />
+            {part && `Часть от ${formatMoney(transaction.amount)}`}
+            {part && transaction.comment && ' · '}
+            {transaction.comment && (
+              <Comment text={transaction.comment} query={query} />
+            )}
           </span>
         )}
       </span>
       <span className={styles.side}>
         <span className={`${styles.amount} ${styles[transaction.type]}`}>
-          {formatSignedMoney(transaction.amount, transaction.type)}
+          {formatSignedMoney(
+            part?.amount ?? transaction.amount,
+            transaction.type,
+          )}
         </span>
         {time}
       </span>

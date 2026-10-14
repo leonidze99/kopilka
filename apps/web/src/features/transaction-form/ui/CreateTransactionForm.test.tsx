@@ -153,4 +153,116 @@ describe('CreateTransactionForm', () => {
       '/categories',
     );
   });
+
+  describe('split by categories', () => {
+    const HOME = {
+      id: '0199d0a4-0000-7000-8000-00000000a0e1',
+      kind: 'expense',
+      name: 'Дом',
+    } as const;
+
+    it('sends the parts instead of a category, the rest filled in on request', async () => {
+      const { sent } = mockAccount({ categories: [FOOD, HOME, SALARY] });
+      const { user } = renderApp('/', { session: 'authenticated' });
+      await categoriesLoaded();
+
+      await user.selectOptions(screen.getByLabelText('Категория'), FOOD.name);
+      await user.type(screen.getByLabelText('Сумма'), '2 500');
+      await user.click(
+        screen.getByRole('button', { name: 'Разделить по категориям' }),
+      );
+
+      // The chosen category became the first part.
+      expect(screen.queryByLabelText('Категория')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Категория части 1')).toHaveValue(FOOD.id);
+      await user.type(screen.getByLabelText('Сумма части 1'), '2000');
+      await user.selectOptions(
+        screen.getByLabelText('Категория части 2'),
+        HOME.name,
+      );
+      expect(screen.getByText(/Не распределено 500,00\s₽/)).toBeInTheDocument();
+      await user.click(
+        screen.getByRole('button', { name: 'вписать в часть 2' }),
+      );
+      expect(screen.getByLabelText('Сумма части 2')).toHaveValue('500,00');
+      expect(
+        screen.getByText('Сумма распределена полностью'),
+      ).toBeInTheDocument();
+      await user.click(
+        screen.getByRole('button', { name: 'Добавить операцию' }),
+      );
+
+      expect(await screen.findByText('Операция добавлена')).toBeInTheDocument();
+      expect(sent.transactions).toEqual([
+        expect.objectContaining({
+          type: 'expense',
+          amount: '2500',
+          splits: [
+            { categoryId: FOOD.id, amount: '2000' },
+            { categoryId: HOME.id, amount: '500.00' },
+          ],
+        }),
+      ]);
+      expect(sent.transactions[0]).not.toHaveProperty('categoryId');
+      // The next entry starts plain.
+      expect(screen.getByLabelText('Категория')).toHaveValue('');
+    });
+
+    it('refuses parts that do not add up, before sending', async () => {
+      const { sent } = mockAccount({ categories: [FOOD, HOME] });
+      const { user } = renderApp('/', { session: 'authenticated' });
+      await categoriesLoaded();
+
+      await user.type(screen.getByLabelText('Сумма'), '1000');
+      await user.click(
+        screen.getByRole('button', { name: 'Разделить по категориям' }),
+      );
+      await user.selectOptions(
+        screen.getByLabelText('Категория части 1'),
+        FOOD.name,
+      );
+      await user.type(screen.getByLabelText('Сумма части 1'), '700');
+      await user.selectOptions(
+        screen.getByLabelText('Категория части 2'),
+        HOME.name,
+      );
+      await user.type(screen.getByLabelText('Сумма части 2'), '400');
+      expect(
+        screen.getByText(/Части больше суммы на 100,00\s₽/),
+      ).toBeInTheDocument();
+      await user.click(
+        screen.getByRole('button', { name: 'Добавить операцию' }),
+      );
+
+      expect(
+        await screen.findByText(/Части больше суммы операции на 100,00\s₽/),
+      ).toBeInTheDocument();
+      expect(sent.transactions).toEqual([]);
+    });
+
+    it('goes back to one category', async () => {
+      const { sent } = mockAccount({ categories: [FOOD, HOME] });
+      const { user } = renderApp('/', { session: 'authenticated' });
+      await categoriesLoaded();
+
+      await user.click(
+        screen.getByRole('button', { name: 'Разделить по категориям' }),
+      );
+      await user.selectOptions(
+        screen.getByLabelText('Категория части 1'),
+        HOME.name,
+      );
+      await user.click(screen.getByRole('button', { name: 'Не разделять' }));
+      await user.type(screen.getByLabelText('Сумма'), '300');
+      await user.click(
+        screen.getByRole('button', { name: 'Добавить операцию' }),
+      );
+
+      expect(await screen.findByText('Операция добавлена')).toBeInTheDocument();
+      expect(sent.transactions).toEqual([
+        expect.objectContaining({ categoryId: HOME.id, amount: '300' }),
+      ]);
+      expect(sent.transactions[0]).not.toHaveProperty('splits');
+    });
+  });
 });

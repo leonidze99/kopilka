@@ -1091,7 +1091,12 @@ export interface components {
             account: components["schemas"]["AccountRef"];
             /** Format: uuid */
             recurringRuleId: string | null;
+            category: components["schemas"]["Category"] | null;
+            splits: components["schemas"]["TransactionSplit"][];
+        };
+        TransactionSplit: {
             category: components["schemas"]["Category"];
+            amount: string;
         };
         Transfer: {
             /** @enum {string} */
@@ -1130,7 +1135,8 @@ export interface components {
         CategorizedTransactionInput: {
             type: components["schemas"]["TransactionKind"];
             /** Format: uuid */
-            categoryId: string;
+            categoryId?: string;
+            splits?: components["schemas"]["TransactionSplitInput"][];
             /** Format: uuid */
             accountId: string;
             /**
@@ -1141,6 +1147,15 @@ export interface components {
             /** Format: date-time */
             occurredAt: string;
             comment?: string;
+        };
+        TransactionSplitInput: {
+            /** Format: uuid */
+            categoryId: string;
+            /**
+             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+             * @example 1234.56
+             */
+            amount: string;
         };
         TransferInput: {
             /** @enum {string} */

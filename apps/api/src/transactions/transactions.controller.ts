@@ -51,7 +51,7 @@ import {
   CSV_BOM,
   csvLine,
   TRANSACTION_CSV_HEADER,
-  transactionCsvFields,
+  transactionCsvRows,
 } from './csv.js';
 import { TransactionsService } from './transactions.service.js';
 
@@ -107,9 +107,10 @@ export class TransactionsController {
       await write(
         res,
         batch
-          .map((transaction) =>
-            csvLine(transactionCsvFields(transaction, query.timeZone)),
+          .flatMap((transaction) =>
+            transactionCsvRows(transaction, query.timeZone),
           )
+          .map(csvLine)
           .join(''),
       );
     }

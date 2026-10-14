@@ -1,10 +1,5 @@
 import type { Transaction } from '@kopilka/shared';
-import {
-  csvAmount,
-  csvDateTime,
-  csvLine,
-  transactionCsvFields,
-} from './csv.js';
+import { csvAmount, csvDateTime, csvLine, transactionCsvRows } from './csv.js';
 
 describe('csv', () => {
   describe('csvLine', () => {
@@ -39,7 +34,7 @@ describe('csv', () => {
     });
   });
 
-  describe('transactionCsvFields', () => {
+  describe('transactionCsvRows', () => {
     const base = {
       id: 'a',
       amount: '1234.50',
@@ -47,7 +42,7 @@ describe('csv', () => {
       occurredAt: new Date('2026-10-12T22:30:00Z'),
       createdAt: new Date(),
       recurringRuleId: null,
-      account: { id: 'acc', name: 'Карта' },
+      account: { id: 'acc', name: 'Карта', type: 'card' },
     };
 
     it('names the category of an expense and leaves the target empty', () => {
@@ -55,16 +50,58 @@ describe('csv', () => {
         ...base,
         type: 'expense',
         category: { id: 'cat', kind: 'expense', name: 'Продукты' },
+        splits: [],
       } as Transaction;
 
-      expect(transactionCsvFields(expense, 'Europe/Moscow')).toEqual([
-        '13.10.2026 01:30',
-        'Расход',
-        'Продукты',
-        'Карта',
-        '',
-        '1234,50',
-        'Пятёрочка',
+      expect(transactionCsvRows(expense, 'Europe/Moscow')).toEqual([
+        [
+          '13.10.2026 01:30',
+          'Расход',
+          'Продукты',
+          'Карта',
+          '',
+          '1234,50',
+          'Пятёрочка',
+        ],
+      ]);
+    });
+
+    it('writes a line per part of a split transaction', () => {
+      const split = {
+        ...base,
+        type: 'expense',
+        category: null,
+        splits: [
+          {
+            category: { id: 'c1', kind: 'expense', name: 'Продукты' },
+            amount: '1000.00',
+          },
+          {
+            category: { id: 'c2', kind: 'expense', name: 'Дом' },
+            amount: '234.50',
+          },
+        ],
+      } as Transaction;
+
+      expect(transactionCsvRows(split, 'UTC')).toEqual([
+        [
+          '12.10.2026 22:30',
+          'Расход',
+          'Продукты',
+          'Карта',
+          '',
+          '1000,00',
+          'Пятёрочка',
+        ],
+        [
+          '12.10.2026 22:30',
+          'Расход',
+          'Дом',
+          'Карта',
+          '',
+          '234,50',
+          'Пятёрочка',
+        ],
       ]);
     });
 
@@ -76,14 +113,16 @@ describe('csv', () => {
         toAccount: { id: 'acc2', name: 'Накопления' },
       } as Transaction;
 
-      expect(transactionCsvFields(transfer, 'UTC')).toEqual([
-        '12.10.2026 22:30',
-        'Перевод',
-        '',
-        'Карта',
-        'Накопления',
-        '1234,50',
-        '',
+      expect(transactionCsvRows(transfer, 'UTC')).toEqual([
+        [
+          '12.10.2026 22:30',
+          'Перевод',
+          '',
+          'Карта',
+          'Накопления',
+          '1234,50',
+          '',
+        ],
       ]);
     });
   });

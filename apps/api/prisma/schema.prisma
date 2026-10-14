@@ -84,6 +84,7 @@ model Category {
   recurring    RecurringRule[]
   importRules  ImportCategoryRule[]
   alerts       BudgetAlert[]
+  splits       TransactionSplit[]
 
   // "Подарки" may exist both as income and as expense.
   @@unique([userId, kind, name])
@@ -124,9 +125,12 @@ model Account {
 }
 
 /// Income or expense (with a category, the kind comes from it) or a
-/// transfer between two accounts (to_account_id, no category).
-/// SQL-only: CHECK (num_nonnulls(category_id, to_account_id) = 1)
-/// and CHECK (to_account_id <> account_id).
+/// transfer between two accounts (to_account_id, no category). A split
+/// income or expense has neither: its categories are in its parts
+/// (transaction_splits), which add up to its amount.
+/// SQL-only: CHECK (num_nonnulls(category_id, to_account_id) <= 1),
+/// CHECK (to_account_id <> account_id) and a deferred trigger checking
+/// the parts (see the transaction_splits migration).
 model Transaction {
   id                String    @id @default(uuid(7)) @db.Uuid
   userId            String    @map("user_id") @db.Uuid
@@ -152,17 +156,18 @@ model Transaction {
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Composite keys: the database itself guarantees that a transaction only
   // references a category and accounts of the same user. A NULL column
   // (no category in a transfer) skips the check: MATCH SIMPLE.
-  account           Account        @relation("TransactionAccount", fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
-  toAccount         Account?       @relation("TransferTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Restrict)
-  category          Category?      @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+  account           Account            @relation("TransactionAccount", fields: [accountId, userId], references: [id, userId], onDelete: Restrict)
+  toAccount         Account?           @relation("TransferTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Restrict)
+  category          Category?          @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
   // The transactions stay when their rule is deleted.
-  recurringRule     RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
-  import            Import?        @relation(fields: [importId], references: [id], onDelete: SetNull)
-  similarImportRows ImportRow[]    @relation("SimilarImportRows")
+  recurringRule     RecurringRule?     @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
+  import            Import?            @relation(fields: [importId], references: [id], onDelete: SetNull)
+  similarImportRows ImportRow[]        @relation("SimilarImportRows")
+  splits            TransactionSplit[]
 
   // Idempotency key: one transaction per occurrence of a rule, whatever
   // retries or a second runner do.
@@ -170,6 +175,8 @@ model Transaction {
   // The same for statement rows: a row imported twice into one account is
   // one transaction (INSERT ... ON CONFLICT DO NOTHING).
   @@unique([accountId, importFingerprint])
+  // Target of the composite foreign key from transaction_splits.
+  @@unique([id, userId])
   @@index([importId])
   // Trigrams: LIKE '%такс%' finds "Яндекс Такси" through the index.
   @@index([commentSearch(ops: raw("gin_trgm_ops"))], type: Gin)
@@ -180,6 +187,38 @@ model Transaction {
   @@index([accountId])
   @@index([toAccountId])
   @@map("transactions")
+}
+
+/// One category's share of a split income or expense: a receipt with
+/// groceries and household goods is one payment in two categories. The
+/// transaction keeps the amount that left the account (balances need
+/// nothing else); totals by category count the parts instead of it.
+/// One part per category (the primary key). All parts are of the
+/// transaction's kind, as the service checks; that there are at least two
+/// and that they add up to its amount, a deferred trigger checks at commit.
+/// SQL-only: CHECK (amount > 0).
+model TransactionSplit {
+  transactionId String  @map("transaction_id") @db.Uuid
+  userId        String  @map("user_id") @db.Uuid
+  categoryId    String  @map("category_id") @db.Uuid
+  amount        Decimal @db.Decimal(14, 2)
+
+  // Composite keys, as on transactions: a part, its transaction and its
+  // category belong to one and the same user.
+  transaction Transaction @relation(fields: [transactionId, userId], references: [id, userId], onDelete: Cascade)
+  // A category with parts in it is in use, as one with transactions is.
+  // NO ACTION, and DEFERRABLE INITIALLY DEFERRED in the migration (Prisma
+  // cannot say it): checked at commit. Deleting a user cascades to its
+  // categories and, separately, through its transactions to their parts;
+  // checked earlier, the category would be refused while its parts were
+  // still on their way out.
+  category    Category    @relation(fields: [categoryId, userId], references: [id, userId], onDelete: NoAction)
+
+  // Leads with transaction_id: also the index for the parts of a transaction.
+  @@id([transactionId, categoryId])
+  // Totals and budgets of a category.
+  @@index([categoryId])
+  @@map("transaction_splits")
 }
 
 /// A monthly income, expense or transfer the server creates on its day

@@ -111,9 +111,31 @@ export function mockAccount({
       if (!to) throw new Error(`unknown account ${body.toAccountId}`);
       return { ...common, type: 'transfer', toAccount: ref(to) };
     }
-    const category = state.categories.find((c) => c.id === body.categoryId);
-    if (!category) throw new Error(`unknown category ${body.categoryId}`);
-    return { ...common, type: body.type, category };
+    const categoryOf = (id: string | undefined) => {
+      const category = state.categories.find((c) => c.id === id);
+      if (!category) throw new Error(`unknown category ${id}`);
+      return category;
+    };
+    if (body.splits) {
+      return {
+        ...common,
+        type: body.type,
+        category: null,
+        splits: body.splits
+          .map((split) => ({
+            category: categoryOf(split.categoryId),
+            amount: Number(split.amount).toFixed(2),
+          }))
+          // Largest first, as the API orders them.
+          .sort((a, b) => Number(b.amount) - Number(a.amount)),
+      };
+    }
+    return {
+      ...common,
+      type: body.type,
+      category: categoryOf(body.categoryId),
+      splits: [],
+    };
   };
 
   server.use(
@@ -171,9 +193,13 @@ export function mockAccount({
       const category = state.categories.find((c) => c.id === params.id);
       if (!category) return new HttpResponse(null, { status: 404 });
       category.name = name;
-      for (const t of state.transactions)
-        if (t.type !== 'transfer' && t.category.id === category.id)
-          t.category = { ...category };
+      for (const t of state.transactions) {
+        if (t.type === 'transfer') continue;
+        if (t.category?.id === category.id) t.category = { ...category };
+        for (const split of t.splits)
+          if (split.category.id === category.id)
+            split.category = { ...category };
+      }
       return HttpResponse.json(category);
     }),
     http.delete(`${API_URL}/categories/:id`, ({ params }) => {

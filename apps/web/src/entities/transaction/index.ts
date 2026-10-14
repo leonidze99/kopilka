@@ -17,3 +17,4 @@ export {
   useReplaceTransactionMutation,
   useTransactionSummaryQuery,
 } from './api/transaction-api';
+export { categoriesOf, transactionTitle } from './lib/categories';
