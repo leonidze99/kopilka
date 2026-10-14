@@ -3,9 +3,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ReceiptGallery,
   receiptFileProblem,
+  useScanReceiptMutation,
   useUploadReceiptMutation,
 } from '@/entities/receipt';
 import { errorMessage, toApiError } from '@/shared/lib';
+import { type QrScan, ReceiptQrNotice } from './ReceiptQrNotice';
+import type { ReceiptFiller } from './TransactionForm';
 
 interface PendingPhoto {
   key: string;
@@ -16,12 +19,16 @@ interface PendingPhoto {
 
 /**
  * Photos picked for a transaction that does not exist yet: shown from the
- * files themselves, sent once the transaction is saved and has an id.
+ * files themselves, sent once the transaction is saved and has an id. The
+ * first photo is also read for its QR code, to fill the form in.
  */
 export function usePendingReceipts() {
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [error, setError] = useState<string>();
+  const [scan, setScan] = useState<QrScan>();
   const [upload] = useUploadReceiptMutation();
+  const [scanReceipt] = useScanReceiptMutation();
+  const scans = useRef(0);
 
   // Previews of photos still listed when the form goes away.
   const current = useRef(photos);
@@ -34,6 +41,23 @@ export function usePendingReceipts() {
     [],
   );
 
+  /**
+   * Reads the QR code of a photo, unless one is being read or a receipt
+   * was found already: one receipt per transaction, and the second photo
+   * of a long receipt is usually its top, without the code.
+   */
+  const read = async (file: File) => {
+    if (scan?.status === 'scanning') return;
+    if (scan?.status === 'done' && scan.result.receipt) return;
+    setScan({ status: 'scanning' });
+    const result = await scanReceipt(file);
+    setScan(
+      result.data
+        ? { status: 'done', id: ++scans.current, result: result.data }
+        : { status: 'failed' },
+    );
+  };
+
   const add = (files: File[]) => {
     const room = MAX_RECEIPTS - photos.length;
     const fitting = files.filter((file) => !receiptFileProblem(file));
@@ -43,14 +67,16 @@ export function usePendingReceipts() {
           ? `Не больше ${MAX_RECEIPTS} фото на операцию`
           : undefined),
     );
+    const added = fitting.slice(0, room);
     setPhotos([
       ...photos,
-      ...fitting.slice(0, room).map((file) => ({
+      ...added.map((file) => ({
         key: crypto.randomUUID(),
         file,
         url: URL.createObjectURL(file),
       })),
     ]);
+    if (added[0]) void read(added[0]);
   };
 
   const remove = (key: string) => {
@@ -68,6 +94,7 @@ export function usePendingReceipts() {
     async (transactionId: string) => {
       const sending = current.current;
       setPhotos([]);
+      setScan(undefined);
       for (const photo of sending) {
         const result = await upload({ transactionId, file: photo.file });
         if (result.error) {
@@ -85,19 +112,23 @@ export function usePendingReceipts() {
     [upload],
   );
 
-  const gallery = (
-    <ReceiptGallery
-      items={photos.map((photo, index) => ({
-        key: photo.key,
-        label: `Фото чека ${index + 1}`,
-        picture: <img src={photo.url} alt="" />,
-        onRemove: () => remove(photo.key),
-      }))}
-      canAdd={photos.length < MAX_RECEIPTS}
-      onAdd={add}
-      error={error}
-    />
+  /** The photos, and what their QR code gave: may fill the form in. */
+  const render = (filler: ReceiptFiller) => (
+    <>
+      <ReceiptGallery
+        items={photos.map((photo, index) => ({
+          key: photo.key,
+          label: `Фото чека ${index + 1}`,
+          picture: <img src={photo.url} alt="" />,
+          onRemove: () => remove(photo.key),
+        }))}
+        canAdd={photos.length < MAX_RECEIPTS}
+        onAdd={add}
+        error={error}
+      />
+      <ReceiptQrNotice scan={scan} filler={filler} />
+    </>
   );
 
-  return { gallery, send, clearError: () => setError(undefined) };
+  return { render, send, clearError: () => setError(undefined) };
 }

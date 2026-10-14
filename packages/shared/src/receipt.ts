@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { transactionKindSchema } from './category.js';
 
 /** Photos of receipts on one transaction: a long receipt takes a few. */
 export const MAX_RECEIPTS = 5;
@@ -31,3 +32,33 @@ export const receiptSchema = z
   .meta({ id: 'Receipt' });
 
 export type Receipt = z.infer<typeof receiptSchema>;
+
+/**
+ * What the QR code of a Russian cash receipt says: enough to fill in a
+ * transaction before it is saved.
+ */
+export const receiptQrSchema = z
+  .object({
+    /**
+     * The time printed on the receipt, "2026-10-14T16:30": the store's
+     * local time, without a zone (the code has none).
+     */
+    occurredAt: z.string(),
+    /** The total, with 2 fraction digits. */
+    amount: z.string(),
+    /** A purchase is an expense; a refund of one is an income. */
+    type: transactionKindSchema,
+  })
+  .meta({ id: 'ReceiptQr' });
+
+export const receiptScanSchema = z
+  .object({
+    /** A QR code was found on the photo at all. */
+    found: z.boolean(),
+    /** What it says, if it is the code of a cash receipt. */
+    receipt: receiptQrSchema.nullable(),
+  })
+  .meta({ id: 'ReceiptScan' });
+
+export type ReceiptQr = z.infer<typeof receiptQrSchema>;
+export type ReceiptScan = z.infer<typeof receiptScanSchema>;

@@ -1,5 +1,6 @@
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import {
+  type ReceiptQr,
   type TransactionInputDto,
   transactionInputSchema,
 } from '@kopilka/shared';
@@ -48,6 +49,14 @@ export interface TransactionFormValues {
   splits: { categoryId: string; amount: string }[];
 }
 
+/** What the attachments may do to the form: fill it in from a receipt. */
+export interface ReceiptFiller {
+  /** Nothing typed into the amount yet: the receipt may fill it in. */
+  amountEmpty(): boolean;
+  /** The type, the amount and the time of the receipt into the form. */
+  apply(qr: ReceiptQr): void;
+}
+
 const schemaResolver = standardSchemaResolver(
   transactionInputSchema,
 ) as unknown as Resolver<TransactionFormValues, unknown, TransactionInputDto>;
@@ -83,8 +92,11 @@ interface TransactionFormProps {
     values: TransactionInputDto,
     reset: (values: TransactionFormValues) => void,
   ) => void;
-  /** Above the submit button, after the fields: the receipt photos. */
-  attachments?: ReactNode;
+  /**
+   * Above the submit button, after the fields: the receipt photos. As a
+   * function it may fill the form in from a receipt's QR code.
+   */
+  attachments?: ReactNode | ((filler: ReceiptFiller) => ReactNode);
   /** Extra controls under the submit button, e.g. delete. */
   footer?: ReactNode;
 }
@@ -156,6 +168,31 @@ export function TransactionForm({
     onSuccess(values, (next) => reset(next));
   });
 
+  /**
+   * Another type: a category of the other kind would only fail validation;
+   * the parts keep their amounts. A transfer has no parts.
+   */
+  const changeType = (next: TransactionType) => {
+    setValue('type', next);
+    setValue('categoryId', '');
+    setValue(
+      'splits',
+      next === 'transfer'
+        ? []
+        : getValues('splits').map((part) => ({ ...part, categoryId: '' })),
+    );
+  };
+
+  const filler: ReceiptFiller = {
+    amountEmpty: () => !getValues('amount').trim(),
+    apply: (qr) => {
+      if (getValues('type') !== qr.type) changeType(qr.type);
+      // As people type it here: "2499,90".
+      setValue('amount', qr.amount.replace('.', ','), { shouldValidate: true });
+      setValue('occurredAt', qr.occurredAt, { shouldValidate: true });
+    },
+  };
+
   const accountOptions = accounts.map((account) => (
     <option key={account.id} value={account.id}>
       {account.name}
@@ -176,18 +213,7 @@ export function TransactionForm({
             block
             onChange={(next) => {
               field.onChange(next);
-              // A category of the other kind would only fail validation;
-              // the parts keep their amounts. A transfer has no parts.
-              setValue('categoryId', '');
-              setValue(
-                'splits',
-                next === 'transfer'
-                  ? []
-                  : getValues('splits').map((part) => ({
-                      ...part,
-                      categoryId: '',
-                    })),
-              );
+              changeType(next);
             }}
           />
         )}
@@ -336,7 +362,7 @@ export function TransactionForm({
           />
         )}
       />
-      {attachments}
+      {typeof attachments === 'function' ? attachments(filler) : attachments}
       <Button type="submit" loading={isSubmitting}>
         {submitLabel}
       </Button>

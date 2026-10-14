@@ -373,4 +373,64 @@ describe('CreateTransactionForm', () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  describe('the QR code of a receipt', () => {
+    const REFUND = {
+      found: true,
+      receipt: {
+        occurredAt: '2026-10-14T16:30',
+        amount: '2499.90',
+        type: 'income' as const,
+      },
+    };
+    const photo = () =>
+      new File([new Uint8Array(64)], 'check.jpg', { type: 'image/jpeg' });
+
+    it('fills an empty form in from the photo: amount, time and type', async () => {
+      mockAccount({ categories: [FOOD, SALARY], scan: REFUND });
+      const { user } = renderApp('/', { session: 'authenticated' });
+      await categoriesLoaded();
+
+      await user.upload(screen.getByLabelText('Добавить фото чека'), photo());
+
+      expect(
+        await screen.findByText(/Из QR-кода чека: 2\s499,90\s₽, 14 октября/),
+      ).toHaveTextContent(/возврат/);
+      expect(screen.getByLabelText('Сумма')).toHaveValue('2499,90');
+      expect(screen.getByLabelText('Дата и время')).toHaveValue(
+        '2026-10-14T16:30',
+      );
+      // A refund of a purchase is money in.
+      expect(screen.getByRole('radio', { name: 'Доход' })).toBeChecked();
+    });
+
+    it('does not overwrite an amount already typed, and offers the receipt one', async () => {
+      mockAccount({ categories: [FOOD, SALARY], scan: REFUND });
+      const { user } = renderApp('/', { session: 'authenticated' });
+      await categoriesLoaded();
+
+      await user.type(screen.getByLabelText('Сумма'), '100');
+      await user.upload(screen.getByLabelText('Добавить фото чека'), photo());
+
+      await screen.findByText(/В чеке: 2\s499,90\s₽/);
+      expect(screen.getByLabelText('Сумма')).toHaveValue('100');
+      await user.click(screen.getByRole('button', { name: 'подставить' }));
+      expect(screen.getByLabelText('Сумма')).toHaveValue('2499,90');
+    });
+
+    it('says when the photo has no QR code', async () => {
+      mockAccount({ categories: [FOOD] });
+      const { user } = renderApp('/', { session: 'authenticated' });
+      await categoriesLoaded();
+
+      await user.upload(screen.getByLabelText('Добавить фото чека'), photo());
+
+      expect(
+        await screen.findByText(
+          'QR-код на фото не найден — заполните сумму и дату сами',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByLabelText('Сумма')).toHaveValue('');
+    });
+  });
 });

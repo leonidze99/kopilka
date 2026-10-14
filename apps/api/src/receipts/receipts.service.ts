@@ -1,11 +1,17 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { MAX_RECEIPT_BYTES, MAX_RECEIPTS, type Receipt } from '@kopilka/shared';
+import {
+  MAX_RECEIPT_BYTES,
+  MAX_RECEIPTS,
+  type Receipt,
+  type ReceiptScan,
+} from '@kopilka/shared';
 import type { Request } from 'express';
 import type { Readable } from 'node:stream';
 import { AppException } from '../common/errors/app.exception.js';
 import { receiveUpload } from '../common/upload/receive-upload.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { processReceiptImage } from './receipt-image.js';
+import { scanReceipt } from './receipt-qr.js';
 
 /** What a transaction lists of its receipts: never the bytes. */
 export const receiptSelect = {
@@ -55,17 +61,7 @@ export class ReceiptsService {
   async add(userId: string, transactionId: string, req: Request) {
     await this.assertRoom(this.prisma, userId, transactionId);
 
-    const file = await receiveUpload(req, {
-      maxBytes: MAX_RECEIPT_BYTES,
-      defaultName: 'receipt',
-    });
-    let processed;
-    try {
-      processed = await processReceiptImage(await readAll(file.content));
-    } catch (error) {
-      file.discard();
-      throw error;
-    }
+    const processed = await this.withUpload(req, processReceiptImage);
 
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
@@ -89,6 +85,33 @@ export class ReceiptsService {
         select: receiptSelect,
       }) satisfies Promise<Receipt>;
     });
+  }
+
+  /**
+   * What the QR code on a photo says, to fill in a transaction before it is
+   * saved. Nothing is stored: the photo is attached (and kept) once the
+   * transaction exists.
+   */
+  scan(req: Request): Promise<ReceiptScan> {
+    return this.withUpload(req, scanReceipt);
+  }
+
+  /** The uploaded photo, whole, handed to `work`. */
+  private async withUpload<T>(
+    req: Request,
+    work: (photo: Buffer) => Promise<T>,
+  ): Promise<T> {
+    const file = await receiveUpload(req, {
+      maxBytes: MAX_RECEIPT_BYTES,
+      defaultName: 'receipt',
+    });
+    try {
+      return await work(await readAll(file.content));
+    } catch (error) {
+      // An early error (too large, not a photo) still has to answer.
+      file.discard();
+      throw error;
+    }
   }
 
   /** The stored WebP, or its thumbnail. */

@@ -2,9 +2,11 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import {
   MAX_RECEIPT_BYTES,
   MAX_RECEIPTS,
+  receiptScanSchema,
   receiptSchema,
   transactionPageSchema,
 } from '@kopilka/shared';
+import QRCode from 'qrcode';
 import sharp from 'sharp';
 import request from 'supertest';
 import { type TestUser, testUsers } from './utils/auth.js';
@@ -213,5 +215,69 @@ describe('Receipts (e2e)', () => {
       .set('Authorization', user.auth)
       .expect(204);
     await fetchImage(user, kept.id, 'thumbnail').expect(404);
+  });
+
+  describe('scan', () => {
+    /** A white page with the code on it, as a JPEG. */
+    const withCode = async (text: string) =>
+      sharp({
+        create: { width: 900, height: 1300, channels: 3, background: '#fff' },
+      })
+        .composite([
+          {
+            input: await QRCode.toBuffer(text, { width: 260 }),
+            left: 320,
+            top: 950,
+          },
+        ])
+        .jpeg()
+        .toBuffer();
+
+    const scan = (user: TestUser | undefined, file: Buffer) => {
+      const req = http().post('/api/receipts/scan');
+      if (user) req.set('Authorization', user.auth);
+      return req.attach('file', file, {
+        filename: 'receipt.jpg',
+        contentType: 'image/jpeg',
+      });
+    };
+
+    it('reads the time, the total and the kind from the QR code', async () => {
+      const { user } = await setUp();
+
+      const res = await scan(
+        user,
+        await withCode(
+          't=20261014T163015&s=2499.9&fn=7380440700076549&i=41406&fp=2671185794&n=2',
+        ),
+      ).expect(200);
+
+      expect(receiptScanSchema.parse(res.body)).toEqual({
+        found: true,
+        // n=2: a refund of a purchase, money back to the user.
+        receipt: {
+          occurredAt: '2026-10-14T16:30',
+          amount: '2499.90',
+          type: 'income',
+        },
+      });
+    });
+
+    it('tells a QR code of something else from none at all', async () => {
+      const { user } = await setUp();
+
+      const other = await scan(user, await withCode('https://example.com'));
+      const none = await scan(user, photo);
+
+      expect(other.body).toEqual({ found: true, receipt: null });
+      expect(none.body).toEqual({ found: false, receipt: null });
+    });
+
+    it('refuses a file that is not a photo, and a stranger', async () => {
+      const { user } = await setUp();
+
+      await scan(user, Buffer.from('not a photo')).expect(400);
+      await scan(undefined, photo).expect(401);
+    });
   });
 });

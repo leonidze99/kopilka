@@ -1,8 +1,10 @@
-import { baseApi, type ResponseBody } from '@/shared/api';
+import { type ApiPath, baseApi, type ResponseBody } from '@/shared/api';
 
 export type Receipt = ResponseBody<'/transactions/{id}/receipts', 'post', 201>;
 
 export type ReceiptVariant = 'image' | 'thumbnail';
+
+export type ReceiptScan = ResponseBody<'/receipts/scan', 'post', 200>;
 
 export const receiptApi = baseApi
   // A transaction lists its receipts: adding or deleting one refetches it.
@@ -58,6 +60,22 @@ export const receiptApi = baseApi
         query: (id) => ({ url: `/receipts/${id}`, method: 'DELETE' }),
         invalidatesTags: ['Transaction'],
       }),
+
+      /**
+       * What the QR code on a photo says. A mutation: an action on a file
+       * that stores nothing, not data to cache.
+       */
+      scanReceipt: build.mutation<ReceiptScan, File>({
+        query: (file) => {
+          const body = new FormData();
+          body.append('file', file);
+          return {
+            url: '/receipts/scan' satisfies ApiPath,
+            method: 'POST',
+            body,
+          };
+        },
+      }),
     }),
   });
 
@@ -65,4 +83,5 @@ export const {
   useReceiptImageQuery,
   useUploadReceiptMutation,
   useDeleteReceiptMutation,
+  useScanReceiptMutation,
 } = receiptApi;

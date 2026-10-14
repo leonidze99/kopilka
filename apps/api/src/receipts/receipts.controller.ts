@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBody,
+  type ApiBodyOptions,
   ApiConsumes,
   ApiCreatedResponse,
   ApiNoContentResponse,
@@ -25,6 +26,8 @@ import {
   MAX_RECEIPT_BYTES,
   MAX_RECEIPTS,
   type Receipt,
+  type ReceiptScan,
+  receiptScanSchema,
   receiptSchema,
 } from '@kopilka/shared';
 import type { Request } from 'express';
@@ -37,6 +40,15 @@ import { ReceiptsService, type ReceiptVariant } from './receipts.service.js';
  * it as long as it likes — privately, as it is behind a token.
  */
 const CACHE_FOREVER = 'private, max-age=31536000, immutable';
+
+/** A multipart body with the photo in "file". */
+const PHOTO_BODY: ApiBodyOptions = {
+  schema: {
+    type: 'object',
+    required: ['file'],
+    properties: { file: { type: 'string', format: 'binary' } },
+  },
+};
 
 const imageResponse = {
   description: 'image/webp',
@@ -57,13 +69,7 @@ export class ReceiptsController {
     description: `JPEG, PNG, WebP or AVIF, up to ${MAX_RECEIPT_BYTES / 1024 / 1024} MB; stored resized as WebP, without its metadata. At most ${MAX_RECEIPTS} per transaction (CONFLICT).`,
   })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['file'],
-      properties: { file: { type: 'string', format: 'binary' } },
-    },
-  })
+  @ApiBody(PHOTO_BODY)
   @ApiCreatedResponse({ standardSchema: receiptSchema })
   @ApiErrorResponses(400, 404, 409, 413, 429)
   add(
@@ -72,6 +78,22 @@ export class ReceiptsController {
     @Req() req: Request,
   ): Promise<Receipt> {
     return this.receipts.add(user.id, transactionId, req);
+  }
+
+  @Post('receipts/scan')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 20, ttl: minutes(1) } })
+  @ApiOperation({
+    summary: 'Read the QR code of a receipt photo',
+    description:
+      'The time, the total and the kind of operation of a Russian cash receipt, to fill in a transaction before it is saved. Nothing is stored. `found: false` — no QR code on the photo; `receipt: null` with `found: true` — a code of something else.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody(PHOTO_BODY)
+  @ApiOkResponse({ standardSchema: receiptScanSchema })
+  @ApiErrorResponses(400, 413, 429)
+  scan(@Req() req: Request): Promise<ReceiptScan> {
+    return this.receipts.scan(req);
   }
 
   @Get('receipts/:id/image')

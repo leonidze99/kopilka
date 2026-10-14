@@ -26,6 +26,8 @@ interface AccountData {
   recurring?: RecurringRule[];
   goals?: Goal[];
   tags?: Tag[];
+  /** What POST /receipts/scan answers, whatever the photo. */
+  scan?: Schemas['ReceiptScan'];
 }
 
 type Tag = Schemas['Tag'];
@@ -64,6 +66,7 @@ export function mockAccount({
   recurring = [],
   goals = [],
   tags = [],
+  scan = { found: false, receipt: null },
 }: AccountData = {}) {
   const state = {
     budgets: [...budgets],
@@ -302,6 +305,8 @@ export function mockAccount({
         return HttpResponse.json(receipt, { status: 201 });
       },
     ),
+    // What the QR code of any photo says; nothing found by default.
+    http.post(apiUrl('/receipts/scan'), () => HttpResponse.json(scan)),
     http.get(`${API_URL}/receipts/:id/:variant`, () =>
       HttpResponse.arrayBuffer(new Uint8Array([82, 73, 70, 70]).buffer, {
         headers: { 'Content-Type': 'image/webp' },

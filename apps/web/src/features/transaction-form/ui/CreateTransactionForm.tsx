@@ -41,7 +41,7 @@ export function CreateTransactionForm({
           Добавить операцию
         </>
       }
-      attachments={receipts.gallery}
+      attachments={receipts.render}
       submit={async (values) => {
         receipts.clearError();
         const result = await createTransaction({

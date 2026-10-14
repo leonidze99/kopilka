@@ -1,4 +1,4 @@
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 import { invalidFile } from '../common/upload/receive-upload.js';
 
 /** Long side of the stored image: a receipt stays readable, not 12 MP. */
@@ -23,21 +23,18 @@ export interface ReceiptImage {
   height: number;
 }
 
-const unreadable = () =>
+export const unreadable = () =>
   invalidFile(
     'Not an image of a supported format',
     'Не удалось прочитать фото: подходят JPEG, PNG, WebP и AVIF',
   );
 
 /**
- * The upload re-encoded as WebP: turned upright by its EXIF orientation,
- * no larger than IMAGE_SIDE, with all metadata dropped — sharp writes none
- * unless asked, and a phone photo's EXIF has the place it was taken. The
- * format is read from the bytes, never from the Content-Type or the name.
+ * A photo of one of the accepted formats, as a factory of sharp pipelines
+ * over it. The format is read from the bytes, never from the Content-Type
+ * or the name; decoding stops at MAX_INPUT_PIXELS.
  */
-export async function processReceiptImage(
-  input: Buffer,
-): Promise<ReceiptImage> {
+export async function openReceiptImage(input: Buffer): Promise<() => Sharp> {
   const source = () =>
     sharp(input, { limitInputPixels: MAX_INPUT_PIXELS, failOn: 'error' });
 
@@ -48,6 +45,18 @@ export async function processReceiptImage(
     throw unreadable();
   }
   if (!format || !ACCEPTED.has(format)) throw unreadable();
+  return source;
+}
+
+/**
+ * The upload re-encoded as WebP: turned upright by its EXIF orientation,
+ * no larger than IMAGE_SIDE, with all metadata dropped — sharp writes none
+ * unless asked, and a phone photo's EXIF has the place it was taken.
+ */
+export async function processReceiptImage(
+  input: Buffer,
+): Promise<ReceiptImage> {
+  const source = await openReceiptImage(input);
 
   try {
     const { data: image, info } = await source()

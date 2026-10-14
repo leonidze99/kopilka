@@ -2367,6 +2367,88 @@
         ]
       }
     },
+    "/receipts/scan": {
+      "post": {
+        "description": "The time, the total and the kind of operation of a Russian cash receipt, to fill in a transaction before it is saved. Nothing is stored. `found: false` — no QR code on the photo; `receipt: null` with `found: true` — a code of something else.",
+        "operationId": "ReceiptsController_scan",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptScan"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "VALIDATION_FAILED: the file is too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: see the Retry-After header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Read the QR code of a receipt photo",
+        "tags": [
+          "receipts"
+        ]
+      }
+    },
     "/receipts/{id}/image": {
       "get": {
         "operationId": "ReceiptsController_image",
@@ -4808,6 +4890,47 @@
           "height",
           "size",
           "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "ReceiptScan": {
+        "type": "object",
+        "properties": {
+          "found": {
+            "type": "boolean"
+          },
+          "receipt": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReceiptQr"
+              }
+            ]
+          }
+        },
+        "required": [
+          "found",
+          "receipt"
+        ],
+        "additionalProperties": false
+      },
+      "ReceiptQr": {
+        "type": "object",
+        "properties": {
+          "occurredAt": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/TransactionKind"
+          }
+        },
+        "required": [
+          "occurredAt",
+          "amount",
+          "type"
         ],
         "additionalProperties": false
       },

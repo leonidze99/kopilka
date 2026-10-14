@@ -4,3890 +4,4016 @@
  */
 
 export interface paths {
-    "/auth/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create an account and sign in */
-        post: operations["AuthController_register"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/auth/register': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Sign in with email and password */
-        post: operations["AuthController_login"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Create an account and sign in */
+    post: operations['AuthController_register'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/login': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Exchange the refresh_token cookie for new tokens
-         * @description Rotates the refresh token. Reusing an already rotated token revokes the whole session.
-         */
-        post: operations["AuthController_refresh"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Sign in with email and password */
+    post: operations['AuthController_login'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/refresh': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** End the session of the refresh_token cookie */
-        post: operations["AuthController_logout"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Exchange the refresh_token cookie for new tokens
+     * @description Rotates the refresh token. Reusing an already rotated token revokes the whole session.
+     */
+    post: operations['AuthController_refresh'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/logout': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The signed-in user */
-        get: operations["AuthController_me"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** End the session of the refresh_token cookie */
+    post: operations['AuthController_logout'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/me': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Change the password
-         * @description Needs the current password. Ends every other session at once; this one stays.
-         */
-        post: operations["AuthController_changePassword"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** The signed-in user */
+    get: operations['AuthController_me'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/password': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/password/forgot": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Email a link for setting a new password
-         * @description Answers 204 whether or not the address is registered: the form must not tell who has an account. At most one link a minute per account.
-         */
-        post: operations["AuthController_forgotPassword"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Change the password
+     * @description Needs the current password. Ends every other session at once; this one stays.
+     */
+    post: operations['AuthController_changePassword'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/password/forgot': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/password/reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Set a new password with an emailed token
-         * @description The token works once and ends every session of the account; the user signs in with the new password afterwards.
-         */
-        post: operations["AuthController_resetPassword"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Email a link for setting a new password
+     * @description Answers 204 whether or not the address is registered: the form must not tell who has an account. At most one link a minute per account.
+     */
+    post: operations['AuthController_forgotPassword'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/password/reset': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/notifications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Turn the budget letters on or off
-         * @description Off means no mail about an overspent budget, for every budget of the account.
-         */
-        put: operations["AuthController_setNotifications"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Set a new password with an emailed token
+     * @description The token works once and ends every session of the account; the user signs in with the new password afterwards.
+     */
+    post: operations['AuthController_resetPassword'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/notifications': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Signed-in devices
-         * @description Active sessions, the current one first.
-         */
-        get: operations["AuthController_listSessions"];
-        put?: never;
-        post?: never;
-        /**
-         * Sign out everywhere else
-         * @description Ends every session but the current one.
-         */
-        delete: operations["AuthController_revokeOtherSessions"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /**
+     * Turn the budget letters on or off
+     * @description Off means no mail about an overspent budget, for every budget of the account.
+     */
+    put: operations['AuthController_setNotifications'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/sessions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/sessions/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * End a session
-         * @description Its access and refresh tokens stop working at once. To sign out of this device, use /auth/logout: it also clears the cookie.
-         */
-        delete: operations["AuthController_revokeSession"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Signed-in devices
+     * @description Active sessions, the current one first.
+     */
+    get: operations['AuthController_listSessions'];
+    put?: never;
+    post?: never;
+    /**
+     * Sign out everywhere else
+     * @description Ends every session but the current one.
+     */
+    delete: operations['AuthController_revokeOtherSessions'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/sessions/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/health/live": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["HealthController_live"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * End a session
+     * @description Its access and refresh tokens stop working at once. To sign out of this device, use /auth/logout: it also clears the cookie.
+     */
+    delete: operations['AuthController_revokeSession'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/health/live': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/health/ready": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["HealthController_ready"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['HealthController_live'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/health/ready': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/accounts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Accounts of the user with their balances, oldest first */
-        get: operations["AccountsController_list"];
-        put?: never;
-        /** Create an account */
-        post: operations["AccountsController_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['HealthController_ready'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/accounts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/accounts/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete an account
-         * @description Refused with ACCOUNT_IN_USE while transactions use it.
-         */
-        delete: operations["AccountsController_remove"];
-        options?: never;
-        head?: never;
-        /**
-         * Change an account
-         * @description Refused with INSUFFICIENT_FUNDS if an account that must not go negative would end up below zero.
-         */
-        patch: operations["AccountsController_update"];
-        trace?: never;
+    /** Accounts of the user with their balances, oldest first */
+    get: operations['AccountsController_list'];
+    put?: never;
+    /** Create an account */
+    post: operations['AccountsController_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/accounts/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/budgets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Limits that apply in a month, with what was spent
-         * @description `from`/`to` are the bounds of `month` in the user’s time zone.
-         */
-        get: operations["BudgetsController_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete an account
+     * @description Refused with ACCOUNT_IN_USE while transactions use it.
+     */
+    delete: operations['AccountsController_remove'];
+    options?: never;
+    head?: never;
+    /**
+     * Change an account
+     * @description Refused with INSUFFICIENT_FUNDS if an account that must not go negative would end up below zero.
+     */
+    patch: operations['AccountsController_update'];
+    trace?: never;
+  };
+  '/budgets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/budgets/{categoryId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Set the limit of a category from a month on
-         * @description Applies until the next change; earlier months keep their limits. `amount: null` stops the budget from that month.
-         */
-        put: operations["BudgetsController_set"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Limits that apply in a month, with what was spent
+     * @description `from`/`to` are the bounds of `month` in the user’s time zone.
+     */
+    get: operations['BudgetsController_list'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/budgets/{categoryId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/categories": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Categories of the user, by kind and name */
-        get: operations["CategoriesController_list"];
-        put?: never;
-        /** Create a category */
-        post: operations["CategoriesController_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /**
+     * Set the limit of a category from a month on
+     * @description Applies until the next change; earlier months keep their limits. `amount: null` stops the budget from that month.
+     */
+    put: operations['BudgetsController_set'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/categories': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/categories/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete a category
-         * @description Refused with CATEGORY_IN_USE while transactions use it.
-         */
-        delete: operations["CategoriesController_remove"];
-        options?: never;
-        head?: never;
-        /** Rename a category (its kind is fixed) */
-        patch: operations["CategoriesController_rename"];
-        trace?: never;
+    /** Categories of the user, by kind and name */
+    get: operations['CategoriesController_list'];
+    put?: never;
+    /** Create a category */
+    post: operations['CategoriesController_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/categories/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/goals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Saving goals with their progress
-         * @description What is saved is the balance of the account each goal counts; the monthly amount is what makes the date.
-         */
-        get: operations["GoalsController_list"];
-        put?: never;
-        /** Start saving on an account */
-        post: operations["GoalsController_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete a category
+     * @description Refused with CATEGORY_IN_USE while transactions use it.
+     */
+    delete: operations['CategoriesController_remove'];
+    options?: never;
+    head?: never;
+    /** Rename a category (its kind is fixed) */
+    patch: operations['CategoriesController_rename'];
+    trace?: never;
+  };
+  '/goals': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/goals/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Replace a goal
-         * @description The account it counts may change with it.
-         */
-        put: operations["GoalsController_replace"];
-        post?: never;
-        /**
-         * Give up a goal
-         * @description The account and its money stay as they are.
-         */
-        delete: operations["GoalsController_remove"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Saving goals with their progress
+     * @description What is saved is the balance of the account each goal counts; the monthly amount is what makes the date.
+     */
+    get: operations['GoalsController_list'];
+    put?: never;
+    /** Start saving on an account */
+    post: operations['GoalsController_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/goals/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/imports": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Recent imports, newest first */
-        get: operations["ImportsController_list"];
-        put?: never;
-        /**
-         * Upload a bank statement (CSV)
-         * @description UTF-8 or Windows-1251, delimiter detected, the first line is the header. Up to 10 MB. Known bank formats come back with `preset` and the columns filled in.
-         */
-        post: operations["ImportsController_upload"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /**
+     * Replace a goal
+     * @description The account it counts may change with it.
+     */
+    put: operations['GoalsController_replace'];
+    post?: never;
+    /**
+     * Give up a goal
+     * @description The account and its money stay as they are.
+     */
+    delete: operations['GoalsController_remove'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/imports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/imports/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * An import: its rows, progress and summary
-         * @description Poll while `status` is `parsing` or `importing`.
-         */
-        get: operations["ImportsController_get"];
-        put?: never;
-        post?: never;
-        /**
-         * Discard an import
-         * @description Not while importing, and not once done: undo it first, then it may go.
-         */
-        delete: operations["ImportsController_remove"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Recent imports, newest first */
+    get: operations['ImportsController_list'];
+    put?: never;
+    /**
+     * Upload a bank statement (CSV)
+     * @description UTF-8 or Windows-1251, delimiter detected, the first line is the header. Up to 10 MB. Known bank formats come back with `preset` and the columns filled in.
+     */
+    post: operations['ImportsController_upload'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/imports/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/imports/{id}/mapping": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Choose the columns and the account
-         * @description Parses the rows in the background (`parsing` → `ready`) and finds those already imported into the account. May be sent again to read the file differently.
-         */
-        put: operations["ImportsController_setMapping"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * An import: its rows, progress and summary
+     * @description Poll while `status` is `parsing` or `importing`.
+     */
+    get: operations['ImportsController_get'];
+    put?: never;
+    post?: never;
+    /**
+     * Discard an import
+     * @description Not while importing, and not once done: undo it first, then it may go.
+     */
+    delete: operations['ImportsController_remove'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/imports/{id}/mapping': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/imports/{id}/commit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Choose the categories and import
-         * @description Creates the transactions in the background (`importing` → `done`), all or none. If the account must not go negative and would, the import goes back to `ready` with `error`. The categories are remembered for the next import.
-         */
-        post: operations["ImportsController_commit"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /**
+     * Choose the columns and the account
+     * @description Parses the rows in the background (`parsing` → `ready`) and finds those already imported into the account. May be sent again to read the file differently.
+     */
+    put: operations['ImportsController_setMapping'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/imports/{id}/commit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/imports/{id}/undo": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Undo an import
-         * @description Deletes the transactions it created, edited ones included, all or none (`done` → `undone`). INSUFFICIENT_FUNDS if removing its income would take an account that must not go negative below zero. The same file may then be imported again.
-         */
-        post: operations["ImportsController_undo"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Choose the categories and import
+     * @description Creates the transactions in the background (`importing` → `done`), all or none. If the account must not go negative and would, the import goes back to `ready` with `error`. The categories are remembered for the next import.
+     */
+    post: operations['ImportsController_commit'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/imports/{id}/undo': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/transactions/{id}/receipts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Attach a photo of the receipt to a transaction
-         * @description JPEG, PNG, WebP or AVIF, up to 15 MB; stored resized as WebP, without its metadata. At most 5 per transaction (CONFLICT).
-         */
-        post: operations["ReceiptsController_add"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Undo an import
+     * @description Deletes the transactions it created, edited ones included, all or none (`done` → `undone`). INSUFFICIENT_FUNDS if removing its income would take an account that must not go negative below zero. The same file may then be imported again.
+     */
+    post: operations['ImportsController_undo'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/transactions/{id}/receipts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/receipts/{id}/image": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The photo of a receipt */
-        get: operations["ReceiptsController_image"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Attach a photo of the receipt to a transaction
+     * @description JPEG, PNG, WebP or AVIF, up to 15 MB; stored resized as WebP, without its metadata. At most 5 per transaction (CONFLICT).
+     */
+    post: operations['ReceiptsController_add'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/receipts/scan': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/receipts/{id}/thumbnail": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** A small copy of the photo of a receipt */
-        get: operations["ReceiptsController_thumbnail"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Read the QR code of a receipt photo
+     * @description The time, the total and the kind of operation of a Russian cash receipt, to fill in a transaction before it is saved. Nothing is stored. `found: false` — no QR code on the photo; `receipt: null` with `found: true` — a code of something else.
+     */
+    post: operations['ReceiptsController_scan'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/receipts/{id}/image': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/receipts/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete the photo of a receipt */
-        delete: operations["ReceiptsController_remove"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** The photo of a receipt */
+    get: operations['ReceiptsController_image'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/receipts/{id}/thumbnail': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/recurring": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Recurring rules: active first, by next payment */
-        get: operations["RecurringController_list"];
-        put?: never;
-        /**
-         * Create a monthly income, expense or transfer
-         * @description The server makes each payment once its day begins in `timeZone`. Dates before today are not filled in.
-         */
-        post: operations["RecurringController_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** A small copy of the photo of a receipt */
+    get: operations['ReceiptsController_thumbnail'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/receipts/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/recurring/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Replace a recurring rule
-         * @description The schedule restarts from today, after the last payment already made.
-         */
-        put: operations["RecurringController_replace"];
-        post?: never;
-        /**
-         * Delete a recurring rule
-         * @description Transactions it already made stay.
-         */
-        delete: operations["RecurringController_remove"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete the photo of a receipt */
+    delete: operations['ReceiptsController_remove'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/recurring': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tags": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Tags of the user, by name */
-        get: operations["TagsController_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Recurring rules: active first, by next payment */
+    get: operations['RecurringController_list'];
+    put?: never;
+    /**
+     * Create a monthly income, expense or transfer
+     * @description The server makes each payment once its day begins in `timeZone`. Dates before today are not filled in.
+     */
+    post: operations['RecurringController_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/recurring/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tags/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete a tag
-         * @description Its transactions stay, without it.
-         */
-        delete: operations["TagsController_remove"];
-        options?: never;
-        head?: never;
-        /**
-         * Rename a tag
-         * @description Refused with CONFLICT if another tag has the name (case and ё/е aside).
-         */
-        patch: operations["TagsController_rename"];
-        trace?: never;
+    get?: never;
+    /**
+     * Replace a recurring rule
+     * @description The schedule restarts from today, after the last payment already made.
+     */
+    put: operations['RecurringController_replace'];
+    post?: never;
+    /**
+     * Delete a recurring rule
+     * @description Transactions it already made stay.
+     */
+    delete: operations['RecurringController_remove'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tags': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/transactions/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The matching transactions as a CSV file
-         * @description The filters of the feed, without paging. Semicolons, a comma for the decimal mark and a byte order mark: what a Russian Excel opens by double-click, and what the import reads back. Streamed, so the size of the file does not decide the memory of the server.
-         */
-        get: operations["TransactionsController_export"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Tags of the user, by name */
+    get: operations['TagsController_list'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tags/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/transactions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Transactions, newest first, a page at a time
-         * @description Cursor pagination: pass `nextCursor` of a page as `cursor` to get the next one.
-         */
-        get: operations["TransactionsController_list"];
-        put?: never;
-        /**
-         * Record an income, an expense or a transfer
-         * @description Refused with INSUFFICIENT_FUNDS if an account that must not go negative would end up below zero.
-         */
-        post: operations["TransactionsController_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete a tag
+     * @description Its transactions stay, without it.
+     */
+    delete: operations['TagsController_remove'];
+    options?: never;
+    head?: never;
+    /**
+     * Rename a tag
+     * @description Refused with CONFLICT if another tag has the name (case and ё/е aside).
+     */
+    patch: operations['TagsController_rename'];
+    trace?: never;
+  };
+  '/transactions/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/transactions/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Income, expense and balance over a period */
-        get: operations["TransactionsController_summary"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * The matching transactions as a CSV file
+     * @description The filters of the feed, without paging. Semicolons, a comma for the decimal mark and a byte order mark: what a Russian Excel opens by double-click, and what the import reads back. Streamed, so the size of the file does not decide the memory of the server.
+     */
+    get: operations['TransactionsController_export'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/transactions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/transactions/by-category": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Totals per category over a period, largest first
-         * @description Only categories with transactions in the period.
-         */
-        get: operations["TransactionsController_byCategory"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Transactions, newest first, a page at a time
+     * @description Cursor pagination: pass `nextCursor` of a page as `cursor` to get the next one.
+     */
+    get: operations['TransactionsController_list'];
+    put?: never;
+    /**
+     * Record an income, an expense or a transfer
+     * @description Refused with INSUFFICIENT_FUNDS if an account that must not go negative would end up below zero.
+     */
+    post: operations['TransactionsController_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/transactions/summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/transactions/monthly": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Income and expense per month
-         * @description Every month from `from` to `to`, months without transactions as zeros. Months begin and end in `timeZone`. Transfers are not counted.
-         */
-        get: operations["TransactionsController_monthly"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Income, expense and balance over a period */
+    get: operations['TransactionsController_summary'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/transactions/by-category': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/transactions/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Replace a transaction
-         * @description The whole transaction, as on create: it may change its type too.
-         */
-        put: operations["TransactionsController_update"];
-        post?: never;
-        /**
-         * Delete a transaction
-         * @description Refused with INSUFFICIENT_FUNDS if removing an income would take an account that must not go negative below zero.
-         */
-        delete: operations["TransactionsController_remove"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Totals per category over a period, largest first
+     * @description Only categories with transactions in the period.
+     */
+    get: operations['TransactionsController_byCategory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/transactions/monthly': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    /**
+     * Income and expense per month
+     * @description Every month from `from` to `to`, months without transactions as zeros. Months begin and end in `timeZone`. Transfers are not counted.
+     */
+    get: operations['TransactionsController_monthly'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/transactions/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Replace a transaction
+     * @description The whole transaction, as on create: it may change its type too.
+     */
+    put: operations['TransactionsController_update'];
+    post?: never;
+    /**
+     * Delete a transaction
+     * @description Refused with INSUFFICIENT_FUNDS if removing an income would take an account that must not go negative below zero.
+     */
+    delete: operations['TransactionsController_remove'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        RegisterRequest: {
-            /** Format: email */
-            email: string;
-            password: string;
-            /**
-             * @default UTC
-             * @example Europe/Moscow
-             */
-            timeZone: string;
-        };
-        AuthResponse: {
-            accessToken: string;
-            expiresIn: number;
-            user: components["schemas"]["User"];
-        };
-        User: {
-            /** Format: uuid */
-            id: string;
-            email: string;
-            budgetAlerts: boolean;
-        };
-        ApiError: {
-            code: components["schemas"]["ErrorCode"];
-            message: string;
-            requestId: string;
-            details?: components["schemas"]["ErrorDetail"][];
-        };
-        /** @enum {string} */
-        ErrorCode: "BAD_REQUEST" | "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "ACCOUNT_LOCKED" | "INVALID_RESET_TOKEN" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "CATEGORY_IN_USE" | "ACCOUNT_IN_USE" | "INSUFFICIENT_FUNDS" | "RATE_LIMITED" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
-        ErrorDetail: {
-            field?: string;
-            message: string;
-        };
-        LoginRequest: {
-            email: string;
-            password: string;
-        };
-        ChangePasswordRequest: {
-            currentPassword: string;
-            newPassword: string;
-        };
-        ForgotPasswordRequest: {
-            /** Format: email */
-            email: string;
-        };
-        ResetPasswordRequest: {
-            token: string;
-            newPassword: string;
-        };
-        NotificationSettings: {
-            budgetAlerts: boolean;
-        };
-        AuthSessionList: components["schemas"]["AuthSession"][];
-        AuthSession: {
-            /** Format: uuid */
-            id: string;
-            device: string;
-            ip: string | null;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            lastUsedAt: string;
-            current: boolean;
-        };
-        AccountList: {
-            items: components["schemas"]["Account"][];
-            total: string;
-        };
-        Account: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            type: components["schemas"]["AccountType"];
-            openingBalance: string;
-            allowNegative: boolean;
-            balance: string;
-        };
-        /** @enum {string} */
-        AccountType: "card" | "cash" | "savings";
-        CreateAccountRequest: {
-            name: string;
-            type: components["schemas"]["AccountType"];
-            /**
-             * @description Decimal with up to 2 fraction digits, e.g. "-1234.56"
-             * @example -1234.56
-             */
-            openingBalance?: string;
-            /** @default true */
-            allowNegative: boolean;
-        };
-        UpdateAccountRequest: {
-            name?: string;
-            type?: components["schemas"]["AccountType"];
-            /**
-             * @description Decimal with up to 2 fraction digits, e.g. "-1234.56"
-             * @example -1234.56
-             */
-            openingBalance?: string;
-            allowNegative?: boolean;
-        };
-        /** @example 2026-10 */
-        Month: string;
-        BudgetList: {
-            items: components["schemas"]["Budget"][];
-            total: {
-                limit: string;
-                spent: string;
-                remaining: string;
-            };
-        };
-        Budget: {
-            category: components["schemas"]["Category"];
-            limit: string;
-            spent: string;
-            remaining: string;
-            since: components["schemas"]["Month"];
-        };
-        Category: {
-            /** Format: uuid */
-            id: string;
-            kind: components["schemas"]["TransactionKind"];
-            name: string;
-        };
-        /** @enum {string} */
-        TransactionKind: "income" | "expense";
-        SetBudgetRequest: {
-            month: components["schemas"]["Month"];
-            /**
-             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
-             * @example 1234.56
-             */
-            amount: string | null;
-        };
-        CreateCategoryRequest: {
-            kind: components["schemas"]["TransactionKind"];
-            name: string;
-        };
-        UpdateCategoryRequest: {
-            name: string;
-        };
-        GoalList: components["schemas"]["Goal"][];
-        Goal: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            account: components["schemas"]["AccountRef"];
-            targetAmount: string;
-            targetDate: components["schemas"]["CalendarDate"] | null;
-            saved: string;
-            remaining: string;
-            percent: number;
-            monthly: string | null;
-        };
-        AccountRef: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            type: components["schemas"]["AccountType"];
-        };
-        /**
-         * Format: date
-         * @example 2026-10-05
-         */
-        CalendarDate: string;
-        GoalInput: {
-            /** Format: uuid */
-            accountId: string;
-            name: string;
-            /**
-             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
-             * @example 1234.56
-             */
-            targetAmount: string;
-            targetDate?: components["schemas"]["CalendarDate"] | null;
-        };
-        ImportSummaryList: components["schemas"]["ImportSummary"][];
-        ImportSummary: {
-            /** Format: uuid */
-            id: string;
-            fileName: string;
-            status: components["schemas"]["ImportStatus"];
-            /** Format: date-time */
-            createdAt: string;
-            account: components["schemas"]["AccountRef"] | null;
-            totalRows: number;
-            counts: components["schemas"]["ImportCounts"];
-        };
-        /** @enum {string} */
-        ImportStatus: "uploading" | "uploaded" | "parsing" | "ready" | "importing" | "done" | "failed" | "undone";
-        ImportCounts: {
-            new: number;
-            duplicate: number;
-            invalid: number;
-            skipped: number;
-            imported: number;
-            undone: number;
-        };
-        Import: {
-            /** Format: uuid */
-            id: string;
-            fileName: string;
-            status: components["schemas"]["ImportStatus"];
-            /** Format: date-time */
-            createdAt: string;
-            account: components["schemas"]["AccountRef"] | null;
-            totalRows: number;
-            counts: components["schemas"]["ImportCounts"];
-            timeZone: string | null;
-            headers: string[];
-            sample: string[][];
-            preset: string | null;
-            columns: components["schemas"]["ImportColumns"] | null;
-            processed: number;
-            errors: {
-                line: number;
-                message: string;
-            }[];
-            categories: components["schemas"]["ImportCategoryGroup"][];
-            possibleDuplicates: components["schemas"]["PossibleDuplicate"][];
-            error: string | null;
-        };
-        ImportColumns: {
-            date: number;
-            dateOrder: components["schemas"]["ImportDateOrder"];
-            amount: {
-                /** @enum {string} */
-                type: "signed";
-                column: number;
-            } | {
-                /** @enum {string} */
-                type: "split";
-                income: number;
-                expense: number;
-            };
-            description: number | null;
-            category: number | null;
-            status: {
-                column: number;
-                value: string;
-            } | null;
-        };
-        /** @enum {string} */
-        ImportDateOrder: "dmy" | "ymd" | "mdy";
-        ImportCategoryGroup: {
-            kind: components["schemas"]["TransactionKind"];
-            source: string | null;
-            rows: number;
-            total: string;
-            category: components["schemas"]["Category"] | null;
-            toAccount: components["schemas"]["AccountRef"] | null;
-        };
-        PossibleDuplicate: {
-            line: number;
-            kind: components["schemas"]["TransactionKind"];
-            amount: string;
-            /** Format: date-time */
-            occurredAt: string;
-            description: string | null;
-            source: string | null;
-            similar: {
-                /** Format: uuid */
-                id: string;
-                /** Format: date-time */
-                occurredAt: string;
-                comment: string | null;
-                label: string;
-            };
-        };
-        ImportMappingRequest: {
-            /** Format: uuid */
-            accountId: string;
-            /** @example Europe/Moscow */
-            timeZone: string;
-            columns: components["schemas"]["ImportColumns"];
-        };
-        ImportCommitRequest: {
-            categories: components["schemas"]["ImportGroupTarget"][];
-            /** @default [] */
-            skipLines: number[];
-        };
-        ImportGroupTarget: {
-            /** @enum {string} */
-            target: "category";
-            kind: components["schemas"]["TransactionKind"];
-            source: string | null;
-            /** Format: uuid */
-            categoryId: string;
-        } | {
-            /** @enum {string} */
-            target: "transfer";
-            kind: components["schemas"]["TransactionKind"];
-            source: string | null;
-            /** Format: uuid */
-            toAccountId: string;
-        };
-        Receipt: {
-            /** Format: uuid */
-            id: string;
-            width: number;
-            height: number;
-            size: number;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        RecurringRuleList: components["schemas"]["RecurringRule"][];
-        RecurringRule: components["schemas"]["CategorizedRecurringRule"] | components["schemas"]["RecurringTransferRule"];
-        CategorizedRecurringRule: {
-            type: components["schemas"]["TransactionKind"];
-            /** Format: uuid */
-            id: string;
-            amount: string;
-            comment: string | null;
-            account: components["schemas"]["AccountRef"];
-            startOn: components["schemas"]["CalendarDate"];
-            every: number;
-            unit: components["schemas"]["RecurringUnit"];
-            timeZone: string;
-            active: boolean;
-            nextOn: components["schemas"]["CalendarDate"];
-            lastError: string | null;
-            category: components["schemas"]["Category"];
-        };
-        /** @enum {string} */
-        RecurringUnit: "day" | "week" | "month";
-        RecurringTransferRule: {
-            /** @enum {string} */
-            type: "transfer";
-            /** Format: uuid */
-            id: string;
-            amount: string;
-            comment: string | null;
-            account: components["schemas"]["AccountRef"];
-            startOn: components["schemas"]["CalendarDate"];
-            every: number;
-            unit: components["schemas"]["RecurringUnit"];
-            timeZone: string;
-            active: boolean;
-            nextOn: components["schemas"]["CalendarDate"];
-            lastError: string | null;
-            toAccount: components["schemas"]["AccountRef"];
-        };
-        RecurringInput: components["schemas"]["CategorizedRecurringInput"] | components["schemas"]["RecurringTransferInput"];
-        CategorizedRecurringInput: {
-            type: components["schemas"]["TransactionKind"];
-            /** Format: uuid */
-            categoryId: string;
-            /** Format: uuid */
-            accountId: string;
-            /**
-             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
-             * @example 1234.56
-             */
-            amount: string;
-            comment?: string;
-            startOn: components["schemas"]["CalendarDate"];
-            /** @default 1 */
-            every: number;
-            /** @default month */
-            unit: components["schemas"]["RecurringUnit"];
-            /** @example Europe/Moscow */
-            timeZone: string;
-            /** @default true */
-            active: boolean;
-        };
-        RecurringTransferInput: {
-            /** @enum {string} */
-            type: "transfer";
-            /** Format: uuid */
-            toAccountId: string;
-            /** Format: uuid */
-            accountId: string;
-            /**
-             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
-             * @example 1234.56
-             */
-            amount: string;
-            comment?: string;
-            startOn: components["schemas"]["CalendarDate"];
-            /** @default 1 */
-            every: number;
-            /** @default month */
-            unit: components["schemas"]["RecurringUnit"];
-            /** @example Europe/Moscow */
-            timeZone: string;
-            /** @default true */
-            active: boolean;
-        };
-        Tag: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-        };
-        RenameTagRequest: {
-            name: string;
-        };
-        /** @enum {string} */
-        TransactionType: "income" | "expense" | "transfer";
-        TransactionPage: {
-            items: components["schemas"]["Transaction"][];
-            nextCursor: string | null;
-        };
-        Transaction: components["schemas"]["CategorizedTransaction"] | components["schemas"]["Transfer"];
-        CategorizedTransaction: {
-            type: components["schemas"]["TransactionKind"];
-            /** Format: uuid */
-            id: string;
-            amount: string;
-            comment: string | null;
-            /** Format: date-time */
-            occurredAt: string;
-            /** Format: date-time */
-            createdAt: string;
-            account: components["schemas"]["AccountRef"];
-            /** Format: uuid */
-            recurringRuleId: string | null;
-            tags: components["schemas"]["Tag"][];
-            receipts: components["schemas"]["Receipt"][];
-            category: components["schemas"]["Category"] | null;
-            splits: components["schemas"]["TransactionSplit"][];
-        };
-        TransactionSplit: {
-            category: components["schemas"]["Category"];
-            amount: string;
-        };
-        Transfer: {
-            /** @enum {string} */
-            type: "transfer";
-            /** Format: uuid */
-            id: string;
-            amount: string;
-            comment: string | null;
-            /** Format: date-time */
-            occurredAt: string;
-            /** Format: date-time */
-            createdAt: string;
-            account: components["schemas"]["AccountRef"];
-            /** Format: uuid */
-            recurringRuleId: string | null;
-            tags: components["schemas"]["Tag"][];
-            receipts: components["schemas"]["Receipt"][];
-            toAccount: components["schemas"]["AccountRef"];
-        };
-        TransactionSummary: {
-            income: string;
-            expense: string;
-            balance: string;
-        };
-        CategoryTotals: components["schemas"]["CategoryTotal"][];
-        CategoryTotal: {
-            category: components["schemas"]["Category"];
-            total: string;
-        };
-        MonthlyTotals: components["schemas"]["MonthlyTotal"][];
-        MonthlyTotal: {
-            month: components["schemas"]["Month"];
-            income: string;
-            expense: string;
-            balance: string;
-        };
-        TransactionInput: components["schemas"]["CategorizedTransactionInput"] | components["schemas"]["TransferInput"];
-        CategorizedTransactionInput: {
-            type: components["schemas"]["TransactionKind"];
-            /** Format: uuid */
-            categoryId?: string;
-            splits?: components["schemas"]["TransactionSplitInput"][];
-            /** Format: uuid */
-            accountId: string;
-            /**
-             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
-             * @example 1234.56
-             */
-            amount: string;
-            /** Format: date-time */
-            occurredAt: string;
-            comment?: string;
-            /** @default [] */
-            tags: string[];
-        };
-        TransactionSplitInput: {
-            /** Format: uuid */
-            categoryId: string;
-            /**
-             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
-             * @example 1234.56
-             */
-            amount: string;
-        };
-        TransferInput: {
-            /** @enum {string} */
-            type: "transfer";
-            /** Format: uuid */
-            toAccountId: string;
-            /** Format: uuid */
-            accountId: string;
-            /**
-             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
-             * @example 1234.56
-             */
-            amount: string;
-            /** Format: date-time */
-            occurredAt: string;
-            comment?: string;
-            /** @default [] */
-            tags: string[];
-        };
+  schemas: {
+    RegisterRequest: {
+      /** Format: email */
+      email: string;
+      password: string;
+      /**
+       * @default UTC
+       * @example Europe/Moscow
+       */
+      timeZone: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    AuthResponse: {
+      accessToken: string;
+      expiresIn: number;
+      user: components['schemas']['User'];
+    };
+    User: {
+      /** Format: uuid */
+      id: string;
+      email: string;
+      budgetAlerts: boolean;
+    };
+    ApiError: {
+      code: components['schemas']['ErrorCode'];
+      message: string;
+      requestId: string;
+      details?: components['schemas']['ErrorDetail'][];
+    };
+    /** @enum {string} */
+    ErrorCode:
+      | 'BAD_REQUEST'
+      | 'VALIDATION_FAILED'
+      | 'UNAUTHORIZED'
+      | 'INVALID_CREDENTIALS'
+      | 'ACCOUNT_LOCKED'
+      | 'INVALID_RESET_TOKEN'
+      | 'FORBIDDEN'
+      | 'NOT_FOUND'
+      | 'CONFLICT'
+      | 'CATEGORY_IN_USE'
+      | 'ACCOUNT_IN_USE'
+      | 'INSUFFICIENT_FUNDS'
+      | 'RATE_LIMITED'
+      | 'SERVICE_UNAVAILABLE'
+      | 'INTERNAL_ERROR';
+    ErrorDetail: {
+      field?: string;
+      message: string;
+    };
+    LoginRequest: {
+      email: string;
+      password: string;
+    };
+    ChangePasswordRequest: {
+      currentPassword: string;
+      newPassword: string;
+    };
+    ForgotPasswordRequest: {
+      /** Format: email */
+      email: string;
+    };
+    ResetPasswordRequest: {
+      token: string;
+      newPassword: string;
+    };
+    NotificationSettings: {
+      budgetAlerts: boolean;
+    };
+    AuthSessionList: components['schemas']['AuthSession'][];
+    AuthSession: {
+      /** Format: uuid */
+      id: string;
+      device: string;
+      ip: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      lastUsedAt: string;
+      current: boolean;
+    };
+    AccountList: {
+      items: components['schemas']['Account'][];
+      total: string;
+    };
+    Account: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+      type: components['schemas']['AccountType'];
+      openingBalance: string;
+      allowNegative: boolean;
+      balance: string;
+    };
+    /** @enum {string} */
+    AccountType: 'card' | 'cash' | 'savings';
+    CreateAccountRequest: {
+      name: string;
+      type: components['schemas']['AccountType'];
+      /**
+       * @description Decimal with up to 2 fraction digits, e.g. "-1234.56"
+       * @example -1234.56
+       */
+      openingBalance?: string;
+      /** @default true */
+      allowNegative: boolean;
+    };
+    UpdateAccountRequest: {
+      name?: string;
+      type?: components['schemas']['AccountType'];
+      /**
+       * @description Decimal with up to 2 fraction digits, e.g. "-1234.56"
+       * @example -1234.56
+       */
+      openingBalance?: string;
+      allowNegative?: boolean;
+    };
+    /** @example 2026-10 */
+    Month: string;
+    BudgetList: {
+      items: components['schemas']['Budget'][];
+      total: {
+        limit: string;
+        spent: string;
+        remaining: string;
+      };
+    };
+    Budget: {
+      category: components['schemas']['Category'];
+      limit: string;
+      spent: string;
+      remaining: string;
+      since: components['schemas']['Month'];
+    };
+    Category: {
+      /** Format: uuid */
+      id: string;
+      kind: components['schemas']['TransactionKind'];
+      name: string;
+    };
+    /** @enum {string} */
+    TransactionKind: 'income' | 'expense';
+    SetBudgetRequest: {
+      month: components['schemas']['Month'];
+      /**
+       * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+       * @example 1234.56
+       */
+      amount: string | null;
+    };
+    CreateCategoryRequest: {
+      kind: components['schemas']['TransactionKind'];
+      name: string;
+    };
+    UpdateCategoryRequest: {
+      name: string;
+    };
+    GoalList: components['schemas']['Goal'][];
+    Goal: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+      account: components['schemas']['AccountRef'];
+      targetAmount: string;
+      targetDate: components['schemas']['CalendarDate'] | null;
+      saved: string;
+      remaining: string;
+      percent: number;
+      monthly: string | null;
+    };
+    AccountRef: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+      type: components['schemas']['AccountType'];
+    };
+    /**
+     * Format: date
+     * @example 2026-10-05
+     */
+    CalendarDate: string;
+    GoalInput: {
+      /** Format: uuid */
+      accountId: string;
+      name: string;
+      /**
+       * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+       * @example 1234.56
+       */
+      targetAmount: string;
+      targetDate?: components['schemas']['CalendarDate'] | null;
+    };
+    ImportSummaryList: components['schemas']['ImportSummary'][];
+    ImportSummary: {
+      /** Format: uuid */
+      id: string;
+      fileName: string;
+      status: components['schemas']['ImportStatus'];
+      /** Format: date-time */
+      createdAt: string;
+      account: components['schemas']['AccountRef'] | null;
+      totalRows: number;
+      counts: components['schemas']['ImportCounts'];
+    };
+    /** @enum {string} */
+    ImportStatus:
+      | 'uploading'
+      | 'uploaded'
+      | 'parsing'
+      | 'ready'
+      | 'importing'
+      | 'done'
+      | 'failed'
+      | 'undone';
+    ImportCounts: {
+      new: number;
+      duplicate: number;
+      invalid: number;
+      skipped: number;
+      imported: number;
+      undone: number;
+    };
+    Import: {
+      /** Format: uuid */
+      id: string;
+      fileName: string;
+      status: components['schemas']['ImportStatus'];
+      /** Format: date-time */
+      createdAt: string;
+      account: components['schemas']['AccountRef'] | null;
+      totalRows: number;
+      counts: components['schemas']['ImportCounts'];
+      timeZone: string | null;
+      headers: string[];
+      sample: string[][];
+      preset: string | null;
+      columns: components['schemas']['ImportColumns'] | null;
+      processed: number;
+      errors: {
+        line: number;
+        message: string;
+      }[];
+      categories: components['schemas']['ImportCategoryGroup'][];
+      possibleDuplicates: components['schemas']['PossibleDuplicate'][];
+      error: string | null;
+    };
+    ImportColumns: {
+      date: number;
+      dateOrder: components['schemas']['ImportDateOrder'];
+      amount:
+        | {
+            /** @enum {string} */
+            type: 'signed';
+            column: number;
+          }
+        | {
+            /** @enum {string} */
+            type: 'split';
+            income: number;
+            expense: number;
+          };
+      description: number | null;
+      category: number | null;
+      status: {
+        column: number;
+        value: string;
+      } | null;
+    };
+    /** @enum {string} */
+    ImportDateOrder: 'dmy' | 'ymd' | 'mdy';
+    ImportCategoryGroup: {
+      kind: components['schemas']['TransactionKind'];
+      source: string | null;
+      rows: number;
+      total: string;
+      category: components['schemas']['Category'] | null;
+      toAccount: components['schemas']['AccountRef'] | null;
+    };
+    PossibleDuplicate: {
+      line: number;
+      kind: components['schemas']['TransactionKind'];
+      amount: string;
+      /** Format: date-time */
+      occurredAt: string;
+      description: string | null;
+      source: string | null;
+      similar: {
+        /** Format: uuid */
+        id: string;
+        /** Format: date-time */
+        occurredAt: string;
+        comment: string | null;
+        label: string;
+      };
+    };
+    ImportMappingRequest: {
+      /** Format: uuid */
+      accountId: string;
+      /** @example Europe/Moscow */
+      timeZone: string;
+      columns: components['schemas']['ImportColumns'];
+    };
+    ImportCommitRequest: {
+      categories: components['schemas']['ImportGroupTarget'][];
+      /** @default [] */
+      skipLines: number[];
+    };
+    ImportGroupTarget:
+      | {
+          /** @enum {string} */
+          target: 'category';
+          kind: components['schemas']['TransactionKind'];
+          source: string | null;
+          /** Format: uuid */
+          categoryId: string;
+        }
+      | {
+          /** @enum {string} */
+          target: 'transfer';
+          kind: components['schemas']['TransactionKind'];
+          source: string | null;
+          /** Format: uuid */
+          toAccountId: string;
+        };
+    Receipt: {
+      /** Format: uuid */
+      id: string;
+      width: number;
+      height: number;
+      size: number;
+      /** Format: date-time */
+      createdAt: string;
+    };
+    ReceiptScan: {
+      found: boolean;
+      receipt: components['schemas']['ReceiptQr'] | null;
+    };
+    ReceiptQr: {
+      occurredAt: string;
+      amount: string;
+      type: components['schemas']['TransactionKind'];
+    };
+    RecurringRuleList: components['schemas']['RecurringRule'][];
+    RecurringRule:
+      | components['schemas']['CategorizedRecurringRule']
+      | components['schemas']['RecurringTransferRule'];
+    CategorizedRecurringRule: {
+      type: components['schemas']['TransactionKind'];
+      /** Format: uuid */
+      id: string;
+      amount: string;
+      comment: string | null;
+      account: components['schemas']['AccountRef'];
+      startOn: components['schemas']['CalendarDate'];
+      every: number;
+      unit: components['schemas']['RecurringUnit'];
+      timeZone: string;
+      active: boolean;
+      nextOn: components['schemas']['CalendarDate'];
+      lastError: string | null;
+      category: components['schemas']['Category'];
+    };
+    /** @enum {string} */
+    RecurringUnit: 'day' | 'week' | 'month';
+    RecurringTransferRule: {
+      /** @enum {string} */
+      type: 'transfer';
+      /** Format: uuid */
+      id: string;
+      amount: string;
+      comment: string | null;
+      account: components['schemas']['AccountRef'];
+      startOn: components['schemas']['CalendarDate'];
+      every: number;
+      unit: components['schemas']['RecurringUnit'];
+      timeZone: string;
+      active: boolean;
+      nextOn: components['schemas']['CalendarDate'];
+      lastError: string | null;
+      toAccount: components['schemas']['AccountRef'];
+    };
+    RecurringInput:
+      | components['schemas']['CategorizedRecurringInput']
+      | components['schemas']['RecurringTransferInput'];
+    CategorizedRecurringInput: {
+      type: components['schemas']['TransactionKind'];
+      /** Format: uuid */
+      categoryId: string;
+      /** Format: uuid */
+      accountId: string;
+      /**
+       * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+       * @example 1234.56
+       */
+      amount: string;
+      comment?: string;
+      startOn: components['schemas']['CalendarDate'];
+      /** @default 1 */
+      every: number;
+      /** @default month */
+      unit: components['schemas']['RecurringUnit'];
+      /** @example Europe/Moscow */
+      timeZone: string;
+      /** @default true */
+      active: boolean;
+    };
+    RecurringTransferInput: {
+      /** @enum {string} */
+      type: 'transfer';
+      /** Format: uuid */
+      toAccountId: string;
+      /** Format: uuid */
+      accountId: string;
+      /**
+       * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+       * @example 1234.56
+       */
+      amount: string;
+      comment?: string;
+      startOn: components['schemas']['CalendarDate'];
+      /** @default 1 */
+      every: number;
+      /** @default month */
+      unit: components['schemas']['RecurringUnit'];
+      /** @example Europe/Moscow */
+      timeZone: string;
+      /** @default true */
+      active: boolean;
+    };
+    Tag: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    RenameTagRequest: {
+      name: string;
+    };
+    /** @enum {string} */
+    TransactionType: 'income' | 'expense' | 'transfer';
+    TransactionPage: {
+      items: components['schemas']['Transaction'][];
+      nextCursor: string | null;
+    };
+    Transaction:
+      | components['schemas']['CategorizedTransaction']
+      | components['schemas']['Transfer'];
+    CategorizedTransaction: {
+      type: components['schemas']['TransactionKind'];
+      /** Format: uuid */
+      id: string;
+      amount: string;
+      comment: string | null;
+      /** Format: date-time */
+      occurredAt: string;
+      /** Format: date-time */
+      createdAt: string;
+      account: components['schemas']['AccountRef'];
+      /** Format: uuid */
+      recurringRuleId: string | null;
+      tags: components['schemas']['Tag'][];
+      receipts: components['schemas']['Receipt'][];
+      category: components['schemas']['Category'] | null;
+      splits: components['schemas']['TransactionSplit'][];
+    };
+    TransactionSplit: {
+      category: components['schemas']['Category'];
+      amount: string;
+    };
+    Transfer: {
+      /** @enum {string} */
+      type: 'transfer';
+      /** Format: uuid */
+      id: string;
+      amount: string;
+      comment: string | null;
+      /** Format: date-time */
+      occurredAt: string;
+      /** Format: date-time */
+      createdAt: string;
+      account: components['schemas']['AccountRef'];
+      /** Format: uuid */
+      recurringRuleId: string | null;
+      tags: components['schemas']['Tag'][];
+      receipts: components['schemas']['Receipt'][];
+      toAccount: components['schemas']['AccountRef'];
+    };
+    TransactionSummary: {
+      income: string;
+      expense: string;
+      balance: string;
+    };
+    CategoryTotals: components['schemas']['CategoryTotal'][];
+    CategoryTotal: {
+      category: components['schemas']['Category'];
+      total: string;
+    };
+    MonthlyTotals: components['schemas']['MonthlyTotal'][];
+    MonthlyTotal: {
+      month: components['schemas']['Month'];
+      income: string;
+      expense: string;
+      balance: string;
+    };
+    TransactionInput:
+      | components['schemas']['CategorizedTransactionInput']
+      | components['schemas']['TransferInput'];
+    CategorizedTransactionInput: {
+      type: components['schemas']['TransactionKind'];
+      /** Format: uuid */
+      categoryId?: string;
+      splits?: components['schemas']['TransactionSplitInput'][];
+      /** Format: uuid */
+      accountId: string;
+      /**
+       * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+       * @example 1234.56
+       */
+      amount: string;
+      /** Format: date-time */
+      occurredAt: string;
+      comment?: string;
+      /** @default [] */
+      tags: string[];
+    };
+    TransactionSplitInput: {
+      /** Format: uuid */
+      categoryId: string;
+      /**
+       * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+       * @example 1234.56
+       */
+      amount: string;
+    };
+    TransferInput: {
+      /** @enum {string} */
+      type: 'transfer';
+      /** Format: uuid */
+      toAccountId: string;
+      /** Format: uuid */
+      accountId: string;
+      /**
+       * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+       * @example 1234.56
+       */
+      amount: string;
+      /** Format: date-time */
+      occurredAt: string;
+      comment?: string;
+      /** @default [] */
+      tags: string[];
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    AuthController_register: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegisterRequest"];
-            };
-        };
-        responses: {
-            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthResponse"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description RATE_LIMITED: see the Retry-After header */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  AuthController_register: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    AuthController_login: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LoginRequest"];
-            };
-        };
-        responses: {
-            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthResponse"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description RATE_LIMITED: see the Retry-After header */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RegisterRequest'];
+      };
     };
-    AuthController_refresh: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). */
+      201: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthResponse"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['AuthResponse'];
         };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description RATE_LIMITED: see the Retry-After header */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    AuthController_logout: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Clears the refresh_token cookie. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+  };
+  AuthController_login: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    AuthController_me: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["User"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LoginRequest'];
+      };
     };
-    AuthController_changePassword: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChangePasswordRequest"];
-            };
+        content: {
+          'application/json': components['schemas']['AuthResponse'];
         };
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description RATE_LIMITED: see the Retry-After header */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description RATE_LIMITED: see the Retry-After header */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    AuthController_forgotPassword: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ForgotPasswordRequest"];
-            };
-        };
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description RATE_LIMITED: see the Retry-After header */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AuthController_refresh: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    AuthController_resetPassword: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ResetPasswordRequest"];
-            };
+        content: {
+          'application/json': components['schemas']['AuthResponse'];
         };
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description RATE_LIMITED: see the Retry-After header */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    AuthController_setNotifications: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NotificationSettings"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["User"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AuthController_logout: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    AuthController_listSessions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Clears the refresh_token cookie. */
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthSessionList"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+        content?: never;
+      };
     };
-    AuthController_revokeOtherSessions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AuthController_me: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    AuthController_revokeSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['User'];
         };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    HealthController_live: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The Health Check is successful */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /**
-                         * @example ok
-                         * @enum {string}
-                         */
-                        status?: "ok" | "degraded";
-                        /**
-                         * @example {
-                         *       "database": {
-                         *         "status": "up",
-                         *         "responseTime": 12
-                         *       }
-                         *     }
-                         */
-                        info?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        } | null;
-                        /** @example {} */
-                        error?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        } | null;
-                        /**
-                         * @example {
-                         *       "database": {
-                         *         "status": "up",
-                         *         "responseTime": 12
-                         *       }
-                         *     }
-                         */
-                        details?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        };
-                    };
-                };
-            };
-            /** @description The Health Check is not successful */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /**
-                         * @example error
-                         * @enum {string}
-                         */
-                        status?: "error" | "shutting_down";
-                        /**
-                         * @example {
-                         *       "database": {
-                         *         "status": "up",
-                         *         "responseTime": 12
-                         *       }
-                         *     }
-                         */
-                        info?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        } | null;
-                        /**
-                         * @example {
-                         *       "redis": {
-                         *         "status": "down",
-                         *         "message": "Could not connect",
-                         *         "responseTime": 3005
-                         *       }
-                         *     }
-                         */
-                        error?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        } | null;
-                        /**
-                         * @example {
-                         *       "database": {
-                         *         "status": "up",
-                         *         "responseTime": 12
-                         *       },
-                         *       "redis": {
-                         *         "status": "down",
-                         *         "message": "Could not connect",
-                         *         "responseTime": 3005
-                         *       }
-                         *     }
-                         */
-                        details?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        };
-                    };
-                };
-            };
-        };
+  };
+  AuthController_changePassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    HealthController_ready: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The Health Check is successful */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /**
-                         * @example ok
-                         * @enum {string}
-                         */
-                        status?: "ok" | "degraded";
-                        /**
-                         * @example {
-                         *       "database": {
-                         *         "status": "up",
-                         *         "responseTime": 12
-                         *       }
-                         *     }
-                         */
-                        info?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        } | null;
-                        /** @example {} */
-                        error?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        } | null;
-                        /**
-                         * @example {
-                         *       "database": {
-                         *         "status": "up",
-                         *         "responseTime": 12
-                         *       }
-                         *     }
-                         */
-                        details?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        };
-                    };
-                };
-            };
-            /** @description The Health Check is not successful */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /**
-                         * @example error
-                         * @enum {string}
-                         */
-                        status?: "error" | "shutting_down";
-                        /**
-                         * @example {
-                         *       "database": {
-                         *         "status": "up",
-                         *         "responseTime": 12
-                         *       }
-                         *     }
-                         */
-                        info?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        } | null;
-                        /**
-                         * @example {
-                         *       "redis": {
-                         *         "status": "down",
-                         *         "message": "Could not connect",
-                         *         "responseTime": 3005
-                         *       }
-                         *     }
-                         */
-                        error?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        } | null;
-                        /**
-                         * @example {
-                         *       "database": {
-                         *         "status": "up",
-                         *         "responseTime": 12
-                         *       },
-                         *       "redis": {
-                         *         "status": "down",
-                         *         "message": "Could not connect",
-                         *         "responseTime": 3005
-                         *       }
-                         *     }
-                         */
-                        details?: {
-                            [key: string]: {
-                                /** @enum {string} */
-                                status: "up" | "degraded" | "down";
-                                /** @description Time the health indicator took to respond, in ms */
-                                responseTime?: number;
-                            } & {
-                                [key: string]: unknown;
-                            };
-                        };
-                    };
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ChangePasswordRequest'];
+      };
     };
-    AccountsController_list: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AccountList"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content?: never;
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description RATE_LIMITED: see the Retry-After header */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    AccountsController_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateAccountRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Account"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AuthController_forgotPassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    AccountsController_remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ForgotPasswordRequest'];
+      };
     };
-    AccountsController_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateAccountRequest"];
-            };
+        content?: never;
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Account"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['ApiError'];
         };
+      };
+      /** @description RATE_LIMITED: see the Retry-After header */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    BudgetsController_list: {
-        parameters: {
-            query: {
-                month: components["schemas"]["Month"];
-                from: string;
-                to: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BudgetList"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AuthController_resetPassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    BudgetsController_set: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                categoryId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetBudgetRequest"];
-            };
-        };
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ResetPasswordRequest'];
+      };
     };
-    CategoriesController_list: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Category"][];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content?: never;
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description RATE_LIMITED: see the Retry-After header */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    CategoriesController_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateCategoryRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Category"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AuthController_setNotifications: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    CategoriesController_remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['NotificationSettings'];
+      };
     };
-    CategoriesController_rename: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateCategoryRequest"];
-            };
+        content: {
+          'application/json': components['schemas']['User'];
         };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Category"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    GoalsController_list: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GoalList"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AuthController_listSessions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    GoalsController_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GoalInput"];
-            };
+        content: {
+          'application/json': components['schemas']['AuthSessionList'];
         };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Goal"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    GoalsController_replace: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GoalInput"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Goal"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AuthController_revokeOtherSessions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    GoalsController_remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content?: never;
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    ImportsController_list: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportSummaryList"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AuthController_revokeSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    ImportsController_upload: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "multipart/form-data": {
-                    /** Format: binary */
-                    file: string;
-                };
-            };
+        content?: never;
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
         };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Import"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description VALIDATION_FAILED: the file is too large */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description RATE_LIMITED: see the Retry-After header */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['ApiError'];
         };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    ImportsController_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Import"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  HealthController_live: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    ImportsController_remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description The Health Check is successful */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
+        content: {
+          'application/json': {
+            /**
+             * @example ok
+             * @enum {string}
+             */
+            status?: 'ok' | 'degraded';
+            /**
+             * @example {
+             *       "database": {
+             *         "status": "up",
+             *         "responseTime": 12
+             *       }
+             *     }
+             */
+            info?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
+            } | null;
+            /** @example {} */
+            error?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
+            } | null;
+            /**
+             * @example {
+             *       "database": {
+             *         "status": "up",
+             *         "responseTime": 12
+             *       }
+             *     }
+             */
+            details?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
             };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+          };
         };
+      };
+      /** @description The Health Check is not successful */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /**
+             * @example error
+             * @enum {string}
+             */
+            status?: 'error' | 'shutting_down';
+            /**
+             * @example {
+             *       "database": {
+             *         "status": "up",
+             *         "responseTime": 12
+             *       }
+             *     }
+             */
+            info?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
+            } | null;
+            /**
+             * @example {
+             *       "redis": {
+             *         "status": "down",
+             *         "message": "Could not connect",
+             *         "responseTime": 3005
+             *       }
+             *     }
+             */
+            error?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
+            } | null;
+            /**
+             * @example {
+             *       "database": {
+             *         "status": "up",
+             *         "responseTime": 12
+             *       },
+             *       "redis": {
+             *         "status": "down",
+             *         "message": "Could not connect",
+             *         "responseTime": 3005
+             *       }
+             *     }
+             */
+            details?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
+            };
+          };
+        };
+      };
     };
-    ImportsController_setMapping: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ImportMappingRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Import"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  HealthController_ready: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    ImportsController_commit: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description The Health Check is successful */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ImportCommitRequest"];
+        content: {
+          'application/json': {
+            /**
+             * @example ok
+             * @enum {string}
+             */
+            status?: 'ok' | 'degraded';
+            /**
+             * @example {
+             *       "database": {
+             *         "status": "up",
+             *         "responseTime": 12
+             *       }
+             *     }
+             */
+            info?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
+            } | null;
+            /** @example {} */
+            error?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
+            } | null;
+            /**
+             * @example {
+             *       "database": {
+             *         "status": "up",
+             *         "responseTime": 12
+             *       }
+             *     }
+             */
+            details?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
             };
+          };
         };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Import"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+      };
+      /** @description The Health Check is not successful */
+      503: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': {
+            /**
+             * @example error
+             * @enum {string}
+             */
+            status?: 'error' | 'shutting_down';
+            /**
+             * @example {
+             *       "database": {
+             *         "status": "up",
+             *         "responseTime": 12
+             *       }
+             *     }
+             */
+            info?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
+            } | null;
+            /**
+             * @example {
+             *       "redis": {
+             *         "status": "down",
+             *         "message": "Could not connect",
+             *         "responseTime": 3005
+             *       }
+             *     }
+             */
+            error?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
+            } | null;
+            /**
+             * @example {
+             *       "database": {
+             *         "status": "up",
+             *         "responseTime": 12
+             *       },
+             *       "redis": {
+             *         "status": "down",
+             *         "message": "Could not connect",
+             *         "responseTime": 3005
+             *       }
+             *     }
+             */
+            details?: {
+              [key: string]: {
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
+              } & {
+                [key: string]: unknown;
+              };
+            };
+          };
+        };
+      };
     };
-    ImportsController_undo: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Import"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AccountsController_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    ReceiptsController_add: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "multipart/form-data": {
-                    /** Format: binary */
-                    file: string;
-                };
-            };
+        content: {
+          'application/json': components['schemas']['AccountList'];
         };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Receipt"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description VALIDATION_FAILED: the file is too large */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description RATE_LIMITED: see the Retry-After header */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    ReceiptsController_image: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description image/webp */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "image/webp": string;
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AccountsController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    ReceiptsController_thumbnail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description image/webp */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "image/webp": string;
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateAccountRequest'];
+      };
     };
-    ReceiptsController_remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['Account'];
         };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    RecurringController_list: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecurringRuleList"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AccountsController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    RecurringController_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RecurringInput"];
-            };
+        content?: never;
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
         };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecurringRule"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['ApiError'];
         };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    RecurringController_replace: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RecurringInput"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecurringRule"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  AccountsController_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    RecurringController_remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateAccountRequest'];
+      };
     };
-    TagsController_list: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Tag"][];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['Account'];
         };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    TagsController_remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  BudgetsController_list: {
+    parameters: {
+      query: {
+        month: components['schemas']['Month'];
+        from: string;
+        to: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    TagsController_rename: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RenameTagRequest"];
-            };
+        content: {
+          'application/json': components['schemas']['BudgetList'];
         };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Tag"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    TransactionsController_export: {
-        parameters: {
-            query: {
-                from?: string;
-                to?: string;
-                categoryId?: string;
-                accountId?: string;
-                type?: components["schemas"]["TransactionType"];
-                tagId?: string;
-                q?: string;
-                timeZone: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description text/csv; charset=utf-8, as an attachment */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/csv": string;
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  BudgetsController_set: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        categoryId: string;
+      };
+      cookie?: never;
     };
-    TransactionsController_list: {
-        parameters: {
-            query?: {
-                cursor?: string;
-                limit?: number;
-                from?: string;
-                to?: string;
-                categoryId?: string;
-                accountId?: string;
-                type?: components["schemas"]["TransactionType"];
-                tagId?: string;
-                q?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TransactionPage"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SetBudgetRequest'];
+      };
     };
-    TransactionsController_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TransactionInput"];
-            };
+        content?: never;
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Transaction"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['ApiError'];
         };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    TransactionsController_summary: {
-        parameters: {
-            query?: {
-                from?: string;
-                to?: string;
-                tagId?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TransactionSummary"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  CategoriesController_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    TransactionsController_byCategory: {
-        parameters: {
-            query?: {
-                from?: string;
-                to?: string;
-                tagId?: string;
-                kind?: components["schemas"]["TransactionKind"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CategoryTotals"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['Category'][];
         };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
-    TransactionsController_monthly: {
-        parameters: {
-            query: {
-                from: components["schemas"]["Month"];
-                to: components["schemas"]["Month"];
-                timeZone: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MonthlyTotals"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  CategoriesController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    TransactionsController_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TransactionInput"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Transaction"];
-                };
-            };
-            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateCategoryRequest'];
+      };
     };
-    TransactionsController_remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description NOT_FOUND */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description CONFLICT: clashes with existing data */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['Category'];
         };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
     };
+  };
+  CategoriesController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  CategoriesController_rename: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateCategoryRequest'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Category'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  GoalsController_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['GoalList'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  GoalsController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['GoalInput'];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Goal'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  GoalsController_replace: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['GoalInput'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Goal'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  GoalsController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ImportsController_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ImportSummaryList'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ImportsController_upload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'multipart/form-data': {
+          /** Format: binary */
+          file: string;
+        };
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Import'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description VALIDATION_FAILED: the file is too large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description RATE_LIMITED: see the Retry-After header */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ImportsController_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Import'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ImportsController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ImportsController_setMapping: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ImportMappingRequest'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Import'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ImportsController_commit: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ImportCommitRequest'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Import'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ImportsController_undo: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Import'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ReceiptsController_add: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'multipart/form-data': {
+          /** Format: binary */
+          file: string;
+        };
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Receipt'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description VALIDATION_FAILED: the file is too large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description RATE_LIMITED: see the Retry-After header */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ReceiptsController_scan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'multipart/form-data': {
+          /** Format: binary */
+          file: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReceiptScan'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description VALIDATION_FAILED: the file is too large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description RATE_LIMITED: see the Retry-After header */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ReceiptsController_image: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description image/webp */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'image/webp': string;
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ReceiptsController_thumbnail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description image/webp */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'image/webp': string;
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  ReceiptsController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  RecurringController_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecurringRuleList'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  RecurringController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecurringInput'];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecurringRule'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  RecurringController_replace: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecurringInput'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecurringRule'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  RecurringController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  TagsController_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Tag'][];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  TagsController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  TagsController_rename: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RenameTagRequest'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Tag'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  TransactionsController_export: {
+    parameters: {
+      query: {
+        from?: string;
+        to?: string;
+        categoryId?: string;
+        accountId?: string;
+        type?: components['schemas']['TransactionType'];
+        tagId?: string;
+        q?: string;
+        timeZone: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description text/csv; charset=utf-8, as an attachment */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/csv': string;
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  TransactionsController_list: {
+    parameters: {
+      query?: {
+        cursor?: string;
+        limit?: number;
+        from?: string;
+        to?: string;
+        categoryId?: string;
+        accountId?: string;
+        type?: components['schemas']['TransactionType'];
+        tagId?: string;
+        q?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TransactionPage'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  TransactionsController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TransactionInput'];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Transaction'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  TransactionsController_summary: {
+    parameters: {
+      query?: {
+        from?: string;
+        to?: string;
+        tagId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TransactionSummary'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  TransactionsController_byCategory: {
+    parameters: {
+      query?: {
+        from?: string;
+        to?: string;
+        tagId?: string;
+        kind?: components['schemas']['TransactionKind'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CategoryTotals'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  TransactionsController_monthly: {
+    parameters: {
+      query: {
+        from: components['schemas']['Month'];
+        to: components['schemas']['Month'];
+        timeZone: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MonthlyTotals'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  TransactionsController_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TransactionInput'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Transaction'];
+        };
+      };
+      /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  TransactionsController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description NOT_FOUND */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      /** @description CONFLICT: clashes with existing data */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
 }
