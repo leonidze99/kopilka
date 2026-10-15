@@ -56,7 +56,13 @@ export class BaseCurrencyService {
     }
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { id: true, email: true, budgetAlerts: true, baseCurrency: true },
+      select: {
+        id: true,
+        email: true,
+        budgetAlerts: true,
+        recurringAlerts: true,
+        baseCurrency: true,
+      },
     });
     return { ...user, baseCurrency: user.baseCurrency as Currency };
   }

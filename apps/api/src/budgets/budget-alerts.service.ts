@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import type { Tx } from '../accounts/accounts.service.js';
 import type { Env } from '../config/env.js';
 import { Prisma } from '../generated/prisma/client.js';
+import { escapeHtml } from '../mail/html.js';
 import { type Mail, MailerService } from '../mail/mailer.service.js';
 import { formatMoney } from '../common/money.js';
 import { isPrismaError, PrismaCode } from '../prisma/prisma-errors.js';
@@ -41,14 +42,6 @@ interface Alert {
   /** Who and what, for the log if it fails. */
   about: Record<string, string>;
 }
-
-/** Names are the user's own text: into HTML only escaped. */
-const escapeHtml = (text: string) =>
-  text.replace(
-    /[&<>"]/g,
-    (char) =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]!,
-  );
 
 const monthName = new Intl.DateTimeFormat('ru-RU', {
   month: 'long',

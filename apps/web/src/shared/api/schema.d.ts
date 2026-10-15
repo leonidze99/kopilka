@@ -948,6 +948,7 @@ export interface components {
             id: string;
             email: string;
             budgetAlerts: boolean;
+            recurringAlerts: boolean;
             baseCurrency: components["schemas"]["Currency"];
         };
         /**
@@ -984,7 +985,8 @@ export interface components {
             newPassword: string;
         };
         NotificationSettings: {
-            budgetAlerts: boolean;
+            budgetAlerts?: boolean;
+            recurringAlerts?: boolean;
         };
         AuthSessionList: components["schemas"]["AuthSession"][];
         AuthSession: {

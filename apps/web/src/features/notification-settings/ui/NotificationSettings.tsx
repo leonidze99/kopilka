@@ -7,9 +7,9 @@ import { errorMessage } from '@/shared/lib';
 import { FormError, Switch } from '@/shared/ui';
 
 /**
- * The one setting there is: mail when a budget of the month is overspent.
- * The switch follows the user in the session, so it is right after a
- * reload without a request of its own.
+ * The letters: about an overspent budget, about a recurring payment that
+ * could not be made. The switches follow the user in the session, so they
+ * are right after a reload without a request of their own.
  */
 export function NotificationSettings() {
   const user = useSelector(selectCurrentUser);
@@ -25,6 +25,15 @@ export function NotificationSettings() {
         disabled={isLoading || !user}
         onChange={(event) =>
           void setNotifications({ budgetAlerts: event.target.checked })
+        }
+      />
+      <Switch
+        label="Письма о пропущенных платежах"
+        description="Когда регулярный платёж не прошёл: на счёте не хватило денег или нет курса ЦБ"
+        checked={user?.recurringAlerts ?? false}
+        disabled={isLoading || !user}
+        onChange={(event) =>
+          void setNotifications({ recurringAlerts: event.target.checked })
         }
       />
       {error && <FormError message={errorMessage(error)} />}

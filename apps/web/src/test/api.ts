@@ -9,6 +9,7 @@ export const USER = {
   id: '0199d0a4-5b6e-7c3d-8e9f-0a1b2c3d4e5f',
   email: 'user@example.com',
   budgetAlerts: true,
+  recurringAlerts: true,
   baseCurrency: 'RUB' as const,
 };
 

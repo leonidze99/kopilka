@@ -134,7 +134,22 @@ export class RecurringRunner {
       );
 
       const on = dateOf(rule.next_on);
-      const lastError = await this.make(tx, rule, on);
+      const skipped = await this.make(tx, rule, on);
+      // Remembered for the letter (RecurringAlertsService): last_error
+      // keeps only the latest, and a payment that goes through clears it.
+      if (skipped) {
+        await tx.recurringSkip.createMany({
+          data: {
+            userId: rule.user_id,
+            ruleId: rule.id,
+            onDate: rule.next_on,
+            reason: skipped,
+          },
+          skipDuplicates: true,
+        });
+      }
+      const lastError =
+        skipped && `${dayFormat.format(rule.next_on)}: ${skipped}`;
 
       const nextIndex = rule.next_index + 1;
       await tx.recurringRule.update({
@@ -186,7 +201,7 @@ export class RecurringRunner {
 
   /**
    * Creates the transaction of one occurrence, or explains why not. Returns
-   * the error to keep on the rule (null: made).
+   * why it was skipped, as the user reads it (null: made).
    */
   private async make(
     tx: Tx,
@@ -219,7 +234,7 @@ export class RecurringRunner {
           { ruleId: rule.id, on },
           'Recurring payment skipped: account must not go negative',
         );
-        return `${dayFormat.format(rule.next_on)}: на счёте «${shortfall.account}» не хватило ${shortfall.missing}`;
+        return `на счёте «${shortfall.account}» не хватило ${shortfall.missing}`;
       }
     }
 
@@ -239,7 +254,7 @@ export class RecurringRunner {
         { ruleId: rule.id, on, currency: rate.currency },
         'Recurring payment skipped: no exchange rate',
       );
-      return `${dayFormat.format(rule.next_on)}: нет курса ЦБ для ${rate.currency}`;
+      return `нет курса ЦБ для ${rate.currency}`;
     }
 
     await tx.transaction.create({

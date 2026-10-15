@@ -63,14 +63,18 @@ export const userSchema = z
     email: z.string(),
     /** Mail when a budget of the month is overspent. */
     budgetAlerts: z.boolean(),
+    /** Mail when a recurring payment could not be made. */
+    recurringAlerts: z.boolean(),
     /** Totals, budgets and analytics are in it; accounts have their own. */
     baseCurrency: currencySchema,
   })
   .meta({ id: 'User' });
 
+/** Either switch, or both: what is left out stays as it is. */
 export const notificationSettingsSchema = z
   .object({
-    budgetAlerts: z.boolean(),
+    budgetAlerts: z.boolean().optional(),
+    recurringAlerts: z.boolean().optional(),
   })
   .meta({ id: 'NotificationSettings' });
 

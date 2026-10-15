@@ -105,6 +105,32 @@ describe('SettingsPage', () => {
     await waitFor(() => expect(toggle).not.toBeChecked());
   });
 
+  it('turns the letters about skipped payments off on their own', async () => {
+    mockAccount();
+    mockSessions();
+    const sent: unknown[] = [];
+    server.use(
+      http.put(apiUrl('/auth/notifications'), async ({ request }) => {
+        const body = await request.json();
+        sent.push(body);
+        return HttpResponse.json({ ...USER, ...(body as object) });
+      }),
+    );
+    const { user } = renderApp('/settings', { session: 'authenticated' });
+
+    const toggle = await screen.findByRole('switch', {
+      name: /Письма о пропущенных платежах/,
+    });
+    await user.click(toggle);
+
+    // Only this switch: the budget letters stay as they are.
+    expect(sent).toEqual([{ recurringAlerts: false }]);
+    await waitFor(() => expect(toggle).not.toBeChecked());
+    expect(
+      screen.getByRole('switch', { name: /Письма о перерасходе/ }),
+    ).toBeChecked();
+  });
+
   it('changes the base currency on purpose, with a button', async () => {
     mockAccount();
     mockSessions();

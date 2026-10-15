@@ -44,8 +44,10 @@ export async function seedDemo(
           passwordHash,
           timeZone: DEMO_TIME_ZONE,
           // Nobody reads that mailbox: the demo budgets are overspent on
-          // purpose and would mail about it every month.
+          // purpose and would mail about it every month; a demo visitor may
+          // empty an account and make a recurring payment skip.
           budgetAlerts: false,
+          recurringAlerts: false,
         },
         select: { id: true },
       });

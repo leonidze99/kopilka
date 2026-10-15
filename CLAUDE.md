@@ -57,7 +57,7 @@ Env в api: `@nestjs/config` (global, cache) + Zod-схема `apps/api/src/conf
 
 Prisma: первая миграция `init` — `users`, `categories`, `transactions` (enum `transaction_kind`, CHECK `amount > 0`, `RESTRICT` на удаление категории с транзакциями, каскад от пользователя). Глобальный `PrismaModule` / `PrismaService`.
 
-Отложено сознательно (решить при проектировании фич): уведомление о пропущенном регулярном платеже.
+Всё отложенное ранее (мультивалютность, архив счетов, уведомления о перерасходе и пропущенных платежах) сделано — см. разделы ниже.
 
 Exception filter готов; `requestId` в теле ошибки совпадает с заголовком `X-Request-ID`. e2e-тесты — `apps/api/test/errors.e2e-spec.ts`.
 
@@ -356,6 +356,11 @@ Code splitting (`apps/web/src/app/router/routes.tsx`): страницы прил
 - Правило удаляется вместе со счётом или категорией (`CASCADE` — это настройка); сделанные операции остаются (`recurring_rule_id → NULL`). В ленте у таких операций значок повтора.
 - `JOBS_ENABLED` (по умолчанию `true`) — в e2e выключен (`vitest.config.e2e.ts`): тесты зовут `runner.runDue(now)` сами, со своим «сейчас». e2e проверяет и двух исполнителей одновременно.
 - Свежая операция от правила появляется во фронте только при следующей загрузке ленты (сервер её не «пушит»).
+- **Письма о пропущенных платежах** (миграция `recurring_skips`, `RecurringAlertsService` в `src/recurring/`, e2e — `test/recurring-alerts.e2e-spec.ts`; фронт — второй выключатель в `features/notification-settings`): пропуск — дата, которую исполнитель не смог оплатить (нет денег на счёте без минуса, нет курса ЦБ). `last_error` правила хранит только последний и стирается следующим успешным платежом, поэтому исполнитель в той же транзакции пишет строку `recurring_skips (rule_id, on_date, reason, notified_at)` (уникальность `(rule_id, on_date)`, `createMany skipDuplicates`; `reason` без даты — «на счёте «Наличные» не хватило 4 000,00 ₽», дату к `last_error` приклеивает `runOne`).
+  - Задача раз в 10 минут (`JOBS_ENABLED`, `run({ userId })` для тестов): **одно письмо на пользователя со всеми новыми пропусками** (правило, догоняющее три дня, — одно письмо «Не прошли 3 регулярных платежа», а не три). Имя правила — комментарий, иначе категория, иначе «Перевод на «X»». Ссылка — на `/recurring`.
+  - Идемпотентность — compare-and-set: письмо сначала забирает свои строки (`UPDATE … SET notified_at = now() WHERE id = ANY(…) AND notified_at IS NULL RETURNING id`) и отправляется в той же транзакции. SMTP молчит — строки откатываются, следующий запуск попробует снова; два инстанса — второй находит строки забранными.
+  - Отдельный выключатель `users.recurring_alerts` (по умолчанию включён, у демо — выключен). Пока письма выключены, пропуски помечаются обработанными без письма: включив их позже, пользователь не получит пачку старых новостей. `PUT /auth/notifications` принимает любой из двух флагов (`budgetAlerts?`, `recurringAlerts?`), неуказанный не меняется.
+  - Общий `escapeHtml` для писем — `src/mail/html.ts`.
 
 Импорт выписок CSV (API — `apps/api/src/imports/`, e2e — `test/imports.e2e-spec.ts`, юнит — `src/imports/parse-row.spec.ts`; фронт — `entities/import`, `features/import-upload|import-mapping|import-commit|import-discard`, `widgets/import-history`, страницы `/import` и `/import/:id`, тест — `pages/import/ui/ImportPage.test.tsx`):
 

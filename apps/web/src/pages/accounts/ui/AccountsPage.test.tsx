@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http } from 'msw';
 import { mockAccount } from '@/test/account';
 import { apiError, MAIN_ACCOUNT } from '@/test/api';
@@ -217,7 +217,10 @@ describe('AccountsPage', () => {
       expect(
         await screen.findByText('Счёт снова в работе'),
       ).toBeInTheDocument();
-      expect(screen.queryByText(/^Архив/)).not.toBeInTheDocument();
+      // The list comes back with the account in use: the archive folds away.
+      await waitFor(() =>
+        expect(screen.queryByText(/^Архив/)).not.toBeInTheDocument(),
+      );
     });
 
     it('keeps an archived account out of the new transaction form', async () => {

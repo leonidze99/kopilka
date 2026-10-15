@@ -46,6 +46,7 @@ const userSelect = {
   id: true,
   email: true,
   budgetAlerts: true,
+  recurringAlerts: true,
   baseCurrency: true,
 } as const;
 
@@ -54,11 +55,13 @@ const toUser = (row: {
   id: string;
   email: string;
   budgetAlerts: boolean;
+  recurringAlerts: boolean;
   baseCurrency: string;
 }): User => ({
   id: row.id,
   email: row.email,
   budgetAlerts: row.budgetAlerts,
+  recurringAlerts: row.recurringAlerts,
   baseCurrency: row.baseCurrency as Currency,
 });
 
@@ -324,15 +327,15 @@ export class AuthService {
     return { endedSessions };
   }
 
-  /** Turns the budget letters on or off; the only setting there is. */
+  /** Turns the budget or the recurring letters on or off. */
   async setNotifications(
     userId: string,
-    { budgetAlerts }: NotificationSettingsDto,
+    { budgetAlerts, recurringAlerts }: NotificationSettingsDto,
   ): Promise<User> {
     return toUser(
       await this.prisma.user.update({
         where: { id: userId },
-        data: { budgetAlerts },
+        data: { budgetAlerts, recurringAlerts },
         select: userSelect,
       }),
     );

@@ -4033,6 +4033,9 @@
           "budgetAlerts": {
             "type": "boolean"
           },
+          "recurringAlerts": {
+            "type": "boolean"
+          },
           "baseCurrency": {
             "$ref": "#/components/schemas/Currency"
           }
@@ -4041,6 +4044,7 @@
           "id",
           "email",
           "budgetAlerts",
+          "recurringAlerts",
           "baseCurrency"
         ],
         "additionalProperties": false
@@ -4241,11 +4245,11 @@
         "properties": {
           "budgetAlerts": {
             "type": "boolean"
+          },
+          "recurringAlerts": {
+            "type": "boolean"
           }
-        },
-        "required": [
-          "budgetAlerts"
-        ]
+        }
       },
       "AuthSessionList": {
         "type": "array",

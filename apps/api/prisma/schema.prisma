@@ -50,12 +50,14 @@ model User {
 
   /// Where the user is, as the browser said on registration: a background
   /// job has no request to ask, and "this month" depends on it.
-  timeZone     String  @default("UTC") @map("time_zone") @db.VarChar(64)
+  timeZone        String  @default("UTC") @map("time_zone") @db.VarChar(64)
   /// Mail when a budget is overspent; off is off for all of them.
-  budgetAlerts Boolean @default(true) @map("budget_alerts")
+  budgetAlerts    Boolean @default(true) @map("budget_alerts")
+  /// Mail when a recurring payment could not be made (RecurringAlertsService).
+  recurringAlerts Boolean @default(true) @map("recurring_alerts")
   /// What totals, budgets and analytics count in (transactions.base_amount).
   /// Accounts have currencies of their own.
-  baseCurrency String  @default("RUB") @map("base_currency") @db.Char(3)
+  baseCurrency    String  @default("RUB") @map("base_currency") @db.Char(3)
 
   accounts         Account[]
   recurringRules   RecurringRule[]
@@ -68,6 +70,7 @@ model User {
   passwordResets   PasswordReset[]
   budgetAlertsSent BudgetAlert[]
   tagAlertsSent    TagBudgetAlert[]
+  recurringSkips   RecurringSkip[]
   goals            Goal[]
   tags             Tag[]
 
@@ -351,12 +354,13 @@ model RecurringRule {
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   // A rule is a setting: it goes away with its account or category.
-  account      Account       @relation("RecurringAccount", fields: [accountId, userId], references: [id, userId], onDelete: Cascade)
-  toAccount    Account?      @relation("RecurringTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Cascade)
-  category     Category?     @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
+  account      Account         @relation("RecurringAccount", fields: [accountId, userId], references: [id, userId], onDelete: Cascade)
+  toAccount    Account?        @relation("RecurringTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Cascade)
+  category     Category?       @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
   transactions Transaction[]
+  skips        RecurringSkip[]
 
   @@index([userId])
   // The runner looks for active rules due by a date.
@@ -696,4 +700,31 @@ model ExchangeRate {
   // Also "the latest rate on or before a day": a backward index scan.
   @@id([currency, onDate])
   @@map("exchange_rates")
+}
+
+/// A date a recurring rule could not pay (RecurringRunner: no money on an
+/// account that must not go negative, or no exchange rate), kept for the
+/// letter about it. rule.last_error only holds the latest; the next payment
+/// that goes through clears it.
+model RecurringSkip {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  ruleId     String    @map("rule_id") @db.Uuid
+  /// The payment date that was skipped.
+  onDate     DateTime  @map("on_date") @db.Date
+  /// Why, as the user reads it: "на счёте «Наличные» не хватило 8 000,00 ₽".
+  reason     String    @db.VarChar(300)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Mailed, or let go because the user has these letters off (turning them
+  /// on later does not mail old news). NULL: still to handle.
+  notifiedAt DateTime? @map("notified_at") @db.Timestamptz(3)
+
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Goes with its rule: the letter names the rule.
+  rule RecurringRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  // One skip per occurrence, whatever the runner retries.
+  @@unique([ruleId, onDate])
+  @@index([userId])
+  @@map("recurring_skips")
 }
