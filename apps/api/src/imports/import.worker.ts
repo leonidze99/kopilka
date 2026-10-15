@@ -7,6 +7,8 @@ import { AppException } from '../common/errors/app.exception.js';
 import type { Env } from '../config/env.js';
 import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { isExchangeRateMissing } from '../rates/rate-errors.js';
+import { RatesService } from '../rates/rates.service.js';
 import { parseRow } from './parse-row.js';
 import { WHOLE_FILE } from './whole-file.js';
 
@@ -48,6 +50,7 @@ export class ImportWorker {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accounts: AccountsService,
+    private readonly rates: RatesService,
     config: ConfigService<Env, true>,
   ) {
     this.enabled = config.get('JOBS_ENABLED', { infer: true });
@@ -261,7 +264,9 @@ export class ImportWorker {
         JOIN transactions t
           ON (t.account_id = ${job.account_id}::uuid OR t.to_account_id = ${job.account_id}::uuid)
          AND t.import_fingerprint IS NULL
-         AND t.amount = r.amount
+         -- What moved on this account: a transfer into it, what arrived.
+         AND CASE WHEN t.to_account_id = ${job.account_id}::uuid
+                  THEN t.to_amount ELSE t.amount END = r.amount
          AND t.occurred_at BETWEEN r.occurred_at - interval '2 days'
                                AND r.occurred_at + interval '2 days'
         -- A split one has its kind in its parts, all of one kind.
@@ -308,6 +313,7 @@ export class ImportWorker {
    * the import (seconds even for a large file).
    */
   private async import(job: Job): Promise<void> {
+    await this.loadRates(job);
     try {
       await this.prisma.$transaction(
         async (tx) => {
@@ -443,7 +449,39 @@ export class ImportWorker {
     }
   }
 
+  /**
+   * An import into a foreign account converts every row at the rate of its
+   * day: the rates of the statement's whole period, loaded before the long
+   * transaction (no network call while it holds the account).
+   */
+  private async loadRates(job: Job): Promise<void> {
+    const [period] = await this.prisma.$queryRaw<
+      { currency: string; base: string; from: Date | null; to: Date | null }[]
+    >`
+      SELECT a.currency, u.base_currency AS base,
+             min(r.occurred_at) AS from, max(r.occurred_at) AS to
+      FROM accounts a
+      JOIN users u ON u.id = a.user_id
+      LEFT JOIN import_rows r ON r.import_id = ${job.id}::uuid AND r.status = 'new'
+      WHERE a.id = ${job.account_id}::uuid
+      GROUP BY 1, 2
+    `;
+    if (!period?.from || !period.to || period.currency === period.base) return;
+    // A day either side: the rows' local days, whatever the user's zone.
+    const day = (date: Date, shift: number) =>
+      new Date(date.getTime() + shift * 86_400_000).toISOString().slice(0, 10);
+    const from = day(period.from, -1);
+    const to = day(period.to, 1);
+    await this.rates.ensure([
+      { currency: period.currency, from, to },
+      { currency: period.base, from, to },
+    ]);
+  }
+
   private userFixable(error: unknown): string | null {
+    if (isExchangeRateMissing(error)) {
+      return 'Нет курса ЦБ на часть дат выписки — попробуйте позже';
+    }
     if (error instanceof AppException && error.code === 'INSUFFICIENT_FUNDS') {
       return error.details?.[0]?.message ?? 'На счёте не хватит денег';
     }

@@ -11,6 +11,7 @@ import {
   useTagTotalsQuery,
   useTransactionSummaryQuery,
 } from '@/entities/transaction';
+import { useBaseCurrency } from '@/entities/session';
 import {
   errorMessage,
   formatMoney,
@@ -128,6 +129,7 @@ function TagRow({
   selected: boolean;
   onClick: () => void;
 }) {
+  const currency = useBaseCurrency();
   return (
     <button
       type="button"
@@ -141,7 +143,7 @@ function TagRow({
         {item.tag.name}
       </span>
       <span className={styles.percent}>{percent(share)}</span>
-      <span className={styles.amount}>{formatMoney(item.total)}</span>
+      <span className={styles.amount}>{formatMoney(item.total, currency)}</span>
       {/* The share as a bar; the percent before it says the same. */}
       <span className={styles.track} aria-hidden>
         <span

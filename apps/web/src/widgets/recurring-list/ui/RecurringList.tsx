@@ -72,8 +72,12 @@ export function RecurringList() {
               </span>
               <span className={`${styles.amount} ${styles[rule.type]}`}>
                 {rule.type === 'transfer'
-                  ? formatMoney(rule.amount)
-                  : formatSignedMoney(rule.amount, rule.type)}
+                  ? formatMoney(rule.amount, rule.account.currency)
+                  : formatSignedMoney(
+                      rule.amount,
+                      rule.type,
+                      rule.account.currency,
+                    )}
               </span>
             </button>
           </li>

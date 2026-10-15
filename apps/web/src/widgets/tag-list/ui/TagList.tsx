@@ -1,6 +1,7 @@
 import { Hash } from 'lucide-react';
 import { useState } from 'react';
 import { type Tag, type TagBudget, useListTagsQuery } from '@/entities/tag';
+import { useBaseCurrency } from '@/entities/session';
 import { TagBudgetForm } from '@/features/tag-budget';
 import { DeleteTagButton } from '@/features/tag-delete';
 import { RenameTagForm } from '@/features/tag-rename';
@@ -92,6 +93,7 @@ function BudgetRow({
   tag: Tag & { budget: TagBudget };
   onOpen: () => void;
 }) {
+  const currency = useBaseCurrency();
   const { budget } = tag;
   return (
     <button
@@ -106,12 +108,15 @@ function BudgetRow({
           {tag.name}
         </span>
         <span className={styles.amounts}>
-          {formatMoney(budget.spent)}
-          <span className={styles.of}> из {formatMoney(budget.limit)}</span>
+          {formatMoney(budget.spent, currency)}
+          <span className={styles.of}>
+            {' '}
+            из {formatMoney(budget.limit, currency)}
+          </span>
         </span>
       </span>
       <UsageBar spent={budget.spent} limit={budget.limit} />
-      <UsageRemaining remaining={budget.remaining} />
+      <UsageRemaining remaining={budget.remaining} currency={currency} />
     </button>
   );
 }

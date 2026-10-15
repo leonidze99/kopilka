@@ -105,6 +105,38 @@ describe('SettingsPage', () => {
     await waitFor(() => expect(toggle).not.toBeChecked());
   });
 
+  it('changes the base currency on purpose, with a button', async () => {
+    mockAccount();
+    mockSessions();
+    const sent: unknown[] = [];
+    server.use(
+      http.put(apiUrl('/auth/base-currency'), async ({ request }) => {
+        const body = await request.json();
+        sent.push(body);
+        return HttpResponse.json({ ...USER, ...(body as object) });
+      }),
+    );
+    const { user } = renderApp('/settings', { session: 'authenticated' });
+
+    const select = await screen.findByLabelText('Основная валюта');
+    expect(select).toHaveValue('RUB');
+    expect(
+      screen.getByRole('button', { name: 'Пересчитать в RUB' }),
+    ).toBeDisabled();
+
+    await user.selectOptions(select, 'USD');
+    await user.click(screen.getByRole('button', { name: 'Пересчитать в USD' }));
+
+    expect(
+      await screen.findByText('Основная валюта изменена'),
+    ).toBeInTheDocument();
+    expect(sent).toEqual([{ baseCurrency: 'USD' }]);
+    // The session now counts in dollars: nothing left to change.
+    expect(
+      screen.getByRole('button', { name: 'Пересчитать в USD' }),
+    ).toBeDisabled();
+  });
+
   it('lists the devices, this one first, and signs another out', async () => {
     mockAccount();
     const sent = mockSessions();

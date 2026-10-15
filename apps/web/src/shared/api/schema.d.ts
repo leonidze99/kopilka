@@ -290,6 +290,26 @@ export interface paths {
         patch: operations["AccountsController_update"];
         trace?: never;
     };
+    "/auth/base-currency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change the currency totals and budgets are counted in
+         * @description Converts the base amount of every transaction at the rate of its day, and the limits of budgets and tag budgets at today’s rate. Accounts keep their currencies. EXCHANGE_RATE_UNAVAILABLE if a Bank of Russia rate is missing; nothing changes then.
+         */
+        put: operations["BaseCurrencyController_set"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/budgets": {
         parameters: {
             query?: never;
@@ -888,7 +908,13 @@ export interface components {
             id: string;
             email: string;
             budgetAlerts: boolean;
+            baseCurrency: components["schemas"]["Currency"];
         };
+        /**
+         * @example RUB
+         * @enum {string}
+         */
+        Currency: "RUB" | "USD" | "EUR" | "CNY" | "KZT" | "BYN" | "TRY" | "AED" | "GEL" | "AMD" | "AZN" | "UZS" | "KGS" | "TJS" | "TMT" | "MDL" | "UAH" | "GBP" | "CHF" | "JPY" | "KRW" | "HKD" | "SGD" | "THB" | "VND" | "IDR" | "INR" | "BDT" | "MMK" | "MNT" | "IRR" | "QAR" | "SAR" | "OMR" | "BHD" | "EGP" | "DZD" | "ETB" | "NGN" | "ZAR" | "CAD" | "AUD" | "NZD" | "BRL" | "BOB" | "CUP" | "PLN" | "CZK" | "HUF" | "RON" | "RSD" | "DKK" | "NOK" | "SEK";
         ApiError: {
             code: components["schemas"]["ErrorCode"];
             message: string;
@@ -896,7 +922,7 @@ export interface components {
             details?: components["schemas"]["ErrorDetail"][];
         };
         /** @enum {string} */
-        ErrorCode: "BAD_REQUEST" | "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "ACCOUNT_LOCKED" | "INVALID_RESET_TOKEN" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "CATEGORY_IN_USE" | "ACCOUNT_IN_USE" | "INSUFFICIENT_FUNDS" | "RATE_LIMITED" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "BAD_REQUEST" | "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "ACCOUNT_LOCKED" | "INVALID_RESET_TOKEN" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "CATEGORY_IN_USE" | "ACCOUNT_IN_USE" | "INSUFFICIENT_FUNDS" | "EXCHANGE_RATE_UNAVAILABLE" | "RATE_LIMITED" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
         ErrorDetail: {
             field?: string;
             message: string;
@@ -934,13 +960,14 @@ export interface components {
         };
         AccountList: {
             items: components["schemas"]["Account"][];
-            total: string;
+            total: string | null;
         };
         Account: {
             /** Format: uuid */
             id: string;
             name: string;
             type: components["schemas"]["AccountType"];
+            currency: components["schemas"]["Currency"];
             openingBalance: string;
             allowNegative: boolean;
             balance: string;
@@ -950,6 +977,7 @@ export interface components {
         CreateAccountRequest: {
             name: string;
             type: components["schemas"]["AccountType"];
+            currency?: components["schemas"]["Currency"];
             /**
              * @description Decimal with up to 2 fraction digits, e.g. "-1234.56"
              * @example -1234.56
@@ -961,12 +989,16 @@ export interface components {
         UpdateAccountRequest: {
             name?: string;
             type?: components["schemas"]["AccountType"];
+            currency?: components["schemas"]["Currency"];
             /**
              * @description Decimal with up to 2 fraction digits, e.g. "-1234.56"
              * @example -1234.56
              */
             openingBalance?: string;
             allowNegative?: boolean;
+        };
+        BaseCurrencySettings: {
+            baseCurrency: components["schemas"]["Currency"];
         };
         /** @example 2026-10 */
         Month: string;
@@ -1026,6 +1058,7 @@ export interface components {
             id: string;
             name: string;
             type: components["schemas"]["AccountType"];
+            currency: components["schemas"]["Currency"];
         };
         /**
          * Format: date
@@ -1301,6 +1334,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             amount: string;
+            baseAmount: string;
+            baseAmountManual: boolean;
             comment: string | null;
             /** Format: date-time */
             occurredAt: string;
@@ -1324,6 +1359,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             amount: string;
+            baseAmount: string;
+            baseAmountManual: boolean;
             comment: string | null;
             /** Format: date-time */
             occurredAt: string;
@@ -1335,6 +1372,7 @@ export interface components {
             tags: components["schemas"]["Tag"][];
             receipts: components["schemas"]["Receipt"][];
             toAccount: components["schemas"]["AccountRef"];
+            toAmount: string;
         };
         TransactionSummary: {
             income: string;
@@ -1376,6 +1414,11 @@ export interface components {
             comment?: string;
             /** @default [] */
             tags: string[];
+            /**
+             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+             * @example 1234.56
+             */
+            baseAmount?: string;
         };
         TransactionSplitInput: {
             /** Format: uuid */
@@ -1391,6 +1434,11 @@ export interface components {
             type: "transfer";
             /** Format: uuid */
             toAccountId: string;
+            /**
+             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+             * @example 1234.56
+             */
+            toAmount?: string;
             /** Format: uuid */
             accountId: string;
             /**
@@ -1403,6 +1451,11 @@ export interface components {
             comment?: string;
             /** @default [] */
             tags: string[];
+            /**
+             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+             * @example 1234.56
+             */
+            baseAmount?: string;
         };
     };
     responses: never;
@@ -2311,6 +2364,56 @@ export interface operations {
             };
             /** @description NOT_FOUND */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description CONFLICT: clashes with existing data */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    BaseCurrencyController_set: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BaseCurrencySettings"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing, invalid or expired credentials */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

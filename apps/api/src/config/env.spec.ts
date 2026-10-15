@@ -24,6 +24,7 @@ describe('envSchema', () => {
       PASSWORD_RESET_TTL_MINUTES: 60,
       APP_URL: 'http://localhost:5173',
       MAIL_FROM: 'Копилка <no-reply@kopilka.local>',
+      CBR_URL: 'https://www.cbr.ru/scripts',
       JOBS_ENABLED: true,
     });
   });

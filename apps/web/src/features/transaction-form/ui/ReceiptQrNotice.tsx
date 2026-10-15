@@ -71,7 +71,7 @@ export function ReceiptQrNotice({ scan, filler }: ReceiptQrNoticeProps) {
     );
   }
 
-  const summary = `${formatMoney(receipt.amount)}, ${when.format(new Date(receipt.occurredAt))}${
+  const summary = `${formatMoney(receipt.amount, 'RUB')}, ${when.format(new Date(receipt.occurredAt))}${
     receipt.type === 'income' ? ', возврат' : ''
   }`;
   return (

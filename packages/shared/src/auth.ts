@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { currencySchema } from './currency.js';
 import { timeZoneSchema } from './recurring.js';
 
 // Normalize before validating: z.email().trim() would check the format first
@@ -62,6 +63,8 @@ export const userSchema = z
     email: z.string(),
     /** Mail when a budget of the month is overspent. */
     budgetAlerts: z.boolean(),
+    /** Totals, budgets and analytics are in it; accounts have their own. */
+    baseCurrency: currencySchema,
   })
   .meta({ id: 'User' });
 

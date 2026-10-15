@@ -20,6 +20,9 @@ export const errorCodeSchema = z
     'ACCOUNT_IN_USE',
     // A write would take an account that must not go negative below zero.
     'INSUFFICIENT_FUNDS',
+    // No Bank of Russia rate to convert an amount into the base currency;
+    // an amount in the base currency given by hand does without.
+    'EXCHANGE_RATE_UNAVAILABLE',
     'RATE_LIMITED',
     'SERVICE_UNAVAILABLE',
     'INTERNAL_ERROR',

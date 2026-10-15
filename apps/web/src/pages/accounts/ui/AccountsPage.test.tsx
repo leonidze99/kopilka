@@ -15,6 +15,7 @@ describe('AccountsPage', () => {
           id: '0199d0a4-0000-7000-8000-0000000acc02',
           name: 'Наличные',
           type: 'cash',
+          currency: 'RUB',
           openingBalance: '0.00',
           allowNegative: false,
           balance: '250.50',
@@ -39,6 +40,7 @@ describe('AccountsPage', () => {
             id: MAIN_ACCOUNT.id,
             name: MAIN_ACCOUNT.name,
             type: 'card',
+            currency: 'RUB',
           },
           targetAmount: '200000.00',
           targetDate: null,
@@ -108,10 +110,35 @@ describe('AccountsPage', () => {
       {
         name: 'Кошелёк',
         type: 'cash',
+        currency: 'RUB',
         openingBalance: '1500',
         allowNegative: false,
       },
     ]);
+  });
+
+  it('keeps an account in its currency and totals all of them in roubles', async () => {
+    const { sent } = mockAccount();
+    const { user } = renderApp('/accounts', { session: 'authenticated' });
+    await screen.findByRole('button', { name: /Основной счёт/ });
+
+    const form = within(
+      screen.getByRole('heading', { name: 'Новый счёт' }).closest('section')!,
+    );
+    // The base currency is preselected.
+    expect(form.getByLabelText('Валюта')).toHaveValue('RUB');
+    await user.type(form.getByLabelText('Название'), 'Доллары');
+    await user.selectOptions(form.getByLabelText('Валюта'), 'USD');
+    await user.type(form.getByLabelText('Начальный остаток'), '10');
+    await user.click(form.getByRole('button', { name: 'Добавить счёт' }));
+
+    expect(sent.accounts).toEqual([
+      expect.objectContaining({ currency: 'USD', openingBalance: '10' }),
+    ]);
+    const dollars = await screen.findByRole('button', { name: /Доллары/ });
+    expect(dollars).toHaveTextContent(/Карта · USD.*10,00\s\$/);
+    // Converted at today's rate (90 in the mock): approximate.
+    expect(screen.getByText(/^≈ 900,00\s₽/)).toBeInTheDocument();
   });
 
   it('explains why an account with transactions cannot be deleted', async () => {

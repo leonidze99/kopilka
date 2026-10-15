@@ -1,5 +1,6 @@
 import { useSelector } from 'react-redux';
 import { selectCurrentUser } from '@/entities/session';
+import { BaseCurrencyForm } from '@/features/base-currency';
 import { ChangePasswordForm } from '@/features/change-password';
 import { NotificationSettings } from '@/features/notification-settings';
 import { Panel } from '@/shared/ui';
@@ -20,6 +21,9 @@ export function SettingsPage() {
         <div className={styles.aside}>
           <Panel title="Смена пароля">
             <ChangePasswordForm />
+          </Panel>
+          <Panel title="Валюта">
+            <BaseCurrencyForm />
           </Panel>
           <Panel title="Уведомления">
             <NotificationSettings />

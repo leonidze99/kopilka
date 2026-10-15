@@ -4,6 +4,7 @@ import {
   type TransactionSummary,
   useTransactionSummaryQuery,
 } from '@/entities/transaction';
+import { useBaseCurrency } from '@/entities/session';
 import {
   errorMessage,
   formatMoney,
@@ -17,6 +18,7 @@ import styles from './MonthSummary.module.css';
 
 /** Income, expense and balance of a month, summed by the API. */
 export function MonthSummary({ month }: { month: Month }) {
+  const currency = useBaseCurrency();
   const { data, error } = useTransactionSummaryQuery(monthPeriod(month));
   // Once per month shown: "the same days so far" depends on now, and a
   // period recomputed every render would be a new query every render.
@@ -27,7 +29,7 @@ export function MonthSummary({ month }: { month: Month }) {
     amount === undefined ? (
       <Skeleton className={styles.skeleton} width={width} height="1em" />
     ) : (
-      formatMoney(amount)
+      formatMoney(amount, currency)
     );
 
   return (

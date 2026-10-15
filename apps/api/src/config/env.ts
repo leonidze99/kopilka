@@ -57,6 +57,12 @@ export const envSchema = z.object({
   // Unset: mail is written to the log instead of being sent (development).
   MAIL_SMTP_URL: z.string().min(1).optional(),
   MAIL_FROM: z.string().min(1).default('Копилка <no-reply@kopilka.local>'),
+  // The Bank of Russia's XML service, where exchange rates come from
+  // (XML_daily.asp, XML_dynamic.asp under it).
+  CBR_URL: z
+    .url()
+    .default('https://www.cbr.ru/scripts')
+    .transform((url) => (url.endsWith('/') ? url.slice(0, -1) : url)),
   // The built web app (apps/web/dist) to serve from this process; the
   // Docker image sets it. Unset: API only, as in development.
   WEB_DIST_DIR: z.string().min(1).optional(),

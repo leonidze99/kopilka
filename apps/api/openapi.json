@@ -1231,6 +1231,69 @@
         ]
       }
     },
+    "/auth/base-currency": {
+      "put": {
+        "description": "Converts the base amount of every transaction at the rate of its day, and the limits of budgets and tag budgets at today’s rate. Accounts keep their currencies. EXCHANGE_RATE_UNAVAILABLE if a Bank of Russia rate is missing; nothing changes then.",
+        "operationId": "BaseCurrencyController_set",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseCurrencySettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED or BAD_REQUEST: invalid or malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Change the currency totals and budgets are counted in",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/budgets": {
       "get": {
         "description": "`from`/`to` are the bounds of `month` in the user’s time zone.",
@@ -3855,14 +3918,78 @@
           },
           "budgetAlerts": {
             "type": "boolean"
+          },
+          "baseCurrency": {
+            "$ref": "#/components/schemas/Currency"
           }
         },
         "required": [
           "id",
           "email",
-          "budgetAlerts"
+          "budgetAlerts",
+          "baseCurrency"
         ],
         "additionalProperties": false
+      },
+      "Currency": {
+        "type": "string",
+        "enum": [
+          "RUB",
+          "USD",
+          "EUR",
+          "CNY",
+          "KZT",
+          "BYN",
+          "TRY",
+          "AED",
+          "GEL",
+          "AMD",
+          "AZN",
+          "UZS",
+          "KGS",
+          "TJS",
+          "TMT",
+          "MDL",
+          "UAH",
+          "GBP",
+          "CHF",
+          "JPY",
+          "KRW",
+          "HKD",
+          "SGD",
+          "THB",
+          "VND",
+          "IDR",
+          "INR",
+          "BDT",
+          "MMK",
+          "MNT",
+          "IRR",
+          "QAR",
+          "SAR",
+          "OMR",
+          "BHD",
+          "EGP",
+          "DZD",
+          "ETB",
+          "NGN",
+          "ZAR",
+          "CAD",
+          "AUD",
+          "NZD",
+          "BRL",
+          "BOB",
+          "CUP",
+          "PLN",
+          "CZK",
+          "HUF",
+          "RON",
+          "RSD",
+          "DKK",
+          "NOK",
+          "SEK"
+        ],
+        "example": "RUB"
       },
       "ApiError": {
         "type": "object",
@@ -3905,6 +4032,7 @@
           "CATEGORY_IN_USE",
           "ACCOUNT_IN_USE",
           "INSUFFICIENT_FUNDS",
+          "EXCHANGE_RATE_UNAVAILABLE",
           "RATE_LIMITED",
           "SERVICE_UNAVAILABLE",
           "INTERNAL_ERROR"
@@ -4057,6 +4185,7 @@
             }
           },
           "total": {
+            "nullable": true,
             "type": "string"
           }
         },
@@ -4080,6 +4209,9 @@
           "type": {
             "$ref": "#/components/schemas/AccountType"
           },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
           "openingBalance": {
             "type": "string"
           },
@@ -4094,6 +4226,7 @@
           "id",
           "name",
           "type",
+          "currency",
           "openingBalance",
           "allowNegative",
           "balance"
@@ -4118,6 +4251,13 @@
           },
           "type": {
             "$ref": "#/components/schemas/AccountType"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ]
           },
           "openingBalance": {
             "type": "string",
@@ -4149,6 +4289,13 @@
               }
             ]
           },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ]
+          },
           "openingBalance": {
             "type": "string",
             "description": "Decimal with up to 2 fraction digits, e.g. \"-1234.56\"",
@@ -4158,6 +4305,17 @@
             "type": "boolean"
           }
         }
+      },
+      "BaseCurrencySettings": {
+        "type": "object",
+        "properties": {
+          "baseCurrency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        },
+        "required": [
+          "baseCurrency"
+        ]
       },
       "Month": {
         "type": "string",
@@ -4378,12 +4536,16 @@
           },
           "type": {
             "$ref": "#/components/schemas/AccountType"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
           }
         },
         "required": [
           "id",
           "name",
-          "type"
+          "type",
+          "currency"
         ],
         "additionalProperties": false
       },
@@ -5504,6 +5666,12 @@
           "amount": {
             "type": "string"
           },
+          "baseAmount": {
+            "type": "string"
+          },
+          "baseAmountManual": {
+            "type": "boolean"
+          },
           "comment": {
             "nullable": true,
             "type": "string"
@@ -5556,6 +5724,8 @@
           "type",
           "id",
           "amount",
+          "baseAmount",
+          "baseAmountManual",
           "comment",
           "occurredAt",
           "createdAt",
@@ -5601,6 +5771,12 @@
           "amount": {
             "type": "string"
           },
+          "baseAmount": {
+            "type": "string"
+          },
+          "baseAmountManual": {
+            "type": "boolean"
+          },
           "comment": {
             "nullable": true,
             "type": "string"
@@ -5636,12 +5812,17 @@
           },
           "toAccount": {
             "$ref": "#/components/schemas/AccountRef"
+          },
+          "toAmount": {
+            "type": "string"
           }
         },
         "required": [
           "type",
           "id",
           "amount",
+          "baseAmount",
+          "baseAmountManual",
           "comment",
           "occurredAt",
           "createdAt",
@@ -5649,7 +5830,8 @@
           "recurringRuleId",
           "tags",
           "receipts",
-          "toAccount"
+          "toAccount",
+          "toAmount"
         ],
         "additionalProperties": false
       },
@@ -5803,6 +5985,11 @@
               "minLength": 1,
               "maxLength": 32
             }
+          },
+          "baseAmount": {
+            "type": "string",
+            "description": "Positive decimal with up to 2 fraction digits, e.g. \"1234.56\"",
+            "example": "1234.56"
           }
         },
         "required": [
@@ -5845,6 +6032,11 @@
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           },
+          "toAmount": {
+            "type": "string",
+            "description": "Positive decimal with up to 2 fraction digits, e.g. \"1234.56\"",
+            "example": "1234.56"
+          },
           "accountId": {
             "type": "string",
             "format": "uuid",
@@ -5872,6 +6064,11 @@
               "minLength": 1,
               "maxLength": 32
             }
+          },
+          "baseAmount": {
+            "type": "string",
+            "description": "Positive decimal with up to 2 fraction digits, e.g. \"1234.56\"",
+            "example": "1234.56"
           }
         },
         "required": [

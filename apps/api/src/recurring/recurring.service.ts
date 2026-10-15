@@ -1,6 +1,9 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { RecurringInputDto, RecurringRule } from '@kopilka/shared';
-import { accountRefSelect } from '../accounts/accounts.service.js';
+import {
+  accountRefSelect,
+  toAccountRef,
+} from '../accounts/accounts.service.js';
 import { categorySelect } from '../categories/categories.service.js';
 import { AppException } from '../common/errors/app.exception.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -35,11 +38,14 @@ type RuleRow = Prisma.RecurringRuleGetPayload<{ select: typeof ruleSelect }>;
 function toRule({ toAccount, category, ...row }: RuleRow): RecurringRule {
   const common = {
     ...row,
+    account: toAccountRef(row.account),
     amount: row.amount.toFixed(2),
     startOn: dateOf(row.startOn),
     nextOn: dateOf(row.nextOn),
   };
-  if (toAccount) return { type: 'transfer', ...common, toAccount };
+  if (toAccount) {
+    return { type: 'transfer', ...common, toAccount: toAccountRef(toAccount) };
+  }
   // CHECK (num_nonnulls(category_id, to_account_id) = 1) rules this out.
   if (!category) throw new Error(`Recurring rule ${row.id} has no category`);
   return { type: category.kind, ...common, category };
@@ -164,15 +170,25 @@ export class RecurringService {
     ];
     const owned = await this.prisma.account.findMany({
       where: { userId, id: { in: accountIds } },
-      select: { id: true },
+      select: { id: true, currency: true },
     });
-    const found = new Set(owned.map((account) => account.id));
+    const currencies = new Map(owned.map(({ id, currency }) => [id, currency]));
+    const found = new Set(currencies.keys());
     if (!found.has(dto.accountId)) {
       throw invalid('accountId', 'Account not found', 'Счёт не найден');
     }
     if (dto.type === 'transfer') {
       if (!found.has(dto.toAccountId)) {
         throw invalid('toAccountId', 'Account not found', 'Счёт не найден');
+      }
+      // What arrives depends on the bank's rate of each day: a rule cannot
+      // know it in advance.
+      if (currencies.get(dto.accountId) !== currencies.get(dto.toAccountId)) {
+        throw invalid(
+          'toAccountId',
+          'Recurring transfer between currencies',
+          'Регулярный перевод — только между счетами в одной валюте',
+        );
       }
       return;
     }

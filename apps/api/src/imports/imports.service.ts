@@ -16,6 +16,7 @@ import type { Request } from 'express';
 import {
   accountRefSelect,
   AccountsService,
+  toAccountRef,
 } from '../accounts/accounts.service.js';
 import { categorySelect } from '../categories/categories.service.js';
 import { AppException } from '../common/errors/app.exception.js';
@@ -70,6 +71,7 @@ const toSummary = ({
   ...row
 }: SummaryRow): ImportSummary => ({
   ...row,
+  account: row.account && toAccountRef(row.account),
   counts: {
     new: newRows,
     duplicate: duplicateRows,
@@ -345,11 +347,14 @@ export class ImportsService {
   ): Promise<Import> {
     await this.prisma.$transaction(async (tx) => {
       const [current] = await tx.$queryRaw<
-        { status: string; account_id: string }[]
+        { status: string; account_id: string; currency: string | null }[]
       >`
-        SELECT status, account_id FROM imports
-        WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
-        FOR UPDATE
+        SELECT i.status, i.account_id, a.currency
+        FROM imports i
+        -- No account before the columns are mapped.
+        LEFT JOIN accounts a ON a.id = i.account_id
+        WHERE i.id = ${id}::uuid AND i.user_id = ${userId}::uuid
+        FOR UPDATE OF i
       `;
       if (!current) throw notFound();
       if (current.status !== 'ready') throw wrongStatus(current.status);
@@ -425,7 +430,7 @@ export class ImportsService {
               ),
             },
           },
-          select: { id: true },
+          select: { id: true, currency: true },
         }),
       ]);
 
@@ -433,8 +438,20 @@ export class ImportsService {
         if (choice.target.target === 'transfer') {
           const field = `categories.${choice.index}.toAccountId`;
           const { toAccountId } = choice.target;
-          if (!targetAccounts.some((account) => account.id === toAccountId)) {
+          const target = targetAccounts.find(
+            (account) => account.id === toAccountId,
+          );
+          if (!target) {
             throw invalid(field, 'Account not found', 'Счёт не найден');
+          }
+          // The statement has one amount; what arrived in another currency
+          // is not in it.
+          if (target.currency !== current.currency) {
+            throw invalid(
+              field,
+              'Transfer to an account in another currency',
+              'Перевод из выписки — только на счёт в той же валюте',
+            );
           }
           // A transfer has two sides; both being the same account is what
           // the database refuses anyway (to_account_id <> account_id).
@@ -736,7 +753,9 @@ export class ImportsService {
       const rule = rules.find((r) => r.kind === kind && r.source === source);
       // A rule remembers one of the two: a category, or "these are
       // transfers to that account".
-      if (rule?.toAccount) return { category: null, toAccount: rule.toAccount };
+      if (rule?.toAccount) {
+        return { category: null, toAccount: toAccountRef(rule.toAccount) };
+      }
       const remembered = rule?.categoryId && byId.get(rule.categoryId);
       if (remembered) return { category: remembered, toAccount: null };
       const name = source.toLowerCase();

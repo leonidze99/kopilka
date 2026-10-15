@@ -8,6 +8,7 @@ import { Plus } from 'lucide-react';
 import { type ReactNode, useEffect } from 'react';
 import { Controller, type Resolver, useForm, useWatch } from 'react-hook-form';
 import { useListAccountsQuery } from '@/entities/account';
+import { useBaseCurrency } from '@/entities/session';
 import { useListCategoriesQuery } from '@/entities/category';
 import {
   describeSchedule,
@@ -16,7 +17,12 @@ import {
   useReplaceRecurringMutation,
 } from '@/entities/recurring';
 import type { TransactionType } from '@/entities/transaction';
-import { applyApiError, pluralize, toDateTimeLocal } from '@/shared/lib';
+import {
+  applyApiError,
+  currencySymbol,
+  pluralize,
+  toDateTimeLocal,
+} from '@/shared/lib';
 import {
   Button,
   Form,
@@ -93,6 +99,7 @@ export function RecurringForm({ rule, onSaved, footer }: RecurringFormProps) {
   const { data: categories = [] } = useListCategoriesQuery();
   const { data: accountList } = useListAccountsQuery();
   const accounts = accountList?.items ?? [];
+  const baseCurrency = useBaseCurrency();
   const [createRecurring] = useCreateRecurringMutation();
   const [replaceRecurring] = useReplaceRecurringMutation();
 
@@ -114,6 +121,11 @@ export function RecurringForm({ rule, onSaved, footer }: RecurringFormProps) {
   });
 
   const type = useWatch({ control, name: 'type' });
+  const accountId = useWatch({ control, name: 'accountId' });
+  // The amount is in the account's currency.
+  const currency =
+    accounts.find((account) => account.id === accountId)?.currency ??
+    baseCurrency;
   const [every, unit, startOn] = useWatch({
     control,
     name: ['every', 'unit', 'startOn'],
@@ -179,7 +191,7 @@ export function RecurringForm({ rule, onSaved, footer }: RecurringFormProps) {
         inputMode="decimal"
         placeholder="0,00"
         autoComplete="off"
-        suffix="₽"
+        suffix={currencySymbol(currency)}
         large
         error={errors.amount?.message}
         {...register('amount')}

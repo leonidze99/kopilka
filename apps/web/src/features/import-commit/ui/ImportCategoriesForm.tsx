@@ -92,6 +92,8 @@ function CategoriesForm({
   const [createCategory] = useCreateCategoryMutation();
   const [commit] = useCommitImportMutation();
   const { categories: groups, possibleDuplicates: duplicates } = imported;
+  // The statement is in the currency of the account it goes into.
+  const currency = imported.account?.currency ?? 'RUB';
 
   const {
     register,
@@ -217,7 +219,11 @@ function CategoriesForm({
                 <span className={styles.pair}>
                   <span>
                     <strong>
-                      {formatSignedMoney(duplicate.amount, duplicate.kind)}
+                      {formatSignedMoney(
+                        duplicate.amount,
+                        duplicate.kind,
+                        currency,
+                      )}
                     </strong>
                     {' · '}
                     {duplicate.description ?? 'Без описания'} ·{' '}
@@ -258,7 +264,8 @@ function CategoriesForm({
                   <span className={styles.name}>{name}</span>
                   <span className={styles.meta}>
                     {kindLabel(group.kind)} · {pluralize(rows, ROWS)}
-                    {rows === group.rows && ` · ${formatMoney(group.total)}`}
+                    {rows === group.rows &&
+                      ` · ${formatMoney(group.total, currency)}`}
                   </span>
                 </div>
                 <SelectField

@@ -3,8 +3,10 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AppModule } from '../../src/app.module.js';
+import { CbrClient } from '../../src/rates/cbr.client.js';
 import { setupApp } from '../../src/app.setup.js';
 import { serveWebApp } from '../../src/web-app.js';
+import { FakeCbr } from './fake-cbr.js';
 
 /** What overrideProvider() accepts: a class, a string or a symbol token. */
 type ProviderToken = Parameters<TestingModuleBuilder['overrideProvider']>[0];
@@ -28,6 +30,8 @@ interface TestAppOptions {
   /**
    * Providers to replace, e.g. the mailer: a test needs to read the link
    * that would have been sent instead of letting it leave the process.
+   * The Bank of Russia is always a FakeCbr unless one is given here: tests
+   * never reach the network.
    */
   overrides?: ProviderOverride[];
 }
@@ -40,6 +44,9 @@ export async function createTestApp({
   overrides = [],
 }: TestAppOptions = {}): Promise<NestExpressApplication> {
   let builder = Test.createTestingModule({ imports: [AppModule], controllers });
+  if (!overrides.some(({ provide }) => provide === CbrClient)) {
+    builder = builder.overrideProvider(CbrClient).useValue(new FakeCbr());
+  }
   for (const { provide, useValue } of overrides) {
     builder = builder.overrideProvider(provide).useValue(useValue);
   }

@@ -5,6 +5,7 @@ import type { Tx } from '../accounts/accounts.service.js';
 import type { Env } from '../config/env.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { type Mail, MailerService } from '../mail/mailer.service.js';
+import { formatMoney } from '../common/money.js';
 import { isPrismaError, PrismaCode } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { categorySpent, tagSpent } from '../transactions/parts.js';
@@ -13,6 +14,8 @@ import { categorySpent, tagSpent } from '../transactions/parts.js';
 interface Overspent {
   user_id: string;
   email: string;
+  /** The user's base currency: budgets and spending are in it. */
+  currency: string;
   category_id: string;
   category: string;
   month: Date;
@@ -24,6 +27,7 @@ interface Overspent {
 interface OverspentTag {
   user_id: string;
   email: string;
+  currency: string;
   tag_id: string;
   tag: string;
   spent: Prisma.Decimal;
@@ -46,12 +50,6 @@ const escapeHtml = (text: string) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]!,
   );
 
-const money = new Intl.NumberFormat('ru-RU', {
-  style: 'currency',
-  currency: 'RUB',
-  minimumFractionDigits: 2,
-});
-
 const monthName = new Intl.DateTimeFormat('ru-RU', {
   month: 'long',
   timeZone: 'UTC',
@@ -59,9 +57,12 @@ const monthName = new Intl.DateTimeFormat('ru-RU', {
 
 function alertMail(row: Overspent, appUrl: string): Mail {
   const month = monthName.format(row.month);
-  const spent = money.format(Number(row.spent));
-  const limit = money.format(Number(row.limit));
-  const over = money.format(Number(row.spent) - Number(row.limit));
+  const spent = formatMoney(row.spent, row.currency);
+  const limit = formatMoney(row.limit, row.currency);
+  const over = formatMoney(
+    new Prisma.Decimal(row.spent).minus(row.limit),
+    row.currency,
+  );
   const subject = `Бюджет «${row.category}» на ${month} превышен`;
   return {
     to: row.email,
@@ -87,9 +88,12 @@ function alertMail(row: Overspent, appUrl: string): Mail {
  * links to the tag's transactions over all time.
  */
 function tagAlertMail(row: OverspentTag, appUrl: string): Mail {
-  const spent = money.format(Number(row.spent));
-  const limit = money.format(Number(row.limit));
-  const over = money.format(Number(row.spent) - Number(row.limit));
+  const spent = formatMoney(row.spent, row.currency);
+  const limit = formatMoney(row.limit, row.currency);
+  const over = formatMoney(
+    new Prisma.Decimal(row.spent).minus(row.limit),
+    row.currency,
+  );
   const link = `${appUrl}/?tag=${row.tag_id}`;
   const subject = `Бюджет тега «${row.tag}» превышен`;
   return {
@@ -222,7 +226,7 @@ export class BudgetAlertsService {
   private overspent(now: Date, userId?: string): Promise<Overspent[]> {
     return this.prisma.$queryRaw<Overspent[]>`
       WITH months AS (
-        SELECT u.id AS user_id, u.email, u.time_zone,
+        SELECT u.id AS user_id, u.email, u.base_currency AS currency, u.time_zone,
                date_trunc('month', (${now}::timestamptz AT TIME ZONE u.time_zone))::date AS month
         FROM users u
         WHERE u.budget_alerts
@@ -230,14 +234,15 @@ export class BudgetAlertsService {
       ),
       current_limits AS (
         SELECT DISTINCT ON (b.category_id)
-               b.category_id, b.amount, m.user_id, m.email, m.time_zone, m.month
+               b.category_id, b.amount, m.user_id, m.email, m.currency,
+               m.time_zone, m.month
         FROM budgets b
         JOIN months m ON m.user_id = b.user_id
         WHERE b.effective_from <= m.month
         ORDER BY b.category_id, b.effective_from DESC
       ),
       spending AS (
-        SELECT l.user_id, l.email, l.category_id, l.amount, l.month,
+        SELECT l.user_id, l.email, l.currency, l.category_id, l.amount, l.month,
                c.name AS category,
                ${categorySpent(
                  Prisma.sql`l.category_id`,
@@ -251,7 +256,7 @@ export class BudgetAlertsService {
           ON a.category_id = l.category_id AND a.month = l.month
         WHERE l.amount IS NOT NULL AND a.id IS NULL
       )
-      SELECT user_id, email, category_id, category, month, spent,
+      SELECT user_id, email, currency, category_id, category, month, spent,
              amount AS limit
       FROM spending
       WHERE spent >= amount
@@ -267,7 +272,8 @@ export class BudgetAlertsService {
   private overspentTags(userId?: string): Promise<OverspentTag[]> {
     return this.prisma.$queryRaw<OverspentTag[]>`
       SELECT * FROM (
-        SELECT u.id AS user_id, u.email, g.id AS tag_id, g.name AS tag,
+        SELECT u.id AS user_id, u.email, u.base_currency AS currency,
+               g.id AS tag_id, g.name AS tag,
                g.budget AS limit,
                ${tagSpent(Prisma.sql`g.id`)} AS spent
         FROM tags g

@@ -29,13 +29,19 @@ export function UsageBar({ spent, limit }: UsageBarProps) {
 }
 
 /** "Осталось N", or "Перерасход N" in red when `remaining` is negative. */
-export function UsageRemaining({ remaining }: { remaining: string }) {
+export function UsageRemaining({
+  remaining,
+  currency,
+}: {
+  remaining: string;
+  currency: string;
+}) {
   const over = remaining.startsWith('-');
   return (
     <span className={over ? styles.overspent : styles.left}>
       {over
-        ? `Перерасход ${formatMoney(remaining.slice(1))}`
-        : `Осталось ${formatMoney(remaining)}`}
+        ? `Перерасход ${formatMoney(remaining.slice(1), currency)}`
+        : `Осталось ${formatMoney(remaining, currency)}`}
     </span>
   );
 }

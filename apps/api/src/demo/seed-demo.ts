@@ -133,7 +133,7 @@ export async function seedDemo(
             + COALESCE((SELECT SUM(CASE WHEN c.kind = 'income' THEN t.amount ELSE -t.amount END)
                         FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
                         WHERE t.account_id = a.id), 0)
-            + COALESCE((SELECT SUM(t.amount) FROM transactions t
+            + COALESCE((SELECT SUM(t.to_amount) FROM transactions t
                         WHERE t.to_account_id = a.id), 0) < 0
       `;
       if (overdrawn.length > 0) {

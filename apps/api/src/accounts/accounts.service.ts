@@ -4,31 +4,55 @@ import type {
   AccountList,
   AccountType,
   CreateAccountDto,
+  Currency,
   UpdateAccountDto,
 } from '@kopilka/shared';
 import { AppException } from '../common/errors/app.exception.js';
+import { formatMoney } from '../common/money.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RatesService } from '../rates/rates.service.js';
 
 /** The client of an interactive transaction (`prisma.$transaction(fn)`). */
 export type Tx = Prisma.TransactionClient;
 
-export const accountRefSelect = { id: true, name: true, type: true } as const;
+export const accountRefSelect = {
+  id: true,
+  name: true,
+  type: true,
+  currency: true,
+} as const;
+
+/**
+ * An account (ref) read through accountRefSelect, as the API shows it: the
+ * column is CHAR(3) to Prisma, the code one the API itself wrote.
+ */
+export const toAccountRef = <T extends { currency: string }>(row: T) =>
+  row as T & { currency: Currency };
+
+/** What a write needs to know about the money of a user and accounts. */
+export interface MoneyContext {
+  baseCurrency: Currency;
+  timeZone: string;
+  /** Account id -> its currency; only the user's own accounts. */
+  currencies: Map<string, Currency>;
+}
+
+/** Today in UTC, "2026-10-15": the day of "the latest rate". */
+export const today = () => new Date().toISOString().slice(0, 10);
 
 interface BalanceRow {
   id: string;
   name: string;
   type: AccountType;
+  currency: Currency;
   opening_balance: Prisma.Decimal;
   allow_negative: boolean;
   balance: Prisma.Decimal;
+  /** The balance in the user's base currency today; null: no rate. */
+  base_balance: Prisma.Decimal | null;
 }
-
-const rubles = new Intl.NumberFormat('ru-RU', {
-  style: 'currency',
-  currency: 'RUB',
-});
 
 // Another user's account is reported exactly like a missing one.
 const notFound = () =>
@@ -44,35 +68,47 @@ const nameTaken = () =>
 
 /**
  * Balance = opening balance + income - expenses - transfers out + transfers
- * in. Computed on read rather than stored: there is nothing to keep in sync
- * on every write, and an edit of an old transaction cannot leave it wrong.
- * Two correlated sums per account, each an index scan (account_id,
- * to_account_id); a user has a handful of accounts.
+ * in, all in the account's currency (a transfer in counts what arrived,
+ * to_amount). Computed on read rather than stored: there is nothing to
+ * keep in sync on every write, and an edit of an old transaction cannot
+ * leave it wrong. Two correlated sums per account, each an index scan
+ * (account_id, to_account_id); a user has a handful of accounts.
+ *
+ * base_balance: the balance at the latest rates, for the total.
  */
 const balancesQuery = (userId: string, ids?: string[]) => Prisma.sql`
-  SELECT a.id, a.name, a.type, a.opening_balance, a.allow_negative,
-         a.opening_balance
-         + COALESCE((
-             -- Money out of the account: a transfer has no category, so it
-             -- falls into ELSE together with expenses.
-             SELECT SUM(CASE WHEN c.kind = 'income' THEN t.amount ELSE -t.amount END)
-             FROM transactions t
-             LEFT JOIN categories c ON c.id = t.category_id
-             WHERE t.account_id = a.id
-           ), 0)
-         + COALESCE((
-             SELECT SUM(t.amount) FROM transactions t WHERE t.to_account_id = a.id
-           ), 0) AS balance
-  FROM accounts a
-  WHERE a.user_id = ${userId}::uuid
-    ${ids ? Prisma.sql`AND a.id = ANY(${ids}::uuid[])` : Prisma.empty}
-  ORDER BY a.created_at, a.id
+  SELECT id, name, type, currency, opening_balance, allow_negative, balance,
+         round(balance * exchange_rate(currency, current_date)
+               / exchange_rate(base_currency, current_date), 2) AS base_balance
+  FROM (
+    SELECT a.id, a.name, a.type, a.currency, a.opening_balance,
+           a.allow_negative, a.created_at, u.base_currency,
+           a.opening_balance
+           + COALESCE((
+               -- Money out of the account: a transfer has no category, so it
+               -- falls into ELSE together with expenses.
+               SELECT SUM(CASE WHEN c.kind = 'income' THEN t.amount ELSE -t.amount END)
+               FROM transactions t
+               LEFT JOIN categories c ON c.id = t.category_id
+               WHERE t.account_id = a.id
+             ), 0)
+           + COALESCE((
+               SELECT SUM(t.to_amount) FROM transactions t
+               WHERE t.to_account_id = a.id
+             ), 0) AS balance
+    FROM accounts a
+    JOIN users u ON u.id = a.user_id
+    WHERE a.user_id = ${userId}::uuid
+      ${ids ? Prisma.sql`AND a.id = ANY(${ids}::uuid[])` : Prisma.empty}
+  ) balances
+  ORDER BY created_at, id
 `;
 
 const toAccount = (row: BalanceRow): Account => ({
   id: row.id,
   name: row.name,
   type: row.type,
+  currency: row.currency,
   openingBalance: new Prisma.Decimal(row.opening_balance).toFixed(2),
   allowNegative: row.allow_negative,
   balance: new Prisma.Decimal(row.balance).toFixed(2),
@@ -80,24 +116,78 @@ const toAccount = (row: BalanceRow): Account => ({
 
 @Injectable()
 export class AccountsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rates: RatesService,
+  ) {}
 
+  /**
+   * The total converts every balance into the base currency at the latest
+   * rate. Rates are loaded only when one is missing (a job keeps them
+   * current); a total that still cannot be made is null rather than one
+   * that leaves an account out.
+   */
   async list(userId: string): Promise<AccountList> {
-    const rows = await this.prisma.$queryRaw<BalanceRow[]>(
-      balancesQuery(userId),
-    );
+    let rows = await this.prisma.$queryRaw<BalanceRow[]>(balancesQuery(userId));
+    const unconverted = rows.filter((row) => row.base_balance === null);
+    if (unconverted.length > 0) {
+      const { baseCurrency } = await this.moneyContext(this.prisma, userId);
+      await this.rates.ensure(
+        [baseCurrency, ...unconverted.map((row) => row.currency)].map(
+          (currency) => ({ currency, from: today(), to: today() }),
+        ),
+      );
+      rows = await this.prisma.$queryRaw<BalanceRow[]>(balancesQuery(userId));
+    }
     // Decimal: exact, unlike adding floats (the client never adds money).
-    const total = rows.reduce(
-      (sum, row) => sum.plus(row.balance),
-      new Prisma.Decimal(0),
-    );
-    return { items: rows.map(toAccount), total: total.toFixed(2) };
+    const total = rows.every((row) => row.base_balance !== null)
+      ? rows
+          .reduce(
+            (sum, row) => sum.plus(row.base_balance!),
+            new Prisma.Decimal(0),
+          )
+          .toFixed(2)
+      : null;
+    return { items: rows.map(toAccount), total };
+  }
+
+  /**
+   * The base currency and time zone of the user, and the currencies of the
+   * accounts named that are the user's. Read before a write, to load the
+   * rates it needs outside its database transaction.
+   */
+  async moneyContext(
+    client: Tx | PrismaService,
+    userId: string,
+    accountIds: string[] = [],
+  ): Promise<MoneyContext> {
+    const user = await client.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { baseCurrency: true, timeZone: true },
+    });
+    const accounts =
+      accountIds.length === 0
+        ? []
+        : await client.account.findMany({
+            where: { userId, id: { in: accountIds } },
+            select: { id: true, currency: true },
+          });
+    return {
+      baseCurrency: user.baseCurrency as Currency,
+      timeZone: user.timeZone,
+      currencies: new Map(
+        accounts.map(({ id, currency }) => [id, currency as Currency]),
+      ),
+    };
   }
 
   async create(userId: string, dto: CreateAccountDto): Promise<Account> {
+    const currency =
+      dto.currency ??
+      (await this.moneyContext(this.prisma, userId)).baseCurrency;
     try {
       const { id } = await this.prisma.account.create({
-        data: { userId, ...dto },
+        data: { userId, ...dto, currency },
         select: { id: true },
       });
       return await this.get(this.prisma, userId, id);
@@ -116,6 +206,9 @@ export class AccountsService {
       return await this.prisma.$transaction(async (tx) => {
         await this.lock(tx, userId, [{ id, field: 'id' }], notFound);
         const current = await tx.account.findUniqueOrThrow({ where: { id } });
+        if (dto.currency && dto.currency !== current.currency) {
+          await this.assertCurrencyFree(tx, id);
+        }
         const allowNegative = dto.allowNegative ?? current.allowNegative;
         const opening = new Prisma.Decimal(
           dto.openingBalance ?? current.openingBalance,
@@ -228,7 +321,7 @@ export class AccountsService {
       [
         {
           field,
-          message: `На счёте «${overdrawn.name}» не хватает ${rubles.format(shortfall.toNumber())}`,
+          message: `На счёте «${overdrawn.name}» не хватает ${formatMoney(shortfall, overdrawn.currency)}`,
         },
       ],
     );
@@ -254,8 +347,40 @@ export class AccountsService {
     if (!after.isNegative()) return null;
     return {
       account: row.name,
-      missing: rubles.format(after.negated().toNumber()),
+      missing: formatMoney(after.negated(), row.currency),
     };
+  }
+
+  /**
+   * The amounts of the account's transactions and recurring rules are in
+   * its currency: changing it would change what they mean. A goal's target
+   * goes along (on an empty account the user is fixing a mistake).
+   */
+  private async assertCurrencyFree(tx: Tx, id: string): Promise<void> {
+    const [row] = await tx.$queryRaw<{ used: boolean }[]>`
+      SELECT EXISTS (
+               SELECT 1 FROM transactions
+               WHERE account_id = ${id}::uuid OR to_account_id = ${id}::uuid
+             )
+          OR EXISTS (
+               SELECT 1 FROM recurring_rules
+               WHERE account_id = ${id}::uuid OR to_account_id = ${id}::uuid
+             ) AS used
+    `;
+    if (row?.used) {
+      throw new AppException(
+        'ACCOUNT_IN_USE',
+        'Account currency cannot change while it is in use',
+        HttpStatus.CONFLICT,
+        [
+          {
+            field: 'currency',
+            message:
+              'Валюту можно сменить, только пока у счёта нет операций и регулярных платежей',
+          },
+        ],
+      );
+    }
   }
 
   private async get(

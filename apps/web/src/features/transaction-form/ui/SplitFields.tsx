@@ -13,13 +13,13 @@ import {
   useFieldArray,
   useWatch,
 } from 'react-hook-form';
-import { formatMoney } from '@/shared/lib';
+import { currencySymbol, formatMoney } from '@/shared/lib';
 import { Button, SelectField, TextField } from '@/shared/ui';
-import type { TransactionFormValues } from './TransactionForm';
+import type { FormContext, TransactionFormValues } from './TransactionForm';
 import styles from './TransactionForm.module.css';
 
 interface SplitFieldsProps {
-  control: Control<TransactionFormValues, unknown, TransactionInputDto>;
+  control: Control<TransactionFormValues, FormContext, TransactionInputDto>;
   register: UseFormRegister<TransactionFormValues>;
   setValue: UseFormSetValue<TransactionFormValues>;
   errors: FieldErrors<TransactionFormValues>;
@@ -27,6 +27,8 @@ interface SplitFieldsProps {
   categories: { id: string; name: string }[];
   /** Back to one category for the whole transaction. */
   onJoin: () => void;
+  /** Of the account: the parts are in it. */
+  currency: string;
 }
 
 /** Kopecks of what is typed; 0 for an empty field, NaN for a non-number. */
@@ -44,6 +46,7 @@ export function SplitFields({
   errors,
   categories,
   onJoin,
+  currency,
 }: SplitFieldsProps) {
   const { fields, append, remove } = useFieldArray({ control, name: 'splits' });
   const amount = useWatch({ control, name: 'amount' });
@@ -96,7 +99,7 @@ export function SplitFields({
                   : '0,00'
               }
               autoComplete="off"
-              suffix="₽"
+              suffix={currencySymbol(currency)}
               error={errors.splits?.[index]?.amount?.message}
               {...register(`splits.${index}.amount`)}
             />
@@ -141,7 +144,7 @@ export function SplitFields({
           {left === 0 && 'Сумма распределена полностью'}
           {left > 0 && (
             <>
-              Не распределено {formatMoney(fromKopecks(left))}
+              Не распределено {formatMoney(fromKopecks(left), currency)}
               {emptyPart >= 0 && (
                 <>
                   {' · '}
@@ -163,7 +166,7 @@ export function SplitFields({
             </>
           )}
           {left < 0 &&
-            `Части больше суммы на ${formatMoney(fromKopecks(-left))}`}
+            `Части больше суммы на ${formatMoney(fromKopecks(-left), currency)}`}
         </p>
       )}
       {listError && (

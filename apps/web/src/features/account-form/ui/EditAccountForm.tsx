@@ -22,6 +22,7 @@ export function EditAccountForm({
         name: account.name,
         type: account.type,
         // "1500.00" as people write it here.
+        currency: account.currency,
         openingBalance: account.openingBalance.replace('.', ','),
         allowNegative: account.allowNegative,
       }}

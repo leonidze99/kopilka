@@ -9,6 +9,7 @@ export const USER = {
   id: '0199d0a4-5b6e-7c3d-8e9f-0a1b2c3d4e5f',
   email: 'user@example.com',
   budgetAlerts: true,
+  baseCurrency: 'RUB' as const,
 };
 
 export const authResponse = (accessToken = 'access-1'): AuthResponse => ({
@@ -56,6 +57,7 @@ export const MAIN_ACCOUNT = {
   id: '0199d0a4-0000-7000-8000-0000000acc01',
   name: 'Основной счёт',
   type: 'card',
+  currency: 'RUB',
   openingBalance: '0.00',
   allowNegative: true,
   balance: '0.00',
@@ -104,6 +106,7 @@ const accountRef = {
   id: MAIN_ACCOUNT.id,
   name: MAIN_ACCOUNT.name,
   type: 'card',
+  currency: 'RUB',
 } as const;
 
 type Receipt = Schemas['Receipt'];
@@ -117,6 +120,14 @@ type TestCategory = { id: string; kind: 'income' | 'expense'; name: string };
 export const transaction = (
   overrides: Partial<{
     amount: string;
+    /** In the base currency; the amount itself by default. */
+    baseAmount: string;
+    account: {
+      id: string;
+      name: string;
+      type: 'card' | 'cash' | 'savings';
+      currency: Schemas['Currency'];
+    };
     comment: string | null;
     occurredAt: string;
     category: TestCategory;
@@ -139,6 +150,8 @@ export const transaction = (
     tags: [] as { id: string; name: string }[],
     receipts: [] as Receipt[],
     ...overrides,
+    baseAmount: overrides.baseAmount ?? overrides.amount ?? '100.00',
+    baseAmountManual: false,
     category,
     splits,
   };

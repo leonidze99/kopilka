@@ -11,6 +11,7 @@ import {
   useCategoryTotalsQuery,
   useTransactionSummaryQuery,
 } from '@/entities/transaction';
+import { useBaseCurrency } from '@/entities/session';
 import {
   errorMessage,
   formatMoney,
@@ -139,6 +140,7 @@ function Segment({
   dimmed,
   onHover,
 }: PartProps & { dimmed: boolean }) {
+  const currency = useBaseCurrency();
   const color = useCategoryColor(item.category);
   return (
     <span
@@ -146,7 +148,7 @@ function Segment({
         .filter(Boolean)
         .join(' ')}
       style={{ flexGrow: share, '--color': color } as CSSProperties}
-      title={`${item.category.name}: ${formatMoney(item.total)}, ${percent(share)}`}
+      title={`${item.category.name}: ${formatMoney(item.total, currency)}, ${percent(share)}`}
       onMouseEnter={() => onHover(item.category.id)}
       onMouseLeave={() => onHover(undefined)}
     />
@@ -165,6 +167,7 @@ function LegendRow({
   highlighted: boolean;
   onClick: () => void;
 }) {
+  const currency = useBaseCurrency();
   const color = useCategoryColor(item.category);
   return (
     <li>
@@ -185,7 +188,9 @@ function LegendRow({
         <span className={styles.swatch} aria-hidden />
         <span className={styles.name}>{item.category.name}</span>
         <span className={styles.percent}>{percent(share)}</span>
-        <span className={styles.amount}>{formatMoney(item.total)}</span>
+        <span className={styles.amount}>
+          {formatMoney(item.total, currency)}
+        </span>
       </button>
     </li>
   );

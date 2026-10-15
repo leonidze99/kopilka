@@ -4,8 +4,10 @@ import {
   type Account,
   ACCOUNT_TYPE_LABELS,
   AccountIcon,
+  formatAccountsTotal,
   useListAccountsQuery,
 } from '@/entities/account';
+import { useBaseCurrency } from '@/entities/session';
 import { DeleteAccountButton } from '@/features/account-delete';
 import { EditAccountForm } from '@/features/account-form';
 import { errorMessage, formatMoney } from '@/shared/lib';
@@ -15,6 +17,7 @@ import styles from './AccountList.module.css';
 /** All accounts with their balances; a click opens one for editing. */
 export function AccountList() {
   const { data, error, isLoading } = useListAccountsQuery();
+  const baseCurrency = useBaseCurrency();
   const [editing, setEditing] = useState<Account>();
   const closeEditor = () => setEditing(undefined);
 
@@ -26,7 +29,7 @@ export function AccountList() {
       actions={
         data && (
           <span className={styles.total}>
-            Всего <strong>{formatMoney(data.total)}</strong>
+            Всего <strong>{formatAccountsTotal(data, baseCurrency)}</strong>
           </span>
         )
       }
@@ -51,6 +54,8 @@ export function AccountList() {
                 <span className={styles.name}>{account.name}</span>
                 <span className={styles.meta}>
                   {ACCOUNT_TYPE_LABELS[account.type]}
+                  {account.currency !== baseCurrency &&
+                    ` · ${account.currency}`}
                   {!account.allowNegative && (
                     <span className={styles.badge}>
                       <Lock size={12} aria-hidden />
@@ -67,7 +72,7 @@ export function AccountList() {
                   .filter(Boolean)
                   .join(' ')}
               >
-                {formatMoney(account.balance)}
+                {formatMoney(account.balance, account.currency)}
               </span>
             </button>
           </li>

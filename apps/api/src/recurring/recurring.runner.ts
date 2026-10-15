@@ -5,7 +5,8 @@ import { AccountsService, type Tx } from '../accounts/accounts.service.js';
 import type { Env } from '../config/env.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { addInterval, dateOf, toDateColumn } from './schedule.js';
+import { RatesService } from '../rates/rates.service.js';
+import { addInterval, dateOf, toDateColumn, todayIn } from './schedule.js';
 
 interface DueRule {
   id: string;
@@ -49,6 +50,7 @@ export class RecurringRunner {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accounts: AccountsService,
+    private readonly rates: RatesService,
     config: ConfigService<Env, true>,
   ) {
     this.enabled = config.get('JOBS_ENABLED', { infer: true });
@@ -75,12 +77,43 @@ export class RecurringRunner {
    * payments of rules other suites (or the demo seed) created.
    */
   async runDue(now: Date, scope: { userId?: string } = {}): Promise<number> {
+    await this.loadRates(now, scope.userId);
     let handled = 0;
     while (handled < BATCH && (await this.runOne(now, scope.userId))) {
       handled++;
     }
     if (handled > 0) this.logger.log({ handled }, 'Recurring payments made');
     return handled;
+  }
+
+  /**
+   * The rates the due payments on foreign accounts convert with, loaded
+   * before any transaction starts: from the oldest due date to today.
+   */
+  private async loadRates(now: Date, userId?: string): Promise<void> {
+    const due = await this.prisma.$queryRaw<
+      { currency: string; base: string; first: Date }[]
+    >`
+      SELECT a.currency, u.base_currency AS base, min(r.next_on) AS first
+      FROM recurring_rules r
+      JOIN accounts a ON a.id = r.account_id
+      JOIN users u ON u.id = r.user_id
+      WHERE r.active
+        AND r.next_on <= (${now}::timestamptz AT TIME ZONE r.time_zone)::date
+        AND a.currency <> u.base_currency
+        ${userId ? Prisma.sql`AND r.user_id = ${userId}::uuid` : Prisma.empty}
+      GROUP BY 1, 2
+    `;
+    const to = todayIn('UTC', now);
+    await this.rates.ensure(
+      due.flatMap(({ currency, base, first }) => {
+        const from = dateOf(first);
+        return [
+          { currency, from, to },
+          { currency: base, from, to },
+        ];
+      }),
+    );
   }
 
   private runOne(now: Date, userId?: string): Promise<boolean> {
@@ -188,6 +221,25 @@ export class RecurringRunner {
         );
         return `${dayFormat.format(rule.next_on)}: на счёте «${shortfall.account}» не хватило ${shortfall.missing}`;
       }
+    }
+
+    // The trigger would refuse the insert without a rate and abort the
+    // whole transaction; asked first, the date is skipped like one
+    // without money, and the rule goes on.
+    const [rate] = await tx.$queryRaw<{ currency: string; known: boolean }[]>`
+      SELECT a.currency,
+             exchange_rate(a.currency, (${rule.occurs_at}::timestamptz AT TIME ZONE u.time_zone)::date)
+             / exchange_rate(u.base_currency, (${rule.occurs_at}::timestamptz AT TIME ZONE u.time_zone)::date)
+               IS NOT NULL AS known
+      FROM accounts a JOIN users u ON u.id = a.user_id
+      WHERE a.id = ${rule.account_id}::uuid
+    `;
+    if (rate && !rate.known) {
+      this.logger.warn(
+        { ruleId: rule.id, on, currency: rate.currency },
+        'Recurring payment skipped: no exchange rate',
+      );
+      return `${dayFormat.format(rule.next_on)}: нет курса ЦБ для ${rate.currency}`;
     }
 
     await tx.transaction.create({

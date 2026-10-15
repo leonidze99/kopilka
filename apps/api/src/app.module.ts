@@ -22,6 +22,7 @@ import { createLoggerParams } from './common/logging/logger.config.js';
 import { HealthModule } from './health/health.module.js';
 import { envSchema, type Env } from './config/env.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { RatesModule } from './rates/rates.module.js';
 import { TransactionsModule } from './transactions/transactions.module.js';
 
 @Module({
@@ -48,6 +49,7 @@ import { TransactionsModule } from './transactions/transactions.module.js';
     // Cron jobs; each job checks JOBS_ENABLED itself.
     ScheduleModule.forRoot(),
     PrismaModule,
+    RatesModule,
     AuthModule,
     HealthModule,
     AccountsModule,

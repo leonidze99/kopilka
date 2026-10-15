@@ -57,6 +57,8 @@ export const TRANSACTION_CSV_HEADER = [
   'Счёт',
   'Счёт назначения',
   'Сумма',
+  // Of the account; a transfer's is the account the money left.
+  'Валюта',
   'Комментарий',
   // Last: the import finds columns by name and does not read this one.
   'Теги',
@@ -84,6 +86,7 @@ export function transactionCsvRows(
     transaction.account.name,
     toAccount,
     csvAmount(amount),
+    transaction.account.currency,
     transaction.comment ?? '',
     transaction.tags.map((tag) => tag.name).join(', '),
   ];

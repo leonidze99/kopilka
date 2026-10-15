@@ -1,8 +1,9 @@
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { tagBudgetFormSchema } from '@kopilka/shared';
 import { useForm } from 'react-hook-form';
+import { useBaseCurrency } from '@/entities/session';
 import { type Tag, useSetTagBudgetMutation } from '@/entities/tag';
-import { applyApiError, errorMessage } from '@/shared/lib';
+import { applyApiError, currencySymbol, errorMessage } from '@/shared/lib';
 import { Button, Form, FormError, TextField, toast } from '@/shared/ui';
 import styles from './TagBudgetForm.module.css';
 
@@ -18,6 +19,7 @@ interface TagBudgetFormProps {
 export function TagBudgetForm({ tag, onDone }: TagBudgetFormProps) {
   const [setBudget, { isLoading: removing, error: removeError }] =
     useSetTagBudgetMutation();
+  const baseCurrency = useBaseCurrency();
   const {
     register,
     handleSubmit,
@@ -54,7 +56,7 @@ export function TagBudgetForm({ tag, onDone }: TagBudgetFormProps) {
         inputMode="decimal"
         placeholder="0,00"
         autoComplete="off"
-        suffix="₽"
+        suffix={currencySymbol(baseCurrency)}
         error={errors.amount?.message}
         {...register('amount')}
       />

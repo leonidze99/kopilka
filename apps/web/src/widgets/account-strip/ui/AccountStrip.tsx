@@ -1,6 +1,11 @@
 import { Plus } from 'lucide-react';
 import { Link } from 'react-router';
-import { AccountIcon, useListAccountsQuery } from '@/entities/account';
+import {
+  AccountIcon,
+  formatAccountsTotal,
+  useListAccountsQuery,
+} from '@/entities/account';
+import { useBaseCurrency } from '@/entities/session';
 import { formatMoney } from '@/shared/lib';
 import { Skeleton } from '@/shared/ui';
 import styles from './AccountStrip.module.css';
@@ -14,6 +19,7 @@ interface AccountStripProps {
 /** Balances of all accounts in a row; a click narrows the list to one. */
 export function AccountStrip({ selectedId, onSelect }: AccountStripProps) {
   const { data, isLoading } = useListAccountsQuery();
+  const baseCurrency = useBaseCurrency();
 
   return (
     <section className={styles.strip} aria-label="Счета">
@@ -24,7 +30,9 @@ export function AccountStrip({ selectedId, onSelect }: AccountStripProps) {
       {data && data.items.length > 1 && (
         <div className={styles.total}>
           <span className={styles.label}>Все счета</span>
-          <span className={styles.amount}>{formatMoney(data.total)}</span>
+          <span className={styles.amount}>
+            {formatAccountsTotal(data, baseCurrency)}
+          </span>
         </div>
       )}
       {data?.items.map((account) => (
@@ -46,7 +54,7 @@ export function AccountStrip({ selectedId, onSelect }: AccountStripProps) {
           <span className={styles.text}>
             <span className={styles.label}>{account.name}</span>
             <span className={styles.amount}>
-              {formatMoney(account.balance)}
+              {formatMoney(account.balance, account.currency)}
             </span>
           </span>
         </button>

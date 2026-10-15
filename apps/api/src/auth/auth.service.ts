@@ -8,6 +8,7 @@ import type {
   NotificationSettingsDto,
   RegisterDto,
   User,
+  Currency,
 } from '@kopilka/shared';
 import { hash, verify } from '@node-rs/argon2';
 import { randomBytes } from 'node:crypto';
@@ -41,7 +42,25 @@ export interface Session {
   refreshToken: IssuedRefreshToken;
 }
 
-const userSelect = { id: true, email: true, budgetAlerts: true } as const;
+const userSelect = {
+  id: true,
+  email: true,
+  budgetAlerts: true,
+  baseCurrency: true,
+} as const;
+
+/** A user row as the API shows it; the currency code is one the API wrote. */
+const toUser = (row: {
+  id: string;
+  email: string;
+  budgetAlerts: boolean;
+  baseCurrency: string;
+}): User => ({
+  id: row.id,
+  email: row.email,
+  budgetAlerts: row.budgetAlerts,
+  baseCurrency: row.baseCurrency as Currency,
+});
 
 /**
  * Policy, not deployment settings, so they stay here while the limit and
@@ -310,11 +329,13 @@ export class AuthService {
     userId: string,
     { budgetAlerts }: NotificationSettingsDto,
   ): Promise<User> {
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: { budgetAlerts },
-      select: userSelect,
-    });
+    return toUser(
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { budgetAlerts },
+        select: userSelect,
+      }),
+    );
   }
 
   async me(userId: string): Promise<User> {
@@ -324,13 +345,14 @@ export class AuthService {
     });
     // The access token outlives a deleted account by up to its TTL.
     if (!user) throw unauthorized('User no longer exists');
-    return user;
+    return toUser(user);
   }
 
   private async session(
-    user: User,
+    row: Parameters<typeof toUser>[0],
     refreshToken: IssuedRefreshToken,
   ): Promise<Session> {
+    const user = toUser(row);
     const payload: AccessTokenPayload = {
       sub: user.id,
       sid: refreshToken.sessionId,

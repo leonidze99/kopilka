@@ -19,7 +19,12 @@ const rule = (overrides: Partial<CategorizedRule> = {}): CategorizedRule => ({
   comment: 'Аренда',
   every: 1,
   unit: 'month',
-  account: { id: MAIN_ACCOUNT.id, name: MAIN_ACCOUNT.name, type: 'card' },
+  account: {
+    id: MAIN_ACCOUNT.id,
+    name: MAIN_ACCOUNT.name,
+    type: 'card',
+    currency: 'RUB',
+  },
   category: RENT,
   startOn: '2026-10-05',
   timeZone: 'Europe/Moscow',

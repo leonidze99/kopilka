@@ -27,6 +27,13 @@ const inputFields = {
     .optional(),
   /** By name; a new name makes a new tag. None if left out. */
   tags: transactionTagsSchema.default([]),
+  /**
+   * The amount in the user's base currency, when the account is in
+   * another: what the bank actually charged. Left out, the server converts
+   * at the Bank of Russia rate of the day. Ignored on an account in the
+   * base currency.
+   */
+  baseAmount: amountSchema.optional(),
 };
 
 /** One category's share of a split income or expense. */
@@ -39,9 +46,14 @@ export const transactionSplitInputSchema = z
 
 export const MAX_SPLITS = 20;
 
-/** 123450 -> "1 234,50 ₽", for a message about kopecks. */
-const rubles = (kopecks: number) =>
-  `${new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2 }).format(kopecks / 100)} ₽`;
+/**
+ * 123450 -> "1 234,50", for a message about hundredths. No currency sign:
+ * the parts are in the account's currency, which the schema does not know.
+ */
+const hundredths = (kopecks: number) =>
+  new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2 }).format(
+    kopecks / 100,
+  );
 
 /** An income or expense as sent, before its fields are known to be valid. */
 interface LooseCategorizedInput {
@@ -101,8 +113,8 @@ function checkParts(input: LooseCategorizedInput, ctx: z.RefinementCtx) {
     code: 'custom',
     message:
       sum < total
-        ? `Части меньше суммы операции на ${rubles(total - sum)}`
-        : `Части больше суммы операции на ${rubles(sum - total)}`,
+        ? `Части меньше суммы операции на ${hundredths(total - sum)}`
+        : `Части больше суммы операции на ${hundredths(sum - total)}`,
     path: ['splits'],
   });
 }
@@ -145,6 +157,12 @@ export const transactionInputSchema = z
       .object({
         type: z.literal('transfer'),
         toAccountId: z.uuid('Выберите счёт'),
+        /**
+         * What reached the other account, in its currency. Required when
+         * the two accounts are in different currencies; ignored otherwise
+         * (the same amount arrives).
+         */
+        toAmount: amountSchema.optional(),
         ...inputFields,
       })
       .refine((transfer) => transfer.toAccountId !== transfer.accountId, {
@@ -157,8 +175,19 @@ export const transactionInputSchema = z
 
 const outputFields = {
   id: z.uuid(),
-  /** Always positive, with 2 fraction digits, e.g. "1234.50". */
+  /**
+   * In the currency of `account`: always positive, with 2 fraction digits,
+   * e.g. "1234.50".
+   */
   amount: z.string(),
+  /**
+   * In the user's base currency: what totals and budgets count. The same
+   * as `amount` on an account in the base currency; otherwise converted at
+   * the Bank of Russia rate of the day, or given by hand.
+   */
+  baseAmount: z.string(),
+  /** `baseAmount` was given by hand rather than converted. */
+  baseAmountManual: z.boolean(),
   comment: z.string().nullable(),
   // coerce: in JSON a date is a string; the same schema must also
   // parse a response on the client.
@@ -199,6 +228,8 @@ export const transactionSchema = z
         type: z.literal('transfer'),
         ...outputFields,
         toAccount: accountRefSchema,
+        /** What reached `toAccount`, in its currency. */
+        toAmount: z.string(),
       })
       .meta({ id: 'Transfer' }),
   ])

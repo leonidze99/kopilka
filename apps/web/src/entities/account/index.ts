@@ -12,4 +12,5 @@ export {
   ACCOUNT_TYPE_OPTIONS,
   type AccountType,
 } from './lib/type';
+export { formatAccountsTotal } from './lib/total';
 export { AccountIcon } from './ui/AccountIcon';

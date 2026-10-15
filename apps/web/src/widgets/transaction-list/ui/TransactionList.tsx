@@ -22,6 +22,7 @@ import {
   useTransactionSummaryQuery,
 } from '@/entities/transaction';
 import { useListTagsQuery } from '@/entities/tag';
+import { useBaseCurrency } from '@/entities/session';
 import { DeleteTransactionButton } from '@/features/transaction-delete';
 import { ExportCsvButton } from '@/features/transaction-export';
 import { TransactionReceipts } from '@/features/receipt-attach';
@@ -339,6 +340,8 @@ function RowContent({
   categoryId,
   query,
 }: RowContentProps) {
+  const baseCurrency = useBaseCurrency();
+  const { currency } = transaction.account;
   const time = (
     <time className={styles.time} dateTime={transaction.occurredAt}>
       {showAccount && transaction.type !== 'transfer'
@@ -380,10 +383,24 @@ function RowContent({
         </span>
         <span className={styles.side}>
           <span className={`${styles.amount} ${styles.transfer}`}>
-            {direction
-              ? formatSignedMoney(transaction.amount, direction)
-              : formatMoney(transaction.amount)}
+            {direction === 'income'
+              ? formatSignedMoney(
+                  transaction.toAmount,
+                  direction,
+                  transaction.toAccount.currency,
+                )
+              : direction === 'expense'
+                ? formatSignedMoney(transaction.amount, direction, currency)
+                : formatMoney(transaction.amount, currency)}
           </span>
+          {/* Between two currencies: what arrived, from either side. */}
+          {currency !== transaction.toAccount.currency && (
+            <span className={styles.converted}>
+              {direction === 'income'
+                ? `из ${formatMoney(transaction.amount, currency)}`
+                : `→ ${formatMoney(transaction.toAmount, transaction.toAccount.currency)}`}
+            </span>
+          )}
           {time}
         </span>
       </>
@@ -429,7 +446,7 @@ function RowContent({
         </span>
         {(part || transaction.comment) && (
           <span className={styles.comment}>
-            {part && `Часть от ${formatMoney(transaction.amount)}`}
+            {part && `Часть от ${formatMoney(transaction.amount, currency)}`}
             {part && transaction.comment && ' · '}
             {transaction.comment && (
               <Comment text={transaction.comment} query={query} />
@@ -443,8 +460,15 @@ function RowContent({
           {formatSignedMoney(
             part?.amount ?? transaction.amount,
             transaction.type,
+            currency,
           )}
         </span>
+        {/* What it counts as in the totals; a part's share is not shown. */}
+        {currency !== baseCurrency && !part && (
+          <span className={styles.converted}>
+            ≈ {formatMoney(transaction.baseAmount, baseCurrency)}
+          </span>
+        )}
         {time}
       </span>
     </>
@@ -474,6 +498,7 @@ function RowTags({ transaction }: { transaction: Transaction }) {
  * a budget, against it: the API counts the budget over the same expenses.
  */
 function TagTotals({ tagId }: { tagId: string }) {
+  const currency = useBaseCurrency();
   const { data: tags } = useListTagsQuery();
   const { data: summary } = useTransactionSummaryQuery({ tagId });
   const tag = tags?.find((candidate) => candidate.id === tagId);
@@ -482,18 +507,21 @@ function TagTotals({ tagId }: { tagId: string }) {
   return (
     <p className={styles.tagTotals} aria-live="polite">
       «{tag.name}» за всё время: расходы{' '}
-      <strong>{formatMoney(summary.expense)}</strong>
+      <strong>{formatMoney(summary.expense, currency)}</strong>
       {tag.budget && (
         <>
           {' '}
-          из {formatMoney(tag.budget.limit)} ·{' '}
-          <UsageRemaining remaining={tag.budget.remaining} />
+          из {formatMoney(tag.budget.limit, currency)} ·{' '}
+          <UsageRemaining
+            remaining={tag.budget.remaining}
+            currency={currency}
+          />
         </>
       )}
       {income && (
         <>
           {tag.budget ? ' · ' : ', '}
-          доходы <strong>{formatMoney(summary.income)}</strong>
+          доходы <strong>{formatMoney(summary.income, currency)}</strong>
         </>
       )}
     </p>

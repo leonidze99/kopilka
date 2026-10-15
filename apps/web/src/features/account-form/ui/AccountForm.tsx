@@ -1,14 +1,20 @@
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { createAccountSchema, type CreateAccountDto } from '@kopilka/shared';
+import {
+  CURRENCIES,
+  createAccountSchema,
+  type CreateAccountDto,
+  type Currency,
+} from '@kopilka/shared';
 import type { ReactNode } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { ACCOUNT_TYPE_OPTIONS, type AccountType } from '@/entities/account';
-import { applyApiError } from '@/shared/lib';
+import { applyApiError, currencySymbol } from '@/shared/lib';
 import {
   Button,
   Form,
   FormError,
   Segmented,
+  SelectField,
   Switch,
   TextField,
 } from '@/shared/ui';
@@ -16,6 +22,7 @@ import {
 export interface AccountFormValues {
   name: string;
   type: AccountType;
+  currency: Currency;
   openingBalance: string;
   allowNegative: boolean;
 }
@@ -48,6 +55,9 @@ export function AccountForm({
     defaultValues,
   });
 
+  const currency =
+    useWatch({ control, name: 'currency' }) ?? defaultValues.currency;
+
   const onSubmit = handleSubmit(async (values) => {
     const result = await submit(values);
     if (result.error) {
@@ -55,6 +65,7 @@ export function AccountForm({
       applyApiError(result.error, setError, [
         'name',
         'type',
+        'currency',
         'openingBalance',
         'allowNegative',
       ]);
@@ -86,12 +97,23 @@ export function AccountForm({
         error={errors.name?.message}
         {...register('name')}
       />
+      <SelectField
+        label="Валюта"
+        error={errors.currency?.message}
+        {...register('currency')}
+      >
+        {CURRENCIES.map(({ code, name }) => (
+          <option key={code} value={code}>
+            {code} — {name}
+          </option>
+        ))}
+      </SelectField>
       <TextField
         label="Начальный остаток"
         inputMode="decimal"
         placeholder="0,00"
         autoComplete="off"
-        suffix="₽"
+        suffix={currencySymbol(currency)}
         error={errors.openingBalance?.message}
         {...register('openingBalance', {
           // Empty means zero: the schema's default fills it in.

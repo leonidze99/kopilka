@@ -60,6 +60,7 @@ const accountRef = {
   id: MAIN_ACCOUNT.id,
   name: MAIN_ACCOUNT.name,
   type: 'card',
+  currency: 'RUB',
 } as const;
 
 /** What the server has once the six rows are parsed. */
@@ -325,6 +326,7 @@ describe('ImportPage', () => {
       id: '0199d0a4-0000-7000-8000-0000000acc02',
       name: 'Накопления',
       type: 'savings',
+      currency: 'RUB',
       openingBalance: '0.00',
       allowNegative: false,
       balance: '0.00',

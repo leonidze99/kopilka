@@ -52,7 +52,22 @@ let nextId = 1;
 const newId = () =>
   `0199d0a4-3333-7000-8000-${String(nextId++).padStart(12, '0')}`;
 
-const ref = ({ id, name, type }: Account) => ({ id, name, type });
+const ref = ({ id, name, type, currency }: Account) => ({
+  id,
+  name,
+  type,
+  currency,
+});
+
+/**
+ * Roubles for one unit, as the Bank of Russia would have it in tests: the
+ * user counts in roubles (USER.baseCurrency).
+ */
+export const TEST_RATES: Record<string, number> = { RUB: 1, USD: 90, EUR: 100 };
+
+/** Test data only: the real API converts exactly, in the database. */
+const toBase = (amount: number | string, currency: string) =>
+  (Number(amount) * (TEST_RATES[currency] ?? 1)).toFixed(2);
 
 /**
  * An in-memory API for the signed-in pages: what a test creates or deletes
@@ -128,6 +143,12 @@ export function mockAccount({
       id,
       // The real API stores numeric(14,2) and answers with 2 decimals.
       amount: Number(body.amount).toFixed(2),
+      // By hand only on a foreign account, as the API has it.
+      baseAmount:
+        body.baseAmount && account.currency !== 'RUB'
+          ? Number(body.baseAmount).toFixed(2)
+          : toBase(body.amount, account.currency),
+      baseAmountManual: !!body.baseAmount && account.currency !== 'RUB',
       comment: body.comment || null,
       occurredAt: body.occurredAt,
       createdAt: new Date().toISOString(),
@@ -139,7 +160,16 @@ export function mockAccount({
     if (body.type === 'transfer') {
       const to = state.accounts.find((a) => a.id === body.toAccountId);
       if (!to) throw new Error(`unknown account ${body.toAccountId}`);
-      return { ...common, type: 'transfer', toAccount: ref(to) };
+      return {
+        ...common,
+        type: 'transfer',
+        toAccount: ref(to),
+        toAmount: Number(
+          to.currency === account.currency
+            ? body.amount
+            : (body.toAmount ?? body.amount),
+        ).toFixed(2),
+      };
     }
     const categoryOf = (id: string | undefined) => {
       const category = state.categories.find((c) => c.id === id);
@@ -174,7 +204,11 @@ export function mockAccount({
         items: state.accounts,
         // Test data only: the real total is summed exactly by the API.
         total: state.accounts
-          .reduce((sum, account) => sum + Number(account.balance), 0)
+          .reduce(
+            (sum, account) =>
+              sum + Number(toBase(account.balance, account.currency)),
+            0,
+          )
           .toFixed(2),
       }),
     ),
@@ -186,6 +220,7 @@ export function mockAccount({
         id: newId(),
         name: body.name,
         type: body.type,
+        currency: body.currency ?? 'RUB',
         openingBalance,
         allowNegative: body.allowNegative ?? true,
         balance: openingBalance,

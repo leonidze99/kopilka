@@ -9,6 +9,7 @@ const CASH = {
   id: '0199d0a4-0000-7000-8000-0000000acc02',
   name: 'Наличные',
   type: 'cash',
+  currency: 'RUB',
   openingBalance: '0.00',
   allowNegative: false,
   balance: '0.00',
@@ -236,7 +237,7 @@ describe('CreateTransactionForm', () => {
       );
 
       expect(
-        await screen.findByText(/Части больше суммы операции на 100,00\s₽/),
+        await screen.findByText(/Части больше суммы операции на 100,00$/),
       ).toBeInTheDocument();
       expect(sent.transactions).toEqual([]);
     });

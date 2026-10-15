@@ -3,7 +3,9 @@ import { budgetFormSchema } from '@kopilka/shared';
 import { useForm } from 'react-hook-form';
 import { type Budget, useSetBudgetMutation } from '@/entities/budget';
 import { useListCategoriesQuery } from '@/entities/category';
+import { useBaseCurrency } from '@/entities/session';
 import {
+  currencySymbol,
   applyApiError,
   errorMessage,
   formatMonthIn,
@@ -38,6 +40,7 @@ export function BudgetForm({
   const { data: categories = [] } = useListCategoriesQuery();
   const [setBudget, { isLoading: removing, error: removeError }] =
     useSetBudgetMutation();
+  const baseCurrency = useBaseCurrency();
   const available = categories.filter(
     (category) =>
       category.kind === 'expense' && !budgetedIds.includes(category.id),
@@ -101,7 +104,7 @@ export function BudgetForm({
         inputMode="decimal"
         placeholder="0,00"
         autoComplete="off"
-        suffix="₽"
+        suffix={currencySymbol(baseCurrency)}
         large
         error={errors.amount?.message}
         {...register('amount')}

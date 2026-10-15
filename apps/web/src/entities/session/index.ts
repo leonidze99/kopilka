@@ -13,8 +13,10 @@ export {
   useRegisterMutation,
   useResetPasswordMutation,
   useRestoreSessionMutation,
+  useSetBaseCurrencyMutation,
   useSetNotificationsMutation,
 } from './api/session-api';
+export { useBaseCurrency } from './model/use-base-currency';
 export {
   selectCurrentUser,
   selectSessionStatus,

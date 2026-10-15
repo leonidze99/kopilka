@@ -13,6 +13,8 @@ const emptyValues = (
   accountId: '',
   toAccountId: '',
   amount: '',
+  toAmount: '',
+  baseAmount: '',
   // Local time: <input type="datetime-local"> has no time zone.
   occurredAt: toDateTimeLocal(new Date()),
   comment: '',

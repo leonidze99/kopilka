@@ -53,6 +53,9 @@ model User {
   timeZone     String  @default("UTC") @map("time_zone") @db.VarChar(64)
   /// Mail when a budget is overspent; off is off for all of them.
   budgetAlerts Boolean @default(true) @map("budget_alerts")
+  /// What totals, budgets and analytics count in (transactions.base_amount).
+  /// Accounts have currencies of their own.
+  baseCurrency String  @default("RUB") @map("base_currency") @db.Char(3)
 
   accounts         Account[]
   recurringRules   RecurringRule[]
@@ -104,6 +107,9 @@ model Account {
   userId         String      @map("user_id") @db.Uuid
   name           String      @db.VarChar(64)
   type           AccountType
+  /// ISO 4217. The opening balance, the balance and every amount of the
+  /// account's transactions are in it. Changes only while nothing uses it.
+  currency       String      @default("RUB") @db.Char(3)
   openingBalance Decimal     @default(0) @map("opening_balance") @db.Decimal(14, 2)
   /// false: no write may take the balance below zero (cash, savings).
   allowNegative  Boolean     @default(true) @map("allow_negative")
@@ -139,7 +145,18 @@ model Transaction {
   accountId         String    @map("account_id") @db.Uuid
   categoryId        String?   @map("category_id") @db.Uuid
   toAccountId       String?   @map("to_account_id") @db.Uuid
+  /// In the currency of the account; for a transfer, what left it.
   amount            Decimal   @db.Decimal(14, 2)
+  /// A transfer: what reached to_account, in its currency (the same as
+  /// amount between accounts of one currency). NULL otherwise.
+  toAmount          Decimal?  @map("to_amount") @db.Decimal(14, 2)
+  /// amount in the user's base currency: what every total, budget and
+  /// analytic sums. Set by the trigger transactions_money (see the
+  /// migration currencies) at the Bank of Russia rate of the local day,
+  /// unless base_manual: given by hand. The default only satisfies Prisma;
+  /// every write path gets the real value from the trigger.
+  baseAmount        Decimal   @default(0) @map("base_amount") @db.Decimal(14, 2)
+  baseManual        Boolean   @default(false) @map("base_manual")
   comment           String?   @db.VarChar(280)
   occurredAt        DateTime  @map("occurred_at") @db.Timestamptz(3)
   /// Made by a recurring rule, for its occurrence on recurring_on.
@@ -662,4 +679,18 @@ model RefreshToken {
   @@index([familyId])
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+/// Official Bank of Russia rates: roubles for one unit of the currency, in
+/// effect from on_date until the next one (weekends and holidays have
+/// none). Filled by RatesService, daily and on demand for older dates.
+/// SQL-only: exchange_rate(currency, day) reads it; CHECK (rate > 0).
+model ExchangeRate {
+  currency String   @db.Char(3)
+  onDate   DateTime @map("on_date") @db.Date
+  rate     Decimal  @db.Decimal(20, 10)
+
+  // Also "the latest rate on or before a day": a backward index scan.
+  @@id([currency, onDate])
+  @@map("exchange_rates")
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { currencySchema } from './currency.js';
 import { signedAmountSchema } from './money.js';
 
 /** What the money is kept in; drives the icon, not the rules. */
@@ -18,6 +19,8 @@ export const accountRefSchema = z
     id: z.uuid(),
     name: z.string(),
     type: accountTypeSchema,
+    /** Every amount on the account is in it. */
+    currency: currencySchema,
   })
   .meta({ id: 'AccountRef' });
 
@@ -26,6 +29,8 @@ export const accountSchema = z
     id: z.uuid(),
     name: z.string(),
     type: accountTypeSchema,
+    /** The balance and every amount on the account are in it. */
+    currency: currencySchema,
     /** What was there before the first transaction, e.g. "1500.00". */
     openingBalance: z.string(),
     /** false: no write may take the balance below zero. */
@@ -42,8 +47,11 @@ export const accountListSchema = z
   .object({
     /** Oldest first. */
     items: z.array(accountSchema),
-    /** All balances together, summed exactly by the server. */
-    total: z.string(),
+    /**
+     * All balances together in the user's base currency, each converted
+     * at the latest Bank of Russia rate; null when a rate is missing.
+     */
+    total: z.string().nullable(),
   })
   .meta({ id: 'AccountList' });
 
@@ -56,6 +64,8 @@ export const createAccountSchema = z
   .object({
     name: accountNameSchema,
     type: accountTypeSchema,
+    /** The user's base currency if left out. */
+    currency: currencySchema.optional(),
     openingBalance: signedAmountSchema.default('0'),
     allowNegative: z.boolean().default(true),
   })
@@ -69,12 +79,14 @@ export const createAccountSchema = z
 /**
  * Any subset of the fields. Whether the balance may stay where it is (say,
  * allowNegative turned off while below zero) is up to the server: it
- * depends on the transactions.
+ * depends on the transactions. The currency changes only while the account
+ * has no transactions and no recurring rules: their amounts are in it.
  */
 export const updateAccountSchema = z
   .object({
     name: accountNameSchema.optional(),
     type: accountTypeSchema.optional(),
+    currency: currencySchema.optional(),
     openingBalance: signedAmountSchema.optional(),
     allowNegative: z.boolean().optional(),
   })

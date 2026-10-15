@@ -18,6 +18,8 @@ import type {
 import {
   accountRefSelect,
   AccountsService,
+  type MoneyContext,
+  toAccountRef,
   type Tx,
 } from '../accounts/accounts.service.js';
 import { categorySelect } from '../categories/categories.service.js';
@@ -25,7 +27,13 @@ import { AppException } from '../common/errors/app.exception.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaCode, isPrismaError } from '../prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RatesService } from '../rates/rates.service.js';
+import {
+  exchangeRateMissing,
+  isExchangeRateMissing,
+} from '../rates/rate-errors.js';
 import { receiptSelect } from '../receipts/receipts.service.js';
+import { todayIn } from '../recurring/schedule.js';
 import { tagSelect, TagsService } from '../tags/tags.service.js';
 import { decodeCursor, encodeCursor } from './cursor.js';
 import { categorizedAmount, categorizedJoin } from './parts.js';
@@ -33,6 +41,9 @@ import { categorizedAmount, categorizedJoin } from './parts.js';
 const transactionSelect = {
   id: true,
   amount: true,
+  toAmount: true,
+  baseAmount: true,
+  baseManual: true,
   comment: true,
   occurredAt: true,
   createdAt: true,
@@ -61,6 +72,8 @@ type TransactionRow = Prisma.TransactionGetPayload<{
  */
 function toTransaction({
   toAccount,
+  toAmount,
+  baseManual,
   category,
   splits,
   tags,
@@ -68,10 +81,22 @@ function toTransaction({
 }: TransactionRow): Transaction {
   const common = {
     ...row,
+    // Codes as the database keeps them; the API only writes valid ones.
+    account: toAccountRef(row.account),
     amount: row.amount.toFixed(2),
+    baseAmount: row.baseAmount.toFixed(2),
+    baseAmountManual: baseManual,
     tags: tags.map(({ tag }) => tag),
   };
-  if (toAccount) return { type: 'transfer', ...common, toAccount };
+  if (toAccount) {
+    return {
+      type: 'transfer',
+      ...common,
+      toAccount: toAccountRef(toAccount),
+      // The trigger sets it on every transfer.
+      toAmount: (toAmount ?? row.amount).toFixed(2),
+    };
+  }
   // Without a category there are parts (the deferred trigger checks it),
   // all of one kind (the service does).
   const kind = category?.kind ?? splits[0]?.category.kind;
@@ -144,16 +169,32 @@ const accountsOf = (dto: TransactionInputDto) => [
     : []),
 ];
 
-/** Columns to write; the other side of category/transfer is cleared. */
-const columnsOf = (dto: TransactionInputDto) => ({
-  accountId: dto.accountId,
-  // A split transaction has its categories in its parts.
-  categoryId: dto.type === 'transfer' ? null : (dto.categoryId ?? null),
-  toAccountId: dto.type === 'transfer' ? dto.toAccountId : null,
-  amount: dto.amount,
-  occurredAt: dto.occurredAt,
-  comment: dto.comment || null,
-});
+/**
+ * Columns to write; the other side of category/transfer is cleared. The
+ * trigger transactions_money fills in to_amount between accounts of one
+ * currency and base_amount unless given by hand; written always, so a
+ * replaced transaction does not keep what its old version had.
+ */
+const columnsOf = (dto: TransactionInputDto, money: MoneyContext) => {
+  const currency = money.currencies.get(dto.accountId);
+  // A base amount by hand only means something on a foreign account.
+  const manual =
+    dto.baseAmount !== undefined &&
+    currency !== undefined &&
+    currency !== money.baseCurrency;
+  return {
+    accountId: dto.accountId,
+    // A split transaction has its categories in its parts.
+    categoryId: dto.type === 'transfer' ? null : (dto.categoryId ?? null),
+    toAccountId: dto.type === 'transfer' ? dto.toAccountId : null,
+    amount: dto.amount,
+    toAmount: dto.type === 'transfer' ? (dto.toAmount ?? null) : null,
+    baseAmount: manual ? dto.baseAmount! : 0,
+    baseManual: manual,
+    occurredAt: dto.occurredAt,
+    comment: dto.comment || null,
+  };
+};
 
 @Injectable()
 export class TransactionsService {
@@ -161,7 +202,44 @@ export class TransactionsService {
     private readonly prisma: PrismaService,
     private readonly accounts: AccountsService,
     private readonly tags: TagsService,
+    private readonly rates: RatesService,
   ) {}
+
+  /**
+   * Before the database transaction of a write: the currencies involved,
+   * a received amount where two currencies meet, and the rates the trigger
+   * will convert with, loaded now (a network call must not hold locks).
+   * An account that is not the user's is left for lock() to report.
+   */
+  private async prepare(
+    userId: string,
+    dto: TransactionInputDto,
+  ): Promise<MoneyContext> {
+    const money = await this.accounts.moneyContext(
+      this.prisma,
+      userId,
+      accountsOf(dto).map((account) => account.id),
+    );
+    const currency = money.currencies.get(dto.accountId);
+    if (dto.type === 'transfer' && !dto.toAmount) {
+      const target = money.currencies.get(dto.toAccountId);
+      if (currency && target && currency !== target) {
+        throw invalid(
+          'toAmount',
+          'Received amount required between currencies',
+          'Укажите, сколько пришло на счёт',
+        );
+      }
+    }
+    if (currency && currency !== money.baseCurrency && !dto.baseAmount) {
+      const day = todayIn(money.timeZone, dto.occurredAt);
+      await this.rates.ensure([
+        { currency, from: day, to: day },
+        { currency: money.baseCurrency, from: day, to: day },
+      ]);
+    }
+    return money;
+  }
 
   /**
    * Keyset (cursor) pagination: the next page starts strictly after the
@@ -309,7 +387,7 @@ export class TransactionsService {
     const rows = await this.prisma.$queryRaw<
       { kind: TransactionKind; total: Prisma.Decimal }[]
     >`
-      SELECT c.kind, SUM(${categorizedAmount}) AS total
+      SELECT c.kind, round(SUM(${categorizedAmount}), 2) AS total
       FROM transactions t
       ${categorizedJoin}
       WHERE ${Prisma.join(conditions, ' AND ')}
@@ -353,7 +431,7 @@ export class TransactionsService {
         total: Prisma.Decimal;
       }[]
     >`
-      SELECT c.id, c.kind, c.name, SUM(${categorizedAmount}) AS total
+      SELECT c.id, c.kind, c.name, round(SUM(${categorizedAmount}), 2) AS total
       FROM transactions t
       ${categorizedJoin}
       WHERE ${Prisma.join(conditions, ' AND ')}
@@ -387,7 +465,7 @@ export class TransactionsService {
     const rows = await this.prisma.$queryRaw<
       { id: string; name: string; total: Prisma.Decimal }[]
     >`
-      SELECT g.id, g.name, SUM(${categorizedAmount}) AS total
+      SELECT g.id, g.name, round(SUM(${categorizedAmount}), 2) AS total
       FROM transactions t
       JOIN transaction_tags tt ON tt.transaction_id = t.id
       JOIN tags g ON g.id = tt.tag_id
@@ -426,8 +504,8 @@ export class TransactionsService {
       ),
       totals AS (
         SELECT date_trunc('month', t.occurred_at AT TIME ZONE ${timeZone})::date AS month,
-               SUM(${categorizedAmount}) FILTER (WHERE c.kind = 'income') AS income,
-               SUM(${categorizedAmount}) FILTER (WHERE c.kind = 'expense') AS expense
+               round(SUM(${categorizedAmount}) FILTER (WHERE c.kind = 'income'), 2) AS income,
+               round(SUM(${categorizedAmount}) FILTER (WHERE c.kind = 'expense'), 2) AS expense
         FROM transactions t
         ${categorizedJoin}
         WHERE t.user_id = ${userId}::uuid
@@ -460,13 +538,14 @@ export class TransactionsService {
    * touches, write, check that no account went below its limit. A failed
    * check rolls the write back.
    */
-  create(userId: string, dto: TransactionInputDto): Promise<Transaction> {
+  async create(userId: string, dto: TransactionInputDto): Promise<Transaction> {
+    const money = await this.prepare(userId, dto);
     return this.write(async (tx) => {
       const accounts = accountsOf(dto);
       await this.accounts.lock(tx, userId, accounts, unknownAccount);
       await this.checkCategories(tx, userId, dto);
       const { id } = await tx.transaction.create({
-        data: { userId, ...columnsOf(dto) },
+        data: { userId, ...columnsOf(dto, money) },
         select: { id: true },
       });
       await this.writeSplits(tx, userId, id, dto);
@@ -482,11 +561,12 @@ export class TransactionsService {
   }
 
   /** Replaces the whole transaction: it may even become a transfer. */
-  update(
+  async update(
     userId: string,
     id: string,
     dto: TransactionInputDto,
   ): Promise<Transaction> {
+    const money = await this.prepare(userId, dto);
     return this.write(async (tx) => {
       // The accounts it was on lose or regain its money too.
       const before = await this.lockTransaction(tx, userId, id);
@@ -495,7 +575,7 @@ export class TransactionsService {
       await this.checkCategories(tx, userId, dto);
       await tx.transaction.update({
         where: { id, userId },
-        data: columnsOf(dto),
+        data: columnsOf(dto, money),
         select: { id: true },
       });
       // The parts are replaced as a whole, as the transaction is.
@@ -634,6 +714,8 @@ export class TransactionsService {
       if (isPrismaError(error, PrismaCode.ForeignKeyViolation)) {
         throw unknownCategory();
       }
+      // prepare() loaded the rates, but the Bank of Russia had none.
+      if (isExchangeRateMissing(error)) throw exchangeRateMissing();
       throw error;
     }
   }

@@ -82,6 +82,7 @@ describe('Accounts (e2e)', () => {
         id: expect.any(String),
         name: 'Основной счёт',
         type: 'card',
+        currency: 'RUB',
         openingBalance: '0.00',
         allowNegative: true,
         balance: '0.00',

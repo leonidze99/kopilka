@@ -3,6 +3,7 @@ import type { Goal, GoalInputDto } from '@kopilka/shared';
 import {
   accountRefSelect,
   AccountsService,
+  toAccountRef,
 } from '../accounts/accounts.service.js';
 import { AppException } from '../common/errors/app.exception.js';
 import { Prisma } from '../generated/prisma/client.js';
@@ -176,7 +177,7 @@ export class GoalsService {
     return {
       id: row.id,
       name: row.name,
-      account: row.account,
+      account: toAccountRef(row.account),
       targetAmount: target.toFixed(2),
       targetDate,
       saved: saved.toFixed(2),

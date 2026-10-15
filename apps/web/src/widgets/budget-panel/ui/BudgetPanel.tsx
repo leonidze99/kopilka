@@ -6,6 +6,7 @@ import {
   useListBudgetsQuery,
 } from '@/entities/budget';
 import { CategoryAvatar } from '@/entities/category';
+import { useBaseCurrency } from '@/entities/session';
 import { BudgetForm } from '@/features/budget-form';
 import {
   errorMessage,
@@ -107,14 +108,15 @@ export function BudgetPanel({ month }: { month: Month }) {
 }
 
 function Total({ total }: { total: BudgetList['total'] }) {
+  const currency = useBaseCurrency();
   return (
     <div className={styles.total}>
       <div className={styles.totalText}>
         <span>
-          Потрачено <strong>{formatMoney(total.spent)}</strong> из{' '}
-          {formatMoney(total.limit)}
+          Потрачено <strong>{formatMoney(total.spent, currency)}</strong> из{' '}
+          {formatMoney(total.limit, currency)}
         </span>
-        <UsageRemaining remaining={total.remaining} />
+        <UsageRemaining remaining={total.remaining} currency={currency} />
       </div>
       <UsageBar spent={total.spent} limit={total.limit} />
     </div>
@@ -122,6 +124,7 @@ function Total({ total }: { total: BudgetList['total'] }) {
 }
 
 function BudgetRow({ budget, onOpen }: { budget: Budget; onOpen: () => void }) {
+  const currency = useBaseCurrency();
   return (
     <button
       type="button"
@@ -134,12 +137,15 @@ function BudgetRow({ budget, onOpen }: { budget: Budget; onOpen: () => void }) {
         <span className={styles.head}>
           <span className={styles.name}>{budget.category.name}</span>
           <span className={styles.amounts}>
-            {formatMoney(budget.spent)}
-            <span className={styles.of}> из {formatMoney(budget.limit)}</span>
+            {formatMoney(budget.spent, currency)}
+            <span className={styles.of}>
+              {' '}
+              из {formatMoney(budget.limit, currency)}
+            </span>
           </span>
         </span>
         <UsageBar spent={budget.spent} limit={budget.limit} />
-        <UsageRemaining remaining={budget.remaining} />
+        <UsageRemaining remaining={budget.remaining} currency={currency} />
       </span>
     </button>
   );

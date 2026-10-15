@@ -38,11 +38,13 @@ describe('csv', () => {
     const base = {
       id: 'a',
       amount: '1234.50',
+      baseAmount: '1234.50',
+      baseAmountManual: false,
       comment: 'Пятёрочка',
       occurredAt: new Date('2026-10-12T22:30:00Z'),
       createdAt: new Date(),
       recurringRuleId: null,
-      account: { id: 'acc', name: 'Карта', type: 'card' },
+      account: { id: 'acc', name: 'Карта', type: 'card', currency: 'RUB' },
       tags: [] as { id: string; name: string }[],
       receipts: [],
     };
@@ -67,6 +69,7 @@ describe('csv', () => {
           'Карта',
           '',
           '1234,50',
+          'RUB',
           'Пятёрочка',
           'Отпуск, Сочи',
         ],
@@ -98,6 +101,7 @@ describe('csv', () => {
           'Карта',
           '',
           '1000,00',
+          'RUB',
           'Пятёрочка',
           '',
         ],
@@ -108,6 +112,7 @@ describe('csv', () => {
           'Карта',
           '',
           '234,50',
+          'RUB',
           'Пятёрочка',
           '',
         ],
@@ -119,7 +124,13 @@ describe('csv', () => {
         ...base,
         type: 'transfer',
         comment: null,
-        toAccount: { id: 'acc2', name: 'Накопления', type: 'savings' },
+        toAccount: {
+          id: 'acc2',
+          name: 'Накопления',
+          type: 'savings',
+          currency: 'RUB',
+        },
+        toAmount: '1234.50',
       } as Transaction;
 
       expect(transactionCsvRows(transfer, 'UTC')).toEqual([
@@ -130,6 +141,7 @@ describe('csv', () => {
           'Карта',
           'Накопления',
           '1234,50',
+          'RUB',
           '',
           '',
         ],

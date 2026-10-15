@@ -10,8 +10,9 @@ import { Link } from 'react-router';
 import { Split } from 'lucide-react';
 import { useListAccountsQuery } from '@/entities/account';
 import { useListCategoriesQuery } from '@/entities/category';
+import { useBaseCurrency } from '@/entities/session';
 import type { TransactionType } from '@/entities/transaction';
-import { applyApiError } from '@/shared/lib';
+import { applyApiError, currencySymbol } from '@/shared/lib';
 import {
   Button,
   Form,
@@ -41,6 +42,13 @@ export interface TransactionFormValues {
   accountId: string;
   toAccountId: string;
   amount: string;
+  /** A transfer between two currencies: what arrived, in the target's. */
+  toAmount: string;
+  /**
+   * On a foreign account: the amount in the base currency, as the bank
+   * charged it. Empty: the API converts at the Bank of Russia rate.
+   */
+  baseAmount: string;
   occurredAt: string;
   comment: string;
   /** By name; a new one becomes a tag when the transaction is saved. */
@@ -61,26 +69,55 @@ const schemaResolver = standardSchemaResolver(
   transactionInputSchema,
 ) as unknown as Resolver<TransactionFormValues, unknown, TransactionInputDto>;
 
+/** What the resolver needs to know beyond the values: the currencies. */
+export interface FormContext {
+  /** The currency of an account by id; undefined while unknown. */
+  currencyOf: (accountId: string) => string | undefined;
+  baseCurrency: string;
+}
+
 /**
  * The form holds the fields of every type at once (the schema drops those
  * of other types), but a category and parts are both fields of an income
  * or expense: the contract wants one of them, so the other is left out
- * before validation. Error paths stay those of the form's fields.
+ * before validation. The same for the amounts of other currencies: the
+ * received amount only between two of them (where it is required), the
+ * base amount only on a foreign account and only if typed. Error paths
+ * stay those of the form's fields.
  */
 const resolver: Resolver<
   TransactionFormValues,
-  unknown,
+  FormContext,
   TransactionInputDto
-> = ({ splits, categoryId, ...values }, context, options) =>
-  schemaResolver(
-    (values.type === 'transfer'
-      ? values
-      : splits.length
-        ? { ...values, splits }
-        : { ...values, categoryId }) as TransactionFormValues,
+> = (
+  { splits, categoryId, toAmount, baseAmount, ...values },
+  context,
+  options,
+) => {
+  const currency = context?.currencyOf(values.accountId);
+  const crossCurrency =
+    values.type === 'transfer' &&
+    currency !== context?.currencyOf(values.toAccountId);
+  const byHand =
+    values.type !== 'transfer' &&
+    currency !== undefined &&
+    currency !== context?.baseCurrency &&
+    baseAmount.trim() !== '';
+  return schemaResolver(
+    {
+      ...values,
+      ...(values.type === 'transfer'
+        ? {}
+        : splits.length
+          ? { splits }
+          : { categoryId }),
+      ...(crossCurrency && { toAmount }),
+      ...(byHand && { baseAmount }),
+    } as TransactionFormValues,
     context,
     options,
   );
+};
 
 interface TransactionFormProps {
   defaultValues: TransactionFormValues;
@@ -113,6 +150,9 @@ export function TransactionForm({
   const { data: categories = [] } = useListCategoriesQuery();
   const { data, isSuccess: accountsLoaded } = useListAccountsQuery();
   const accounts = data?.items ?? [];
+  const baseCurrency = useBaseCurrency();
+  const currencyOf = (id: string) =>
+    accounts.find((account) => account.id === id)?.currency;
 
   const {
     register,
@@ -124,15 +164,25 @@ export function TransactionForm({
     getValues,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm({
+  } = useForm<TransactionFormValues, FormContext, TransactionInputDto>({
     // The API validates with the same schema: "1 234,5" is accepted on
     // both sides and sent normalized as "1234.5".
     resolver,
+    context: { currencyOf, baseCurrency },
     defaultValues,
   });
 
   const type = useWatch({ control, name: 'type' });
   const splits = useWatch({ control, name: 'splits' });
+  const accountId = useWatch({ control, name: 'accountId' });
+  const toAccountId = useWatch({ control, name: 'toAccountId' });
+  // Amounts are in the currency of the account; the base currency until
+  // one is chosen.
+  const currency = currencyOf(accountId) ?? baseCurrency;
+  const toCurrency = currencyOf(toAccountId);
+  const crossCurrency =
+    type === 'transfer' && !!toCurrency && toCurrency !== currency;
+  const foreign = type !== 'transfer' && currency !== baseCurrency;
   const split = type !== 'transfer' && splits.length > 0;
   const ofKind = categories.filter((category) => category.kind === type);
 
@@ -153,6 +203,8 @@ export function TransactionForm({
         'accountId',
         'toAccountId',
         'amount',
+        'toAmount',
+        'baseAmount',
         'occurredAt',
         'comment',
         'splits',
@@ -223,7 +275,7 @@ export function TransactionForm({
         inputMode="decimal"
         placeholder="0,00"
         autoComplete="off"
-        suffix="₽"
+        suffix={currencySymbol(currency)}
         large
         error={errors.amount?.message}
         {...register('amount')}
@@ -249,6 +301,17 @@ export function TransactionForm({
               {accountOptions}
             </SelectField>
           </div>
+          {crossCurrency && (
+            <TextField
+              label="Зачислено"
+              inputMode="decimal"
+              placeholder="0,00"
+              autoComplete="off"
+              suffix={currencySymbol(toCurrency)}
+              error={errors.toAmount?.message}
+              {...register('toAmount')}
+            />
+          )}
           {accountsLoaded && accounts.length < 2 && (
             <p className={styles.hint}>
               Для перевода нужен второй счёт.{' '}
@@ -282,8 +345,20 @@ export function TransactionForm({
               {accountOptions}
             </SelectField>
           </div>
+          {foreign && (
+            <TextField
+              label="В основной валюте"
+              inputMode="decimal"
+              placeholder="По курсу ЦБ"
+              autoComplete="off"
+              suffix={currencySymbol(baseCurrency)}
+              error={errors.baseAmount?.message}
+              {...register('baseAmount')}
+            />
+          )}
           {split ? (
             <SplitFields
+              currency={currency}
               control={control}
               register={register}
               setValue={setValue}

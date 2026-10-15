@@ -99,7 +99,18 @@ export type AuthSession = ResponseBody<'/auth/sessions', 'get', 200>[number];
 
 /** The signed-in devices and the password: account security. */
 export const securityApi = sessionApi
-  .enhanceEndpoints({ addTagTypes: ['AuthSession'] })
+  // Changing the base currency converts every total, budget and balance
+  // total: what shows them is fetched again.
+  .enhanceEndpoints({
+    addTagTypes: [
+      'AuthSession',
+      'Transaction',
+      'Account',
+      'Budget',
+      'Goal',
+      'Tag',
+    ],
+  })
   .injectEndpoints({
     endpoints: (build) => ({
       listSessions: build.query<AuthSession[], void>({
@@ -137,6 +148,23 @@ export const securityApi = sessionApi
         },
       }),
 
+      /** The currency totals and budgets are in; the answer is the user. */
+      setBaseCurrency: build.mutation<
+        ResponseBody<'/auth/base-currency', 'put', 200>,
+        RequestBody<'/auth/base-currency', 'put'>
+      >({
+        query: (body) => ({
+          url: '/auth/base-currency' satisfies ApiPath,
+          method: 'PUT',
+          body,
+        }),
+        async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+          const { data } = await queryFulfilled.catch(() => ({ data: null }));
+          if (data) dispatch(userUpdated(data));
+        },
+        invalidatesTags: ['Transaction', 'Account', 'Budget', 'Goal', 'Tag'],
+      }),
+
       /** Ends the other sessions too: the list changes. */
       changePassword: build.mutation<
         void,
@@ -168,4 +196,5 @@ export const {
   useEndOtherSessionsMutation,
   useChangePasswordMutation,
   useSetNotificationsMutation,
+  useSetBaseCurrencyMutation,
 } = securityApi;

@@ -21,13 +21,13 @@ const formatDate = (date: string) =>
 /** What is left to do, in one line under the bar. */
 function Progress({ goal }: { goal: Goal }) {
   if (goal.percent >= 100) return <>Цель достигнута</>;
-  const left = `осталось ${formatMoney(goal.remaining)}`;
+  const left = `осталось ${formatMoney(goal.remaining, goal.account.currency)}`;
   if (!goal.targetDate) return <>{left}</>;
   return (
     <>
       {left} · к {formatDate(goal.targetDate)}
       {goal.monthly
-        ? ` · по ${formatMoney(goal.monthly)} в месяц`
+        ? ` · по ${formatMoney(goal.monthly, goal.account.currency)} в месяц`
         : ' · срок прошёл'}
     </>
   );
@@ -61,10 +61,10 @@ export function GoalList() {
               <span className={styles.head}>
                 <span className={styles.name}>{goal.name}</span>
                 <span className={styles.amount}>
-                  {formatMoney(goal.saved)}
+                  {formatMoney(goal.saved, goal.account.currency)}
                   <span className={styles.target}>
                     {' из '}
-                    {formatMoney(goal.targetAmount)}
+                    {formatMoney(goal.targetAmount, goal.account.currency)}
                   </span>
                 </span>
               </span>

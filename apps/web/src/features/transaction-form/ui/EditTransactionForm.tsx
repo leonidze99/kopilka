@@ -36,6 +36,15 @@ export function EditTransactionForm({
           transaction.type === 'transfer' ? transaction.toAccount.id : '',
         // "1234.50" as people write it here.
         amount: transaction.amount.replace('.', ','),
+        // Shown only between two currencies, where it is what arrived.
+        toAmount:
+          transaction.type === 'transfer'
+            ? transaction.toAmount.replace('.', ',')
+            : '',
+        // Kept if given by hand; empty: converted again at the day's rate.
+        baseAmount: transaction.baseAmountManual
+          ? transaction.baseAmount.replace('.', ',')
+          : '',
         occurredAt: toDateTimeLocal(new Date(transaction.occurredAt)),
         comment: transaction.comment ?? '',
         tags: transaction.tags.map((tag) => tag.name),

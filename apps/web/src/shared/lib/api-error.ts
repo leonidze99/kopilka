@@ -54,6 +54,11 @@ export function errorMessage(error: unknown): string {
     case 'INSUFFICIENT_FUNDS':
       // The API names the account and the shortfall.
       return apiError.details?.[0]?.message ?? 'На счёте не хватает денег';
+    case 'EXCHANGE_RATE_UNAVAILABLE':
+      // The API says what to do instead: give the amount by hand, or wait.
+      return (
+        apiError.details?.[0]?.message ?? 'Нет курса ЦБ. Попробуйте позже.'
+      );
     case 'NOT_FOUND':
       return 'Запись не найдена: возможно, её уже удалили.';
     case 'CONFLICT':

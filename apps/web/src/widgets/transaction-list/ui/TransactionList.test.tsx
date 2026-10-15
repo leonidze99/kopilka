@@ -29,6 +29,28 @@ describe('TransactionList', () => {
     expect(rows[1]).toHaveTextContent(/Продукты.*Ужин.*−1\s234,50\s₽/);
   });
 
+  it('shows an expense of a foreign account with what it counts as in roubles', async () => {
+    mockAccount({
+      categories: [FOOD],
+      transactions: [
+        transaction({
+          amount: '10.00',
+          baseAmount: '925.50',
+          account: {
+            id: MAIN_ACCOUNT.id,
+            name: 'Карта в долларах',
+            type: 'card',
+            currency: 'USD',
+          },
+        }),
+      ],
+    });
+    renderApp('/', { session: 'authenticated' });
+
+    const row = await screen.findByRole('button', { name: /Продукты/ });
+    expect(row).toHaveTextContent(/−10,00\s\$≈ 925,50\s₽/);
+  });
+
   it('loads the next page with the cursor of the previous one', async () => {
     mockAccount({ categories: [FOOD] });
     const cursors: (string | null)[] = [];
@@ -67,6 +89,7 @@ describe('TransactionList', () => {
       id: '0199d0a4-0000-7000-8000-0000000acc02',
       name: 'Наличные',
       type: 'cash',
+      currency: 'RUB',
       openingBalance: '0.00',
       allowNegative: false,
       balance: '300.00',
@@ -79,8 +102,21 @@ describe('TransactionList', () => {
       occurredAt: '2026-10-05T12:00:00.000Z',
       createdAt: '2026-10-05T12:00:00.000Z',
       recurringRuleId: null,
-      account: { id: MAIN_ACCOUNT.id, name: MAIN_ACCOUNT.name, type: 'card' },
-      toAccount: { id: cash.id, name: cash.name, type: 'cash' },
+      baseAmount: '300.00',
+      baseAmountManual: false,
+      account: {
+        id: MAIN_ACCOUNT.id,
+        name: MAIN_ACCOUNT.name,
+        type: 'card',
+        currency: 'RUB',
+      },
+      toAccount: {
+        id: cash.id,
+        name: cash.name,
+        type: 'cash',
+        currency: 'RUB',
+      },
+      toAmount: '300.00',
       tags: [] as { id: string; name: string }[],
       receipts: [] as Schemas['Receipt'][],
     } as const;

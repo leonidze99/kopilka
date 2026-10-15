@@ -4,6 +4,7 @@ import {
   type MonthlyTotal,
   useMonthlyTotalsQuery,
 } from '@/entities/transaction';
+import { useBaseCurrency } from '@/entities/session';
 import {
   errorMessage,
   formatMoney,
@@ -113,6 +114,7 @@ function Chart({
   onSelect,
   stale,
 }: ChartProps) {
+  const currency = useBaseCurrency();
   const ticks = axis(
     Math.max(...months.flatMap((m) => [Number(m.income), Number(m.expense)])),
   );
@@ -150,7 +152,7 @@ function Chart({
                     type="button"
                     className={styles.slot}
                     aria-pressed={value === selected}
-                    aria-label={`${formatMonthTitle(value)}: доходы ${formatMoney(item.income)}, расходы ${formatMoney(item.expense)}`}
+                    aria-label={`${formatMonthTitle(value)}: доходы ${formatMoney(item.income, currency)}, расходы ${formatMoney(item.expense, currency)}`}
                     onPointerEnter={() => onActive(index)}
                     onFocus={() => onActive(index)}
                     onBlur={() => onActive(null)}
@@ -194,9 +196,9 @@ function Chart({
             {months.map((item) => (
               <tr key={item.month}>
                 <th scope="row">{formatMonthTitle(item.month as Month)}</th>
-                <td>{formatMoney(item.income)}</td>
-                <td>{formatMoney(item.expense)}</td>
-                <td>{formatMoney(item.balance)}</td>
+                <td>{formatMoney(item.income, currency)}</td>
+                <td>{formatMoney(item.expense, currency)}</td>
+                <td>{formatMoney(item.balance, currency)}</td>
               </tr>
             ))}
           </tbody>
@@ -215,6 +217,7 @@ function Tooltip({
   index: number;
   count: number;
 }) {
+  const currency = useBaseCurrency();
   // Centered over its month, but kept inside the chart at the edges.
   const shift = index < 2 ? '-15%' : index > count - 3 ? '-85%' : '-50%';
   return (
@@ -231,14 +234,14 @@ function Tooltip({
       </p>
       <p>
         <span className={`${styles.line} ${styles.income}`} />
-        <strong>{formatMoney(item.income)}</strong> доходы
+        <strong>{formatMoney(item.income, currency)}</strong> доходы
       </p>
       <p>
         <span className={`${styles.line} ${styles.expense}`} />
-        <strong>{formatMoney(item.expense)}</strong> расходы
+        <strong>{formatMoney(item.expense, currency)}</strong> расходы
       </p>
       <p className={styles.tooltipBalance}>
-        Баланс <strong>{formatMoney(item.balance)}</strong>
+        Баланс <strong>{formatMoney(item.balance, currency)}</strong>
       </p>
     </div>
   );
