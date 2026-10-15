@@ -26,6 +26,7 @@ const rule = (overrides: Partial<CategorizedRule> = {}): CategorizedRule => ({
     currency: 'RUB',
   },
   category: RENT,
+  splits: [],
   startOn: '2026-10-05',
   timeZone: 'Europe/Moscow',
   active: true,
@@ -97,6 +98,50 @@ describe('RecurringPage', () => {
       await screen.findByText('Регулярная операция добавлена'),
     ).toBeInTheDocument();
     expect(sent.recurring[0]).toMatchObject({ every: 2, unit: 'week' });
+  });
+
+  it('creates a rule that splits each payment between categories', async () => {
+    const { sent } = mockAccount({ categories: [RENT, FOOD] });
+    const { user } = renderApp('/recurring', { session: 'authenticated' });
+    const form = within(
+      (
+        await screen.findByRole('heading', {
+          name: 'Новая регулярная операция',
+        })
+      ).closest('section')!,
+    );
+    await form.findByRole('option', { name: RENT.name });
+
+    await user.type(form.getByLabelText('Сумма'), '3500');
+    await user.selectOptions(form.getByLabelText('Категория'), RENT.name);
+    await user.click(
+      form.getByRole('button', { name: 'Разделить по категориям' }),
+    );
+    // The chosen category is the first part.
+    const parts = within(form.getByRole('group', { name: 'Части платежа' }));
+    expect(parts.getByLabelText('Категория части 1')).toHaveValue(RENT.id);
+    await user.type(parts.getByLabelText('Сумма части 1'), '2000');
+    await user.selectOptions(
+      parts.getByLabelText('Категория части 2'),
+      FOOD.name,
+    );
+    await user.click(parts.getByRole('button', { name: /вписать в часть 2/ }));
+    await user.click(form.getByRole('button', { name: 'Добавить' }));
+
+    expect(
+      await screen.findByText('Регулярная операция добавлена'),
+    ).toBeInTheDocument();
+    expect(sent.recurring[0]).toMatchObject({
+      splits: [
+        { categoryId: RENT.id, amount: '2000' },
+        { categoryId: FOOD.id, amount: '1500.00' },
+      ],
+    });
+    expect(sent.recurring[0]).not.toHaveProperty('categoryId');
+    // The list names both categories.
+    expect(
+      await screen.findByRole('button', { name: /Жильё, Продукты/ }),
+    ).toBeInTheDocument();
   });
 
   it('creates a rule with the date and the time zone of the browser', async () => {

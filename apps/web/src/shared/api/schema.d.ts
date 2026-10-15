@@ -1280,10 +1280,15 @@ export interface components {
             active: boolean;
             nextOn: components["schemas"]["CalendarDate"];
             lastError: string | null;
-            category: components["schemas"]["Category"];
+            category: components["schemas"]["Category"] | null;
+            splits: components["schemas"]["TransactionSplit"][];
         };
         /** @enum {string} */
         RecurringUnit: "day" | "week" | "month";
+        TransactionSplit: {
+            category: components["schemas"]["Category"];
+            amount: string;
+        };
         RecurringTransferRule: {
             /** @enum {string} */
             type: "transfer";
@@ -1305,7 +1310,8 @@ export interface components {
         CategorizedRecurringInput: {
             type: components["schemas"]["TransactionKind"];
             /** Format: uuid */
-            categoryId: string;
+            categoryId?: string;
+            splits?: components["schemas"]["TransactionSplitInput"][];
             /** Format: uuid */
             accountId: string;
             /**
@@ -1323,6 +1329,15 @@ export interface components {
             timeZone: string;
             /** @default true */
             active: boolean;
+        };
+        TransactionSplitInput: {
+            /** Format: uuid */
+            categoryId: string;
+            /**
+             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
+             * @example 1234.56
+             */
+            amount: string;
         };
         RecurringTransferInput: {
             /** @enum {string} */
@@ -1399,10 +1414,6 @@ export interface components {
             category: components["schemas"]["Category"] | null;
             splits: components["schemas"]["TransactionSplit"][];
         };
-        TransactionSplit: {
-            category: components["schemas"]["Category"];
-            amount: string;
-        };
         Transfer: {
             /** @enum {string} */
             type: "transfer";
@@ -1469,15 +1480,6 @@ export interface components {
              * @example 1234.56
              */
             baseAmount?: string;
-        };
-        TransactionSplitInput: {
-            /** Format: uuid */
-            categoryId: string;
-            /**
-             * @description Positive decimal with up to 2 fraction digits, e.g. "1234.56"
-             * @example 1234.56
-             */
-            amount: string;
         };
         TransferInput: {
             /** @enum {string} */

@@ -5,6 +5,8 @@ import {
   describeSchedule,
   formatPaymentDay,
   type RecurringRule,
+  ruleCategories,
+  ruleTitle,
   useListRecurringQuery,
 } from '@/entities/recurring';
 import { DeleteRecurringButton } from '@/features/recurring-delete';
@@ -43,11 +45,14 @@ export function RecurringList() {
                   <ArrowLeftRight size={18} />
                 </span>
               ) : (
-                <CategoryAvatar category={rule.category} />
+                // A split rule: the avatar of its largest part.
+                ruleCategories(rule)[0] && (
+                  <CategoryAvatar category={ruleCategories(rule)[0]!} />
+                )
               )}
               <span className={styles.main}>
                 <span className={styles.title}>
-                  {rule.type === 'transfer' ? 'Перевод' : rule.category.name}
+                  {ruleTitle(rule)}
                   {!rule.active && (
                     <span className={styles.paused}>на паузе</span>
                   )}

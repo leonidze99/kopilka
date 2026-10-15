@@ -81,6 +81,23 @@ export function refreshSession(
   return inFlightRefresh;
 }
 
+type QueryResult = Awaited<ReturnType<typeof rawBaseQuery>>;
+
+/**
+ * fetchBaseQuery hands the error its body but not the headers. Retry-After
+ * (429: rate limited, locked account) is copied onto the error as
+ * `retryAfter`, in seconds, so the message can say how long to wait.
+ */
+function withRetryAfter(result: QueryResult): QueryResult {
+  const header = result.meta?.response?.headers.get('Retry-After');
+  const seconds = header ? Number(header) : Number.NaN;
+  if (!result.error || !Number.isFinite(seconds)) return result;
+  return {
+    ...result,
+    error: Object.assign({}, result.error, { retryAfter: seconds }),
+  };
+}
+
 /** fetchBaseQuery that renews an expired access token once and retries. */
 export const baseQueryWithReauth: BaseQueryFn<
   string | FetchArgs,
@@ -92,10 +109,12 @@ export const baseQueryWithReauth: BaseQueryFn<
     result.error?.status !== 401 ||
     NO_REFRESH_PATHS.has(urlOf(args) as ApiPath)
   ) {
-    return result;
+    return withRetryAfter(result);
   }
 
   const session = await refreshSession(api, extraOptions);
   // prepareHeaders picks up the new access token from the store.
-  return session ? rawBaseQuery(args, api, extraOptions) : result;
+  return withRetryAfter(
+    session ? await rawBaseQuery(args, api, extraOptions) : result,
+  );
 };

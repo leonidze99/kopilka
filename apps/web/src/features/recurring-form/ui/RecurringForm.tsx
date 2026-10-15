@@ -29,6 +29,8 @@ import {
   FormError,
   Segmented,
   SelectField,
+  SplitFields,
+  SplitToggle,
   Switch,
   TextField,
   toast,
@@ -54,7 +56,33 @@ interface RecurringFormValues {
   unit: RecurringUnit;
   timeZone: string;
   active: boolean;
+  /** The parts of each payment of a split rule; empty: one category. */
+  splits: { categoryId: string; amount: string }[];
 }
+
+const schemaResolver = standardSchemaResolver(
+  recurringInputSchema,
+) as unknown as Resolver<RecurringFormValues, unknown, RecurringInputDto>;
+
+/**
+ * As in the transaction form: the contract takes a category or parts, not
+ * both, so the other is left out before validation; a transfer has
+ * neither.
+ */
+const resolver: Resolver<RecurringFormValues, unknown, RecurringInputDto> = (
+  { splits, categoryId, ...values },
+  context,
+  options,
+) =>
+  schemaResolver(
+    (values.type === 'transfer'
+      ? values
+      : splits.length
+        ? { ...values, splits }
+        : { ...values, categoryId }) as RecurringFormValues,
+    context,
+    options,
+  );
 
 /** The word alone, in the form the count asks for: pluralize prefixes it. */
 const unitWord = (count: number, forms: readonly [string, string, string]) =>
@@ -76,7 +104,7 @@ const browserZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const valuesOf = (rule?: RecurringRule): RecurringFormValues => ({
   type: rule?.type ?? 'expense',
-  categoryId: rule && rule.type !== 'transfer' ? rule.category.id : '',
+  categoryId: rule && rule.type !== 'transfer' ? (rule.category?.id ?? '') : '',
   accountId: rule?.account.id ?? '',
   toAccountId: rule?.type === 'transfer' ? rule.toAccount.id : '',
   amount: rule?.amount.replace('.', ',') ?? '',
@@ -86,6 +114,14 @@ const valuesOf = (rule?: RecurringRule): RecurringFormValues => ({
   unit: rule?.unit ?? 'month',
   timeZone: rule?.timeZone ?? browserZone(),
   active: rule?.active ?? true,
+  splits:
+    rule && rule.type !== 'transfer'
+      ? rule.splits.map((split) => ({
+          categoryId: split.category.id,
+          // "2000.00" as people write it here.
+          amount: split.amount.replace('.', ','),
+        }))
+      : [],
 });
 
 interface RecurringFormProps {
@@ -113,17 +149,17 @@ export function RecurringForm({ rule, onSaved, footer }: RecurringFormProps) {
     setError,
     setValue,
     getValues,
+    clearErrors,
     reset,
     formState: { errors, isSubmitting },
   } = useForm({
-    // Same cast as the transaction form: flat values, a union schema.
-    resolver: standardSchemaResolver(
-      recurringInputSchema,
-    ) as unknown as Resolver<RecurringFormValues, unknown, RecurringInputDto>,
+    resolver,
     defaultValues: valuesOf(rule),
   });
 
   const type = useWatch({ control, name: 'type' });
+  const splits = useWatch({ control, name: 'splits' });
+  const split = type !== 'transfer' && splits.length > 0;
   const accountId = useWatch({ control, name: 'accountId' });
   // The amount is in the account's currency.
   const currency =
@@ -156,6 +192,11 @@ export function RecurringForm({ rule, onSaved, footer }: RecurringFormProps) {
         'comment',
         'startOn',
         'every',
+        'splits',
+        ...getValues('splits').flatMap((_, index) => [
+          `splits.${index}.categoryId` as const,
+          `splits.${index}.amount` as const,
+        ]),
       ]);
       return;
     }
@@ -185,6 +226,16 @@ export function RecurringForm({ rule, onSaved, footer }: RecurringFormProps) {
             onChange={(next) => {
               field.onChange(next);
               setValue('categoryId', '');
+              // The parts keep their amounts; a transfer has none.
+              setValue(
+                'splits',
+                next === 'transfer'
+                  ? []
+                  : getValues('splits').map((part) => ({
+                      ...part,
+                      categoryId: '',
+                    })),
+              );
             }}
           />
         )}
@@ -221,18 +272,20 @@ export function RecurringForm({ rule, onSaved, footer }: RecurringFormProps) {
           </>
         ) : (
           <>
-            <SelectField
-              label="Категория"
-              error={errors.categoryId?.message}
-              {...register('categoryId')}
-            >
-              <option value="">Выберите категорию</option>
-              {ofKind.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </SelectField>
+            {!split && (
+              <SelectField
+                label="Категория"
+                error={errors.categoryId?.message}
+                {...register('categoryId')}
+              >
+                <option value="">Выберите категорию</option>
+                {ofKind.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </SelectField>
+            )}
             <SelectField
               label="Счёт"
               error={errors.accountId?.message}
@@ -244,6 +297,37 @@ export function RecurringForm({ rule, onSaved, footer }: RecurringFormProps) {
           </>
         )}
       </div>
+      {split ? (
+        <SplitFields
+          legend="Части платежа"
+          currency={currency}
+          control={control}
+          register={register}
+          setValue={setValue}
+          errors={errors}
+          categories={ofKind}
+          onJoin={() => {
+            setValue('categoryId', getValues('splits.0.categoryId'));
+            setValue('splits', []);
+            clearErrors('splits');
+          }}
+        />
+      ) : (
+        type !== 'transfer' &&
+        ofKind.length > 1 && (
+          <SplitToggle
+            onClick={() => {
+              // The chosen category becomes the first part.
+              setValue('splits', [
+                { categoryId: getValues('categoryId'), amount: '' },
+                { categoryId: '', amount: '' },
+              ]);
+              setValue('categoryId', '');
+              clearErrors('categoryId');
+            }}
+          />
+        )
+      )}
       <div className={styles.row}>
         <TextField
           label="Повторять раз в"

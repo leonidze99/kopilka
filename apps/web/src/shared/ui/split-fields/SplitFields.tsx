@@ -1,45 +1,58 @@
+import { fromKopecks, MAX_SPLITS, toKopecks } from '@kopilka/shared';
+import { Plus, Split, X } from 'lucide-react';
 import {
-  fromKopecks,
-  MAX_SPLITS,
-  toKopecks,
-  type TransactionInputDto,
-} from '@kopilka/shared';
-import { Plus, X } from 'lucide-react';
-import {
+  type ArrayPath,
   type Control,
+  type FieldArray,
   type FieldErrors,
+  type FieldValues,
+  type Path,
+  type PathValue,
   type UseFormRegister,
   type UseFormSetValue,
   useFieldArray,
   useWatch,
 } from 'react-hook-form';
 import { currencySymbol, formatMoney } from '@/shared/lib';
-import { Button, SelectField, TextField } from '@/shared/ui';
-import type { FormContext, TransactionFormValues } from './TransactionForm';
-import styles from './TransactionForm.module.css';
+import { Button } from '../button/Button';
+import { SelectField } from '../select/SelectField';
+import { TextField } from '../text-field/TextField';
+import styles from './SplitFields.module.css';
 
-interface SplitFieldsProps {
-  control: Control<TransactionFormValues, FormContext, TransactionInputDto>;
-  register: UseFormRegister<TransactionFormValues>;
-  setValue: UseFormSetValue<TransactionFormValues>;
-  errors: FieldErrors<TransactionFormValues>;
-  /** The categories of the transaction's kind. */
+/** What a form with parts holds: an amount, and the parts of it. */
+export interface SplitValues {
+  amount: string;
+  splits: { categoryId: string; amount: string }[];
+}
+
+interface SplitFieldsProps<T extends FieldValues & SplitValues, C, R> {
+  control: Control<T, C, R>;
+  register: UseFormRegister<T>;
+  setValue: UseFormSetValue<T>;
+  errors: FieldErrors<SplitValues>;
+  /** The categories of the record's kind. */
   categories: { id: string; name: string }[];
-  /** Back to one category for the whole transaction. */
+  /** Back to one category for the whole record. */
   onJoin: () => void;
   /** Of the account: the parts are in it. */
   currency: string;
+  /** "Части операции", "Части платежа". */
+  legend: string;
 }
 
 /** Kopecks of what is typed; 0 for an empty field, NaN for a non-number. */
 const kopecksOf = (value: string) => (value.trim() ? toKopecks(value) : 0);
 
 /**
- * The parts of a split transaction: a category and an amount each, and
- * what is left of the transaction's amount to spread over them. The sum is
- * counted in whole kopecks — exact, as the API checks it.
+ * The parts of a split income or expense — a transaction, or each payment
+ * of a recurring rule: a category and an amount each, and what is left of
+ * the amount to spread over them. The sum is counted in whole kopecks —
+ * exact, as the API checks it.
+ *
+ * Generic over the form: any form with \`amount\` and \`splits\` fields. The
+ * paths are cast once here (react-hook-form cannot see them through T).
  */
-export function SplitFields({
+export function SplitFields<T extends FieldValues & SplitValues, C, R>({
   control,
   register,
   setValue,
@@ -47,10 +60,18 @@ export function SplitFields({
   categories,
   onJoin,
   currency,
-}: SplitFieldsProps) {
-  const { fields, append, remove } = useFieldArray({ control, name: 'splits' });
-  const amount = useWatch({ control, name: 'amount' });
-  const splits = useWatch({ control, name: 'splits' });
+  legend,
+}: SplitFieldsProps<T, C, R>) {
+  const path = (name: string) => name as Path<T>;
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'splits' as ArrayPath<T>,
+  });
+  const amount = useWatch({ control, name: path('amount') }) as string;
+  const splits = useWatch({
+    control,
+    name: path('splits'),
+  }) as SplitValues['splits'];
 
   const total = kopecksOf(amount);
   const parts = splits.reduce((sum, split) => sum + kopecksOf(split.amount), 0);
@@ -63,7 +84,7 @@ export function SplitFields({
 
   return (
     <fieldset className={styles.splits}>
-      <legend className={styles.splitsTitle}>Части операции</legend>
+      <legend className={styles.splitsTitle}>{legend}</legend>
       {fields.map((field, index) => {
         const taken = new Set(
           splits
@@ -76,7 +97,7 @@ export function SplitFields({
               label={`Категория части ${index + 1}`}
               hideLabel
               error={errors.splits?.[index]?.categoryId?.message}
-              {...register(`splits.${index}.categoryId`)}
+              {...register(path(`splits.${index}.categoryId`))}
             >
               <option value="">Категория</option>
               {categories.map((category) => (
@@ -101,13 +122,12 @@ export function SplitFields({
               autoComplete="off"
               suffix={currencySymbol(currency)}
               error={errors.splits?.[index]?.amount?.message}
-              {...register(`splits.${index}.amount`)}
+              {...register(path(`splits.${index}.amount`))}
             />
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className={styles.splitRemove}
               aria-label={`Убрать часть ${index + 1}`}
               // Fewer than two parts is no split: "Не разделять" is for that.
               disabled={fields.length <= 2}
@@ -125,7 +145,12 @@ export function SplitFields({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => append({ categoryId: '', amount: '' })}
+            onClick={() =>
+              append({ categoryId: '', amount: '' } as FieldArray<
+                T,
+                ArrayPath<T>
+              >)
+            }
           >
             <Plus size={16} aria-hidden />
             Ещё часть
@@ -153,8 +178,11 @@ export function SplitFields({
                     className={styles.linkButton}
                     onClick={() =>
                       setValue(
-                        `splits.${emptyPart}.amount`,
-                        fromKopecks(left).replace('.', ','),
+                        path(`splits.${emptyPart}.amount`),
+                        fromKopecks(left).replace('.', ',') as PathValue<
+                          T,
+                          Path<T>
+                        >,
                         { shouldValidate: true },
                       )
                     }
@@ -175,5 +203,15 @@ export function SplitFields({
         </p>
       )}
     </fieldset>
+  );
+}
+
+/** "Разделить по категориям": a quiet link under the category select. */
+export function SplitToggle({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className={styles.splitToggle} onClick={onClick}>
+      <Split size={15} aria-hidden />
+      Разделить по категориям
+    </button>
   );
 }

@@ -1,5 +1,6 @@
 import {
   type RecurringRule,
+  ruleTitle,
   useDeleteRecurringMutation,
 } from '@/entities/recurring';
 import { errorMessage } from '@/shared/lib';
@@ -15,7 +16,7 @@ export function DeleteRecurringButton({
   onDeleted,
 }: DeleteRecurringButtonProps) {
   const [deleteRecurring, { isLoading, error }] = useDeleteRecurringMutation();
-  const title = rule.type === 'transfer' ? 'Перевод' : rule.category.name;
+  const title = ruleTitle(rule);
 
   return (
     <>

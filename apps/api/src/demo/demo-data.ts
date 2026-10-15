@@ -16,7 +16,14 @@ const OFFSET = '+03:00';
 /** Full months before the current one: a year with it, for the monthly chart. */
 const MONTHS_BACK = 11;
 
-export type AccountKey = 'card' | 'cash' | 'savings';
+export type AccountKey = 'card' | 'cash' | 'savings' | 'dollars' | 'old';
+
+/**
+ * Roubles for a dollar in the demo. Its dollar transactions carry their
+ * amount in roubles as given by hand (base_manual): the seed needs no Bank
+ * of Russia rates, and so no network.
+ */
+export const DEMO_USD_RATE = 92;
 export type CategoryKey =
   | 'groceries'
   | 'cafe'
@@ -44,6 +51,12 @@ export type DemoTransaction = Money & { occurredAt: Date } & (
   ) & {
     /** Made by a recurring rule, for its occurrence on this date. */
     rule?: { key: RuleKey; on: string };
+    /** A transfer between two currencies: what arrived. */
+    toAmount?: string;
+    /** On the dollar account: the amount in roubles, given by hand. */
+    baseAmount?: string;
+    /** By name, from DemoData.tags. */
+    tags?: string[];
   };
 
 export type DemoRule = Money & {
@@ -63,6 +76,10 @@ export interface DemoData {
     type: 'card' | 'cash' | 'savings';
     openingBalance: string;
     allowNegative: boolean;
+    /** ISO 4217; roubles if left out. */
+    currency?: string;
+    /** In the archive since then. */
+    archivedAt?: Date;
   }[];
   /** In creation order: it sets the category colours. */
   categories: { key: CategoryKey; kind: 'income' | 'expense'; name: string }[];
@@ -79,6 +96,8 @@ export interface DemoData {
     targetAmount: string;
     targetDate: string;
   };
+  /** Tags the transactions name, with a budget over all time. */
+  tags: { name: string; budget: string | null }[];
 }
 
 const ACCOUNTS: DemoData['accounts'] = [
@@ -102,6 +121,23 @@ const ACCOUNTS: DemoData['accounts'] = [
     type: 'savings',
     openingBalance: '150000',
     allowNegative: false,
+  },
+  // Topped up from the main card before a trip, spent abroad.
+  {
+    key: 'dollars',
+    name: 'Карта в долларах',
+    type: 'card',
+    openingBalance: '0',
+    allowNegative: false,
+    currency: 'USD',
+  },
+  // Emptied and archived long ago: its history stays.
+  {
+    key: 'old',
+    name: 'Старая карта',
+    type: 'card',
+    openingBalance: '0',
+    allowNegative: true,
   },
 ];
 
@@ -338,11 +374,79 @@ export function buildDemoData(now: Date): DemoData {
     }
   }
 
+  // The old card: a last cashback moved to the main card, then archived.
+  const oldMonth = months[0] ?? '';
+  add(dayOf(oldMonth, 3), '10:00', {
+    account: 'old',
+    category: 'cashback',
+    amount: '1850.00',
+    comment: 'Кэшбэк по старой карте',
+  });
+  add(dayOf(oldMonth, 4), '11:30', {
+    account: 'old',
+    toAccount: 'card',
+    amount: '1850.00',
+    comment: 'Закрыл старую карту',
+  });
+
+  // A trip three months ago: tickets and the hotel from the main card,
+  // dollars bought before it and spent there, all tagged "Отпуск".
+  const tripMonth = months.at(-4) ?? oldMonth;
+  const trip = ['Отпуск'];
+  const usd = (amount: string) => (Number(amount) * DEMO_USD_RATE).toFixed(2);
+  add(dayOf(tripMonth, 3), '21:10', {
+    account: 'card',
+    category: 'transport',
+    amount: '38000.00',
+    comment: 'Авиабилеты',
+    tags: trip,
+  });
+  add(dayOf(tripMonth, 8), '20:00', {
+    account: 'card',
+    category: 'housing',
+    amount: '52000.00',
+    comment: 'Отель',
+    tags: trip,
+  });
+  add(dayOf(tripMonth, 10), '13:00', {
+    account: 'card',
+    toAccount: 'dollars',
+    amount: '46000.00',
+    toAmount: '500.00',
+    comment: 'Купил доллары',
+  });
+  const abroad: [number, CategoryKey, string, string][] = [
+    [12, 'transport', '32.00', 'Такси из аэропорта'],
+    [12, 'cafe', '45.50', 'Ужин'],
+    [13, 'fun', '85.00', 'Экскурсия'],
+    [13, 'cafe', '6.80', 'Кофе'],
+    [14, 'groceries', '54.30', 'Супермаркет'],
+    [15, 'fun', '25.00', 'Музей'],
+    [15, 'cafe', '78.40', 'Ресторан'],
+    [16, 'transport', '18.00', 'Самокаты'],
+    [17, 'cafe', '22.60', 'Завтрак'],
+  ];
+  for (const [day, category, amount, comment] of abroad) {
+    add(dayOf(tripMonth, day), rng.time(10, 21), {
+      account: 'dollars',
+      category,
+      amount,
+      comment,
+      baseAmount: usd(amount),
+      tags: trip,
+    });
+  }
+
   transactions.sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
 
   const thisMonth = months.at(-1) ?? '';
   return {
-    accounts: ACCOUNTS,
+    accounts: ACCOUNTS.map((account) =>
+      account.key === 'old'
+        ? { ...account, archivedAt: at(dayOf(oldMonth, 5), '12:00') }
+        : account,
+    ),
+    tags: [{ name: 'Отпуск', budget: '150000.00' }],
     categories: CATEGORIES,
     rules,
     transactions,

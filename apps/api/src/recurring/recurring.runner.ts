@@ -184,7 +184,13 @@ export class RecurringRunner {
       SELECT r.id, r.user_id, r.account_id, r.category_id, r.to_account_id,
              r.amount, r.comment, r.start_on, r.every, r.unit,
              r.next_on, r.next_index,
-             c.kind,
+             -- A split rule has its kind in its parts, all of one kind.
+             COALESCE(c.kind, (
+               SELECT pc.kind FROM recurring_rule_splits p
+               JOIN categories pc ON pc.id = p.category_id
+               WHERE p.rule_id = r.id
+               LIMIT 1
+             )) AS kind,
              (r.next_on::timestamp AT TIME ZONE r.time_zone) AS occurs_at
       FROM recurring_rules r
       LEFT JOIN categories c ON c.id = r.category_id
@@ -257,7 +263,7 @@ export class RecurringRunner {
       return `нет курса ЦБ для ${rate.currency}`;
     }
 
-    await tx.transaction.create({
+    const { id } = await tx.transaction.create({
       data: {
         userId: rule.user_id,
         accountId: rule.account_id,
@@ -269,7 +275,25 @@ export class RecurringRunner {
         recurringRuleId: rule.id,
         recurringOn: rule.next_on,
       },
+      select: { id: true },
     });
+    // A split rule makes a split transaction: its parts, copied. They add
+    // up to the amount (the service checked; the deferred trigger checks
+    // the transaction again at commit).
+    const parts = await tx.recurringRuleSplit.findMany({
+      where: { ruleId: rule.id },
+      select: { categoryId: true, amount: true },
+    });
+    if (parts.length > 0) {
+      await tx.transactionSplit.createMany({
+        data: parts.map((part) => ({
+          transactionId: id,
+          userId: rule.user_id,
+          categoryId: part.categoryId,
+          amount: part.amount,
+        })),
+      });
+    }
     return null;
   }
 }

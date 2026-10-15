@@ -7,7 +7,6 @@ import {
 import { type ReactNode, useEffect } from 'react';
 import { Controller, type Resolver, useForm, useWatch } from 'react-hook-form';
 import { Link } from 'react-router';
-import { Split } from 'lucide-react';
 import { useListAccountsQuery, usableAccounts } from '@/entities/account';
 import { useListCategoriesQuery } from '@/entities/category';
 import { useBaseCurrency } from '@/entities/session';
@@ -19,9 +18,10 @@ import {
   FormError,
   Segmented,
   SelectField,
+  SplitFields,
+  SplitToggle,
   TextField,
 } from '@/shared/ui';
-import { SplitFields } from './SplitFields';
 import { TagsField } from './TagsField';
 import styles from './TransactionForm.module.css';
 
@@ -362,6 +362,7 @@ export function TransactionForm({
           )}
           {split ? (
             <SplitFields
+              legend="Части операции"
               currency={currency}
               control={control}
               register={register}
@@ -377,9 +378,7 @@ export function TransactionForm({
             />
           ) : (
             ofKind.length > 1 && (
-              <button
-                type="button"
-                className={styles.splitToggle}
+              <SplitToggle
                 onClick={() => {
                   // The chosen category becomes the first part.
                   setValue('splits', [
@@ -389,10 +388,7 @@ export function TransactionForm({
                   setValue('categoryId', '');
                   clearErrors('categoryId');
                 }}
-              >
-                <Split size={15} aria-hidden />
-                Разделить по категориям
-              </button>
+              />
             )
           )}
           {ofKind.length === 0 && (

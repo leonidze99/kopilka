@@ -1,5 +1,10 @@
 import { addMonths, todayIn } from '../recurring/schedule.js';
-import { type AccountKey, buildDemoData, DEMO_TIME_ZONE } from './demo-data.js';
+import {
+  type AccountKey,
+  buildDemoData,
+  DEMO_TIME_ZONE,
+  DEMO_USD_RATE,
+} from './demo-data.js';
 
 /** Kopecks: whole numbers, exact. */
 const kopecks = (amount: string) => Math.round(Number(amount) * 100);
@@ -36,7 +41,9 @@ describe('buildDemoData', () => {
         (balance.get(t.account) ?? 0) + (income ? amount : -amount),
       );
       if (t.toAccount) {
-        balance.set(t.toAccount, (balance.get(t.toAccount) ?? 0) + amount);
+        // Between two currencies, what arrived.
+        const arrived = kopecks(t.toAmount ?? t.amount);
+        balance.set(t.toAccount, (balance.get(t.toAccount) ?? 0) + arrived);
       }
     }
     for (const account of data.accounts.filter((a) => !a.allowNegative)) {
@@ -56,6 +63,33 @@ describe('buildDemoData', () => {
       );
       expect(rule.nextOn > today).toBe(true);
     }
+  });
+
+  it('has a trip in dollars with its amounts in roubles, under a tag budget', () => {
+    const dollars = data.transactions.filter((t) => t.account === 'dollars');
+    expect(dollars.length).toBeGreaterThan(5);
+    for (const t of dollars) {
+      expect(t.baseAmount).toBe((Number(t.amount) * DEMO_USD_RATE).toFixed(2));
+      expect(t.tags).toEqual(['Отпуск']);
+    }
+    const topUp = data.transactions.find((t) => t.toAccount === 'dollars');
+    expect(topUp).toMatchObject({ account: 'card', toAmount: '500.00' });
+    expect(data.tags).toEqual([{ name: 'Отпуск', budget: '150000.00' }]);
+  });
+
+  it('archives the old card with nothing left on it', () => {
+    const old = data.accounts.find((a) => a.key === 'old');
+    expect(old?.archivedAt).toBeInstanceOf(Date);
+    const moves = data.transactions.filter(
+      (t) => t.account === 'old' || t.toAccount === 'old',
+    );
+    const balance = moves.reduce(
+      (sum, t) =>
+        sum + (t.account === 'old' && t.toAccount ? -1 : 1) * kopecks(t.amount),
+      0,
+    );
+    expect(balance).toBe(0);
+    for (const t of moves) expect(t.occurredAt < old!.archivedAt!).toBe(true);
   });
 
   it('uses every category and keeps budgets on first days of months', () => {

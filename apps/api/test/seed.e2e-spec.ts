@@ -52,10 +52,26 @@ describe('Demo seed (e2e)', () => {
       (await http().get('/api/accounts').set('Authorization', auth).expect(200))
         .body,
     );
-    expect(accounts.items.map((a) => a.name)).toEqual([
-      'Основной счёт',
-      'Наличные',
-      'Накопления',
+    expect(
+      accounts.items.map((a) => [a.name, a.currency, a.archivedAt !== null]),
+    ).toEqual([
+      ['Основной счёт', 'RUB', false],
+      ['Наличные', 'RUB', false],
+      ['Накопления', 'RUB', false],
+      ['Карта в долларах', 'USD', false],
+      ['Старая карта', 'RUB', true],
+    ]);
+    expect(accounts.items.at(-1)?.balance).toBe('0.00');
+    // A trip under a budget: the tag, its limit and what it cost in roubles.
+    const { body: tags } = await http()
+      .get('/api/tags')
+      .set('Authorization', auth)
+      .expect(200);
+    expect(tags).toEqual([
+      expect.objectContaining({
+        name: 'Отпуск',
+        budget: expect.objectContaining({ limit: '150000.00' }),
+      }),
     ]);
     for (const account of accounts.items.filter((a) => !a.allowNegative)) {
       expect(Number(account.balance), account.name).toBeGreaterThanOrEqual(0);

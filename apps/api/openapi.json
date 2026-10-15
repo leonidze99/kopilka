@@ -5449,7 +5449,18 @@
             "type": "string"
           },
           "category": {
-            "$ref": "#/components/schemas/Category"
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Category"
+              }
+            ]
+          },
+          "splits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransactionSplit"
+            }
           }
         },
         "required": [
@@ -5465,7 +5476,8 @@
           "active",
           "nextOn",
           "lastError",
-          "category"
+          "category",
+          "splits"
         ],
         "additionalProperties": false
       },
@@ -5476,6 +5488,22 @@
           "week",
           "month"
         ]
+      },
+      "TransactionSplit": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "amount": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "amount"
+        ],
+        "additionalProperties": false
       },
       "RecurringTransferRule": {
         "type": "object",
@@ -5567,6 +5595,14 @@
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           },
+          "splits": {
+            "minItems": 2,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransactionSplitInput"
+            }
+          },
           "accountId": {
             "type": "string",
             "format": "uuid",
@@ -5609,11 +5645,29 @@
         },
         "required": [
           "type",
-          "categoryId",
           "accountId",
           "amount",
           "startOn",
           "timeZone"
+        ]
+      },
+      "TransactionSplitInput": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "amount": {
+            "type": "string",
+            "description": "Positive decimal with up to 2 fraction digits, e.g. \"1234.56\"",
+            "example": "1234.56"
+          }
+        },
+        "required": [
+          "categoryId",
+          "amount"
         ]
       },
       "RecurringTransferInput": {
@@ -5888,22 +5942,6 @@
         ],
         "additionalProperties": false
       },
-      "TransactionSplit": {
-        "type": "object",
-        "properties": {
-          "category": {
-            "$ref": "#/components/schemas/Category"
-          },
-          "amount": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "category",
-          "amount"
-        ],
-        "additionalProperties": false
-      },
       "Transfer": {
         "type": "object",
         "properties": {
@@ -6147,25 +6185,6 @@
           "accountId",
           "amount",
           "occurredAt"
-        ]
-      },
-      "TransactionSplitInput": {
-        "type": "object",
-        "properties": {
-          "categoryId": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-          },
-          "amount": {
-            "type": "string",
-            "description": "Positive decimal with up to 2 fraction digits, e.g. \"1234.56\"",
-            "example": "1234.56"
-          }
-        },
-        "required": [
-          "categoryId",
-          "amount"
         ]
       },
       "TransferInput": {

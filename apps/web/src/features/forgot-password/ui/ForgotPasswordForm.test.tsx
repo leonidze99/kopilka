@@ -47,4 +47,27 @@ describe('ForgotPasswordForm', () => {
     );
     expect(screen.queryByText(/уже в пути/)).not.toBeInTheDocument();
   });
+
+  it.each([
+    ['45', 'Попробуйте через 45 секунд.'],
+    ['125', 'Попробуйте через 3 минуты.'],
+  ])('says how long to wait when Retry-After is %s', async (header, text) => {
+    server.use(
+      http.post(apiUrl('/auth/password/forgot'), () =>
+        HttpResponse.json(
+          {
+            code: 'RATE_LIMITED',
+            message: 'Too many requests',
+            requestId: 'req-test',
+          },
+          { status: 429, headers: { 'Retry-After': header } },
+        ),
+      ),
+    );
+    const { user } = renderApp('/forgot-password');
+
+    await ask(user, 'user@example.com');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(text);
+  });
 });

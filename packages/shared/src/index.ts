@@ -8,6 +8,7 @@ export * from './currency.js';
 export * from './goal.js';
 export * from './import.js';
 export * from './money.js';
+export * from './parts.js';
 export * from './receipt.js';
 export * from './recurring.js';
 export * from './tag.js';

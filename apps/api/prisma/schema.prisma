@@ -89,13 +89,14 @@ model Category {
   createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  budgets      Budget[]
-  recurring    RecurringRule[]
-  importRules  ImportCategoryRule[]
-  alerts       BudgetAlert[]
-  splits       TransactionSplit[]
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  budgets         Budget[]
+  recurring       RecurringRule[]
+  importRules     ImportCategoryRule[]
+  alerts          BudgetAlert[]
+  splits          TransactionSplit[]
+  recurringSplits RecurringRuleSplit[]
 
   // "Подарки" may exist both as income and as expense.
   @@unique([userId, kind, name])
@@ -357,13 +358,14 @@ model RecurringRule {
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   // A rule is a setting: it goes away with its account or category.
-  account      Account         @relation("RecurringAccount", fields: [accountId, userId], references: [id, userId], onDelete: Cascade)
-  toAccount    Account?        @relation("RecurringTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Cascade)
-  category     Category?       @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
+  account      Account              @relation("RecurringAccount", fields: [accountId, userId], references: [id, userId], onDelete: Cascade)
+  toAccount    Account?             @relation("RecurringTarget", fields: [toAccountId, userId], references: [id, userId], onDelete: Cascade)
+  category     Category?            @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
   transactions Transaction[]
   skips        RecurringSkip[]
+  splits       RecurringRuleSplit[]
 
   @@index([userId])
   // The runner looks for active rules due by a date.
@@ -757,4 +759,26 @@ model KnownDevice {
   // One browser may be known to several users (a shared computer).
   @@unique([userId, tokenHash])
   @@map("known_devices")
+}
+
+/// A part of every payment of a split recurring rule ("Коммуналка": свет
+/// 2 000 + вода 1 500), copied onto the transaction each payment makes. A
+/// split rule has neither category_id nor to_account_id. The service is the
+/// only writer of rules and checks the parts add up to the amount.
+/// SQL-only: deleting a category of a part deletes its rule (trigger), as a
+/// rule with a category goes with it.
+model RecurringRuleSplit {
+  ruleId     String  @map("rule_id") @db.Uuid
+  categoryId String  @map("category_id") @db.Uuid
+  userId     String  @map("user_id") @db.Uuid
+  amount     Decimal @db.Decimal(14, 2)
+
+  rule     RecurringRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  category Category      @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
+
+  // One part per category, as on a transaction.
+  @@id([ruleId, categoryId])
+  // The cascade from a deleted category finds its parts.
+  @@index([categoryId])
+  @@map("recurring_rule_splits")
 }

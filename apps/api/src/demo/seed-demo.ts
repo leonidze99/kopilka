@@ -95,19 +95,49 @@ export async function seedDemo(
         rules.set(rule.key, id);
       }
 
-      await tx.transaction.createMany({
-        data: data.transactions.map((t) => ({
-          userId,
-          accountId: idOf(accounts, t.account) ?? '',
-          categoryId: idOf(categories, t.category),
-          toAccountId: idOf(accounts, t.toAccount),
-          amount: t.amount,
-          comment: t.comment,
-          occurredAt: t.occurredAt,
-          recurringRuleId: t.rule ? idOf(rules, t.rule.key) : null,
-          recurringOn: t.rule ? toDateColumn(t.rule.on) : null,
-        })),
+      const tags = new Map<string, string>();
+      for (const tag of data.tags) {
+        const { id } = await tx.tag.create({
+          data: { userId, name: tag.name, budget: tag.budget },
+          select: { id: true },
+        });
+        tags.set(tag.name, id);
+      }
+
+      // The trigger fills in base_amount (roubles: the amount itself) and
+      // to_amount between accounts of one currency; the dollar ones bring
+      // both by hand, so no exchange rate is needed.
+      const rowOf = (t: (typeof data.transactions)[number]) => ({
+        userId,
+        accountId: idOf(accounts, t.account) ?? '',
+        categoryId: idOf(categories, t.category),
+        toAccountId: idOf(accounts, t.toAccount),
+        amount: t.amount,
+        toAmount: t.toAmount ?? null,
+        baseAmount: t.baseAmount ?? 0,
+        baseManual: t.baseAmount !== undefined,
+        comment: t.comment,
+        occurredAt: t.occurredAt,
+        recurringRuleId: t.rule ? idOf(rules, t.rule.key) : null,
+        recurringOn: t.rule ? toDateColumn(t.rule.on) : null,
       });
+      await tx.transaction.createMany({
+        data: data.transactions.filter((t) => !t.tags).map(rowOf),
+      });
+      // The few tagged ones one by one: their ids are needed for the tags.
+      for (const t of data.transactions.filter((t) => t.tags)) {
+        const { id } = await tx.transaction.create({
+          data: rowOf(t),
+          select: { id: true },
+        });
+        await tx.transactionTag.createMany({
+          data: (t.tags ?? []).map((name) => ({
+            transactionId: id,
+            tagId: tags.get(name) ?? '',
+            userId,
+          })),
+        });
+      }
 
       await tx.budget.createMany({
         data: data.budgets.map((budget) => ({

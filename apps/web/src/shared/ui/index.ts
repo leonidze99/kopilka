@@ -20,3 +20,8 @@ export { Switch } from './switch/Switch';
 export { SearchField } from './search-field/SearchField';
 export { Chip } from './chip/Chip';
 export { UsageBar, UsageRemaining } from './usage/Usage';
+export {
+  SplitFields,
+  SplitToggle,
+  type SplitValues,
+} from './split-fields/SplitFields';

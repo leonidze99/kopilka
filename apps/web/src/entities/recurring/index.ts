@@ -11,3 +11,4 @@ export {
   describeSchedule,
   formatPaymentDay,
 } from './lib/describe';
+export { ruleCategories, ruleTitle } from './lib/title';

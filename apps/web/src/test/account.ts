@@ -484,9 +484,27 @@ export function mockAccount({
         if (!to) throw new Error(`unknown account ${body.toAccountId}`);
         created = { ...common, type: 'transfer', toAccount: ref(to) };
       } else {
-        const category = state.categories.find((c) => c.id === body.categoryId);
-        if (!category) throw new Error(`unknown category ${body.categoryId}`);
-        created = { ...common, type: body.type, category };
+        const categoryOf = (id: string | undefined) => {
+          const found = state.categories.find((c) => c.id === id);
+          if (!found) throw new Error(`unknown category ${id}`);
+          return found;
+        };
+        created = body.splits
+          ? {
+              ...common,
+              type: body.type,
+              category: null,
+              splits: body.splits.map((split) => ({
+                category: categoryOf(split.categoryId),
+                amount: Number(split.amount).toFixed(2),
+              })),
+            }
+          : {
+              ...common,
+              type: body.type,
+              category: categoryOf(body.categoryId),
+              splits: [],
+            };
       }
       state.recurring.push(created);
       return HttpResponse.json(created, { status: 201 });

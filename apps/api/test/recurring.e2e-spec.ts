@@ -381,4 +381,102 @@ describe('Recurring payments (e2e)', () => {
       { field: 'accountId', message: 'Счёт не найден' },
     ]);
   });
+
+  describe('split', () => {
+    /** Utilities: electricity and water, parts of one payment. */
+    async function splitSetUp() {
+      const fixture = await setUp();
+      const { body: water } = await http()
+        .post('/api/categories')
+        .set('Authorization', fixture.user.auth)
+        .send({ kind: 'expense', name: 'Вода' })
+        .expect(201);
+      const body = {
+        type: 'expense',
+        accountId: fixture.accountId,
+        amount: '3500',
+        comment: 'Коммуналка',
+        startOn: today(),
+        timeZone: 'UTC',
+        splits: [
+          { categoryId: fixture.rent.id, amount: '2000' },
+          { categoryId: water.id, amount: '1500' },
+        ],
+      };
+      return { ...fixture, water: water as { id: string }, body };
+    }
+
+    it('makes each payment a split transaction', async () => {
+      const fixture = await splitSetUp();
+      const { body: rule } = await createRule(
+        fixture.user,
+        fixture.body,
+      ).expect(201);
+      expect(rule).toMatchObject({
+        type: 'expense',
+        category: null,
+        splits: [
+          { category: { id: fixture.rent.id }, amount: '2000.00' },
+          { category: { id: fixture.water.id }, amount: '1500.00' },
+        ],
+      });
+
+      await runner.runDue(at(today()), { userId: fixture.user.id });
+
+      const [made] = await transactions(fixture.user);
+      expect(made).toMatchObject({
+        type: 'expense',
+        amount: '3500.00',
+        category: null,
+        recurringRuleId: rule.id,
+        splits: [
+          { category: { id: fixture.rent.id }, amount: '2000.00' },
+          { category: { id: fixture.water.id }, amount: '1500.00' },
+        ],
+      });
+    });
+
+    it('refuses parts that do not add up, and replaces them as a whole', async () => {
+      const fixture = await splitSetUp();
+      const refused = await createRule(fixture.user, {
+        ...fixture.body,
+        amount: '4000',
+      }).expect(400);
+      expect(refused.body.details).toEqual([
+        { field: 'splits', message: 'Части меньше суммы операции на 500,00' },
+      ]);
+
+      const { body: rule } = await createRule(
+        fixture.user,
+        fixture.body,
+      ).expect(201);
+      // Back to one category: the parts go.
+      const { body: joined } = await http()
+        .put(`/api/recurring/${rule.id}`)
+        .set('Authorization', fixture.user.auth)
+        .send({
+          ...fixture.body,
+          splits: undefined,
+          categoryId: fixture.rent.id,
+        })
+        .expect(200);
+      expect(joined).toMatchObject({
+        category: { id: fixture.rent.id },
+        splits: [],
+      });
+    });
+
+    it('goes away with a category of one of its parts', async () => {
+      const fixture = await splitSetUp();
+      await createRule(fixture.user, fixture.body).expect(201);
+
+      await http()
+        .delete(`/api/categories/${fixture.water.id}`)
+        .set('Authorization', fixture.user.auth)
+        .expect(204);
+
+      // Not left with half a split: the rule is a setting, as with one category.
+      expect(await rules(fixture.user)).toEqual([]);
+    });
+  });
 });

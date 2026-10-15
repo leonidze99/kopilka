@@ -1,5 +1,6 @@
 import { type ApiError, apiErrorSchema } from '@kopilka/shared';
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
+import { pluralize } from './plural';
 
 /**
  * The API error body, if `error` (as returned by RTK Query) carries one.
@@ -11,6 +12,23 @@ export function toApiError(error: unknown): ApiError | undefined {
   }
   const parsed = apiErrorSchema.safeParse(error.data);
   return parsed.success ? parsed.data : undefined;
+}
+
+/** Seconds to wait, from Retry-After (base-query copies it onto the error). */
+export function retryAfterOf(error: unknown): number | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+  const value = (error as { retryAfter?: unknown }).retryAfter;
+  return typeof value === 'number' && value > 0 ? value : undefined;
+}
+
+/** "через 45 секунд", "через 2 минуты"; a minute when the API did not say. */
+function waitFor(seconds: number | undefined): string {
+  if (seconds === undefined) return 'через минуту';
+  if (seconds < 60) {
+    return `через ${pluralize(seconds, ['секунду', 'секунды', 'секунд'])}`;
+  }
+  const minutes = Math.ceil(seconds / 60);
+  return `через ${pluralize(minutes, ['минуту', 'минуты', 'минут'])}`;
 }
 
 const isNetworkError = (error: unknown) =>
@@ -42,7 +60,7 @@ export function errorMessage(error: unknown): string {
         'Ссылка недействительна или устарела. Запросите новую.'
       );
     case 'RATE_LIMITED':
-      return 'Слишком много попыток. Попробуйте через минуту.';
+      return `Слишком много попыток. Попробуйте ${waitFor(retryAfterOf(error))}.`;
     case 'VALIDATION_FAILED':
       return 'Проверьте правильность заполнения полей';
     case 'SERVICE_UNAVAILABLE':

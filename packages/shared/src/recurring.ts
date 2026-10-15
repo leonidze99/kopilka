@@ -2,6 +2,12 @@ import { z } from 'zod';
 import { accountRefSchema } from './account.js';
 import { categorySchema, transactionKindSchema } from './category.js';
 import { amountSchema } from './money.js';
+import {
+  checkParts,
+  type LooseCategorizedInput,
+  splitsInputSchema,
+  transactionSplitSchema,
+} from './parts.js';
 
 /** A calendar date, "2026-10-05": a day, not an instant. */
 export const calendarDateSchema = z.iso
@@ -65,9 +71,22 @@ export const recurringInputSchema = z
     z
       .object({
         type: transactionKindSchema,
-        categoryId: z.uuid('Выберите категорию'),
+        /** One category; or, for a split payment, `splits` instead. */
+        categoryId: z.uuid('Выберите категорию').optional(),
+        /**
+         * The parts each payment is split into, as on a split transaction:
+         * at least two, one per category, adding up to the amount.
+         */
+        splits: splitsInputSchema.optional(),
         ...inputFields,
       })
+      // As on a transaction: "choose a category" with the other errors.
+      .superRefine(
+        (input: LooseCategorizedInput, ctx) => checkParts(input, ctx),
+        {
+          when: ({ value }) => typeof value === 'object' && value !== null,
+        },
+      )
       .meta({ id: 'CategorizedRecurringInput' }),
     z
       .object({
@@ -108,7 +127,10 @@ export const recurringRuleSchema = z
       .object({
         type: transactionKindSchema,
         ...outputFields,
-        category: categorySchema,
+        /** null for a split rule: its categories are in `splits`. */
+        category: categorySchema.nullable(),
+        /** The parts of each payment, largest first; empty if not split. */
+        splits: z.array(transactionSplitSchema),
       })
       .meta({ id: 'CategorizedRecurringRule' }),
     z

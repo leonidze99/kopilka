@@ -32,11 +32,20 @@ const ruleSelect = {
   account: { select: accountRefSelect },
   toAccount: { select: accountRefSelect },
   category: { select: categorySelect },
+  splits: {
+    select: { amount: true, category: { select: categorySelect } },
+    orderBy: [{ amount: 'desc' }, { category: { name: 'asc' } }],
+  },
 } satisfies Prisma.RecurringRuleSelect;
 
 type RuleRow = Prisma.RecurringRuleGetPayload<{ select: typeof ruleSelect }>;
 
-function toRule({ toAccount, category, ...row }: RuleRow): RecurringRule {
+function toRule({
+  toAccount,
+  category,
+  splits,
+  ...row
+}: RuleRow): RecurringRule {
   const common = {
     ...row,
     account: toAccountRef(row.account),
@@ -47,9 +56,19 @@ function toRule({ toAccount, category, ...row }: RuleRow): RecurringRule {
   if (toAccount) {
     return { type: 'transfer', ...common, toAccount: toAccountRef(toAccount) };
   }
-  // CHECK (num_nonnulls(category_id, to_account_id) = 1) rules this out.
-  if (!category) throw new Error(`Recurring rule ${row.id} has no category`);
-  return { type: category.kind, ...common, category };
+  // Without a category there are parts, all of one kind (the service
+  // writes nothing else).
+  const kind = category?.kind ?? splits[0]?.category.kind;
+  if (!kind) throw new Error(`Recurring rule ${row.id} has no category`);
+  return {
+    type: kind,
+    ...common,
+    category,
+    splits: splits.map((split) => ({
+      category: split.category,
+      amount: split.amount.toFixed(2),
+    })),
+  };
 }
 
 const notFound = () =>
@@ -81,7 +100,11 @@ export class RecurringService {
     await this.checkRefs(userId, dto);
     const row = await this.write(() =>
       this.prisma.recurringRule.create({
-        data: { userId, ...this.columnsOf(dto, this.scheduleOf(dto)) },
+        data: {
+          userId,
+          ...this.columnsOf(dto, this.scheduleOf(dto)),
+          splits: { create: this.splitsOf(userId, dto) },
+        },
         select: ruleSelect,
       }),
     );
@@ -111,7 +134,12 @@ export class RecurringService {
       this.prisma.recurringRule.update({
         where: { id, userId },
         // A fresh start: the last error was about the old settings.
-        data: { ...this.columnsOf(dto, schedule), lastError: null },
+        data: {
+          ...this.columnsOf(dto, schedule),
+          lastError: null,
+          // The parts are replaced as a whole, as the rule is.
+          splits: { deleteMany: {}, create: this.splitsOf(userId, dto) },
+        },
         select: ruleSelect,
       }),
     );
@@ -140,13 +168,24 @@ export class RecurringService {
     return { nextIndex: index, nextOn: toDateColumn(on) };
   }
 
+  /** The parts of a split rule; none for any other. */
+  private splitsOf(userId: string, dto: RecurringInputDto) {
+    if (dto.type === 'transfer' || !dto.splits) return [];
+    return dto.splits.map((split) => ({
+      userId,
+      categoryId: split.categoryId,
+      amount: split.amount,
+    }));
+  }
+
   private columnsOf(
     dto: RecurringInputDto,
     schedule: { nextIndex: number; nextOn: Date },
   ) {
     return {
       accountId: dto.accountId,
-      categoryId: dto.type === 'transfer' ? null : dto.categoryId,
+      // A split rule has its categories in its parts.
+      categoryId: dto.type === 'transfer' ? null : (dto.categoryId ?? null),
       toAccountId: dto.type === 'transfer' ? dto.toAccountId : null,
       amount: dto.amount,
       comment: dto.comment || null,
@@ -206,21 +245,32 @@ export class RecurringService {
       }
       return;
     }
-    const category = await this.prisma.category.findUnique({
-      where: { id_userId: { id: dto.categoryId, userId } },
-      select: { kind: true },
+    // Its own category, or those of its parts: one query for all.
+    const wanted = dto.splits
+      ? dto.splits.map((split, index) => ({
+          id: split.categoryId,
+          field: `splits.${index}.categoryId`,
+        }))
+      : [{ id: dto.categoryId!, field: 'categoryId' }];
+    const categories = await this.prisma.category.findMany({
+      where: { userId, id: { in: wanted.map((category) => category.id) } },
+      select: { id: true, kind: true },
     });
-    if (!category) {
-      throw invalid('categoryId', 'Category not found', 'Категория не найдена');
-    }
-    if (category.kind !== dto.type) {
-      throw invalid(
-        'categoryId',
-        'Category of another kind',
-        dto.type === 'income'
-          ? 'Это категория расходов'
-          : 'Это категория доходов',
-      );
+    const kinds = new Map(categories.map(({ id, kind }) => [id, kind]));
+    for (const { id, field } of wanted) {
+      const kind = kinds.get(id);
+      if (!kind) {
+        throw invalid(field, 'Category not found', 'Категория не найдена');
+      }
+      if (kind !== dto.type) {
+        throw invalid(
+          field,
+          'Category of another kind',
+          dto.type === 'income'
+            ? 'Это категория расходов'
+            : 'Это категория доходов',
+        );
+      }
     }
   }
 
