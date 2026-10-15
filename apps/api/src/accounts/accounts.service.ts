@@ -3,6 +3,7 @@ import type {
   Account,
   AccountList,
   AccountType,
+  ArchiveAccountResult,
   CreateAccountDto,
   Currency,
   UpdateAccountDto,
@@ -49,6 +50,7 @@ interface BalanceRow {
   currency: Currency;
   opening_balance: Prisma.Decimal;
   allow_negative: boolean;
+  archived_at: Date | null;
   balance: Prisma.Decimal;
   /** The balance in the user's base currency today; null: no rate. */
   base_balance: Prisma.Decimal | null;
@@ -77,12 +79,13 @@ const nameTaken = () =>
  * base_balance: the balance at the latest rates, for the total.
  */
 const balancesQuery = (userId: string, ids?: string[]) => Prisma.sql`
-  SELECT id, name, type, currency, opening_balance, allow_negative, balance,
+  SELECT id, name, type, currency, opening_balance, allow_negative,
+         archived_at, balance,
          round(balance * exchange_rate(currency, current_date)
                / exchange_rate(base_currency, current_date), 2) AS base_balance
   FROM (
     SELECT a.id, a.name, a.type, a.currency, a.opening_balance,
-           a.allow_negative, a.created_at, u.base_currency,
+           a.allow_negative, a.archived_at, a.created_at, u.base_currency,
            a.opening_balance
            + COALESCE((
                -- Money out of the account: a transfer has no category, so it
@@ -112,7 +115,30 @@ const toAccount = (row: BalanceRow): Account => ({
   openingBalance: new Prisma.Decimal(row.opening_balance).toFixed(2),
   allowNegative: row.allow_negative,
   balance: new Prisma.Decimal(row.balance).toFixed(2),
+  archivedAt: row.archived_at,
 });
+
+/**
+ * A write names an archived account: refused, with the field it came in.
+ * `allowed`: archived accounts the write may keep, e.g. those an edited
+ * transaction was already on.
+ */
+export function assertNotArchived(
+  archived: Set<string>,
+  accounts: { id: string; field: string }[],
+  allowed: Iterable<string> = [],
+): void {
+  const kept = new Set(allowed);
+  const account = accounts.find(({ id }) => archived.has(id) && !kept.has(id));
+  if (account) {
+    throw new AppException(
+      'VALIDATION_FAILED',
+      'Account is archived',
+      HttpStatus.BAD_REQUEST,
+      [{ field: account.field, message: 'Счёт в архиве' }],
+    );
+  }
+}
 
 @Injectable()
 export class AccountsService {
@@ -276,16 +302,18 @@ export class AccountsService {
    * other (a deadlock).
    *
    * `missing` builds the error for an id that is not this user's account.
+   * Returns the ids of those in the archive, read under the lock: archiving
+   * locks the account too, so a write cannot slip onto one being archived.
    */
   async lock(
     tx: Tx,
     userId: string,
     accounts: { id: string; field: string }[],
     missing: (field: string) => Error,
-  ): Promise<void> {
+  ): Promise<Set<string>> {
     const ids = [...new Set(accounts.map((account) => account.id))];
-    const locked = await tx.$queryRaw<{ id: string }[]>`
-      SELECT id FROM accounts
+    const locked = await tx.$queryRaw<{ id: string; archived: boolean }[]>`
+      SELECT id, archived_at IS NOT NULL AS archived FROM accounts
       WHERE user_id = ${userId}::uuid AND id = ANY(${ids}::uuid[])
       ORDER BY id
       FOR UPDATE
@@ -293,6 +321,76 @@ export class AccountsService {
     const found = new Set(locked.map((row) => row.id));
     const absent = accounts.find((account) => !found.has(account.id));
     if (absent) throw missing(absent.field);
+    return new Set(locked.filter((row) => row.archived).map((row) => row.id));
+  }
+
+  /**
+   * Closes an account: only with nothing left on it, so the total of the
+   * accounts never holds money nobody sees. Its recurring rules (either
+   * side) stop in the same transaction — they would write onto it. Again
+   * on an archived account: nothing changes.
+   */
+  async archive(userId: string, id: string): Promise<ArchiveAccountResult> {
+    return this.prisma.$transaction(async (tx) => {
+      const archived = await this.lock(
+        tx,
+        userId,
+        [{ id, field: 'id' }],
+        notFound,
+      );
+      if (archived.has(id)) {
+        return { account: await this.get(tx, userId, id), stoppedRecurring: 0 };
+      }
+      const [row] = await tx.$queryRaw<BalanceRow[]>(
+        balancesQuery(userId, [id]),
+      );
+      const balance = new Prisma.Decimal(row!.balance);
+      if (!balance.isZero()) {
+        throw new AppException(
+          'ACCOUNT_NOT_EMPTY',
+          'Account still has money on it',
+          HttpStatus.CONFLICT,
+          [
+            {
+              field: 'id',
+              message: balance.isNegative()
+                ? `Счёт в минусе на ${formatMoney(balance.negated(), row!.currency)} — сначала закройте долг`
+                : `На счёте ещё ${formatMoney(balance, row!.currency)} — сначала переведите остаток`,
+            },
+          ],
+        );
+      }
+      const { count } = await tx.recurringRule.updateMany({
+        where: {
+          userId,
+          active: true,
+          OR: [{ accountId: id }, { toAccountId: id }],
+        },
+        data: { active: false },
+      });
+      await tx.account.update({
+        where: { id },
+        data: { archivedAt: new Date() },
+      });
+      return {
+        account: await this.get(tx, userId, id),
+        stoppedRecurring: count,
+      };
+    });
+  }
+
+  /** Back in use. Its stopped recurring rules stay stopped: turned on by hand. */
+  async unarchive(userId: string, id: string): Promise<Account> {
+    try {
+      await this.prisma.account.update({
+        where: { id_userId: { id, userId } },
+        data: { archivedAt: null },
+      });
+    } catch (error) {
+      if (isPrismaError(error, PrismaCode.NotFound)) throw notFound();
+      throw error;
+    }
+    return this.get(this.prisma, userId, id);
   }
 
   /**

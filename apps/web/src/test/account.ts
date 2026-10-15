@@ -107,6 +107,7 @@ export function mockAccount({
     replacements: [] as TransactionInput[],
     receipts: [] as { transactionId: string; name: string }[],
     tagRenames: [] as { id: string; name: string }[],
+    archived: [] as string[],
     tagBudgets: [] as { id: string; amount: string | null }[],
   };
 
@@ -224,9 +225,51 @@ export function mockAccount({
         openingBalance,
         allowNegative: body.allowNegative ?? true,
         balance: openingBalance,
+        archivedAt: null,
       };
       state.accounts.push(created);
       return HttpResponse.json(created, { status: 201 });
+    }),
+    // The archive, as the API has it: only with nothing left, and the
+    // account's recurring rules stop.
+    http.post(`${API_URL}/accounts/:id/archive`, ({ params }) => {
+      const account = state.accounts.find((a) => a.id === params.id);
+      if (!account) return new HttpResponse(null, { status: 404 });
+      sent.archived.push(account.id);
+      if (Number(account.balance) !== 0) {
+        return HttpResponse.json(
+          {
+            code: 'ACCOUNT_NOT_EMPTY',
+            message: 'Account still has money on it',
+            requestId: 'req-test',
+            details: [
+              {
+                field: 'id',
+                message: 'На счёте ещё деньги — сначала переведите остаток',
+              },
+            ],
+          },
+          { status: 409 },
+        );
+      }
+      let stoppedRecurring = 0;
+      for (const rule of state.recurring) {
+        const on =
+          rule.account.id === account.id ||
+          (rule.type === 'transfer' && rule.toAccount.id === account.id);
+        if (on && rule.active) {
+          rule.active = false;
+          stoppedRecurring++;
+        }
+      }
+      account.archivedAt = new Date().toISOString();
+      return HttpResponse.json({ account, stoppedRecurring });
+    }),
+    http.post(`${API_URL}/accounts/:id/unarchive`, ({ params }) => {
+      const account = state.accounts.find((a) => a.id === params.id);
+      if (!account) return new HttpResponse(null, { status: 404 });
+      account.archivedAt = null;
+      return HttpResponse.json(account);
     }),
     http.patch(`${API_URL}/accounts/:id`, async ({ params, request }) => {
       const body = (await request.json()) as Partial<CreateAccount>;

@@ -329,6 +329,7 @@ describe('ImportPage', () => {
       currency: 'RUB',
       openingBalance: '0.00',
       allowNegative: false,
+      archivedAt: null,
       balance: '0.00',
     } as const;
     mockAccount({

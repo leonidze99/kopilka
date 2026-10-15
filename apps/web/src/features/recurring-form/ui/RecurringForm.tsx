@@ -7,7 +7,7 @@ import {
 import { Plus } from 'lucide-react';
 import { type ReactNode, useEffect } from 'react';
 import { Controller, type Resolver, useForm, useWatch } from 'react-hook-form';
-import { useListAccountsQuery } from '@/entities/account';
+import { useListAccountsQuery, usableAccounts } from '@/entities/account';
 import { useBaseCurrency } from '@/entities/session';
 import { useListCategoriesQuery } from '@/entities/category';
 import {
@@ -98,7 +98,10 @@ interface RecurringFormProps {
 export function RecurringForm({ rule, onSaved, footer }: RecurringFormProps) {
   const { data: categories = [] } = useListCategoriesQuery();
   const { data: accountList } = useListAccountsQuery();
-  const accounts = accountList?.items ?? [];
+  const accounts = usableAccounts(accountList?.items ?? [], [
+    rule?.account.id,
+    rule?.type === 'transfer' ? rule.toAccount.id : undefined,
+  ]);
   const baseCurrency = useBaseCurrency();
   const [createRecurring] = useCreateRecurringMutation();
   const [replaceRecurring] = useReplaceRecurringMutation();

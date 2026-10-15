@@ -1,5 +1,9 @@
 import { useForm, useWatch } from 'react-hook-form';
-import { type Account, useListAccountsQuery } from '@/entities/account';
+import {
+  type Account,
+  useListAccountsQuery,
+  usableAccounts,
+} from '@/entities/account';
 import {
   type Category,
   KIND_OPTIONS,
@@ -74,7 +78,7 @@ export function ImportCategoriesForm({ imported }: ImportCategoriesFormProps) {
       categories={categories}
       // Every other account: a transfer has two sides, and one of them is
       // the account being imported into.
-      accounts={accounts.items.filter(
+      accounts={usableAccounts(accounts.items).filter(
         (account) => account.id !== imported.account?.id,
       )}
     />

@@ -8,7 +8,7 @@ import { type ReactNode, useEffect } from 'react';
 import { Controller, type Resolver, useForm, useWatch } from 'react-hook-form';
 import { Link } from 'react-router';
 import { Split } from 'lucide-react';
-import { useListAccountsQuery } from '@/entities/account';
+import { useListAccountsQuery, usableAccounts } from '@/entities/account';
 import { useListCategoriesQuery } from '@/entities/category';
 import { useBaseCurrency } from '@/entities/session';
 import type { TransactionType } from '@/entities/transaction';
@@ -149,7 +149,11 @@ export function TransactionForm({
 }: TransactionFormProps) {
   const { data: categories = [] } = useListCategoriesQuery();
   const { data, isSuccess: accountsLoaded } = useListAccountsQuery();
-  const accounts = data?.items ?? [];
+  // An edited transaction keeps the archived accounts it is already on.
+  const accounts = usableAccounts(data?.items ?? [], [
+    defaultValues.accountId,
+    defaultValues.toAccountId,
+  ]);
   const baseCurrency = useBaseCurrency();
   const currencyOf = (id: string) =>
     accounts.find((account) => account.id === id)?.currency;

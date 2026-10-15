@@ -18,6 +18,7 @@ import type {
 import {
   accountRefSelect,
   AccountsService,
+  assertNotArchived,
   type MoneyContext,
   toAccountRef,
   type Tx,
@@ -542,7 +543,13 @@ export class TransactionsService {
     const money = await this.prepare(userId, dto);
     return this.write(async (tx) => {
       const accounts = accountsOf(dto);
-      await this.accounts.lock(tx, userId, accounts, unknownAccount);
+      const archived = await this.accounts.lock(
+        tx,
+        userId,
+        accounts,
+        unknownAccount,
+      );
+      assertNotArchived(archived, accounts);
       await this.checkCategories(tx, userId, dto);
       const { id } = await tx.transaction.create({
         data: { userId, ...columnsOf(dto, money) },
@@ -571,7 +578,19 @@ export class TransactionsService {
       // The accounts it was on lose or regain its money too.
       const before = await this.lockTransaction(tx, userId, id);
       const accounts = [...before, ...accountsOf(dto)];
-      await this.accounts.lock(tx, userId, accounts, unknownAccount);
+      const archived = await this.accounts.lock(
+        tx,
+        userId,
+        accounts,
+        unknownAccount,
+      );
+      // History stays editable: an archived account it was already on may
+      // stay, a new one may not be chosen.
+      assertNotArchived(
+        archived,
+        accountsOf(dto),
+        before.map((account) => account.id),
+      );
       await this.checkCategories(tx, userId, dto);
       await tx.transaction.update({
         where: { id, userId },

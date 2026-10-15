@@ -7,7 +7,11 @@ import {
   useForm,
   useWatch,
 } from 'react-hook-form';
-import { type Account, useListAccountsQuery } from '@/entities/account';
+import {
+  type Account,
+  useListAccountsQuery,
+  usableAccounts,
+} from '@/entities/account';
 import {
   columnName,
   FilePreview,
@@ -161,7 +165,12 @@ export function ImportColumnsForm(props: ImportColumnsFormProps) {
   const { data: accountList } = useListAccountsQuery();
   // A <select> takes its default only if the option is already there.
   if (!accountList) return <Skeleton height={320} />;
-  return <ColumnsForm {...props} accounts={accountList.items} />;
+  return (
+    <ColumnsForm
+      {...props}
+      accounts={usableAccounts(accountList.items, [props.imported.account?.id])}
+    />
+  );
 }
 
 function ColumnsForm({

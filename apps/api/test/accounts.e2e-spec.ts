@@ -86,6 +86,7 @@ describe('Accounts (e2e)', () => {
         openingBalance: '0.00',
         allowNegative: true,
         balance: '0.00',
+        archivedAt: null,
       },
     ]);
   });
@@ -288,6 +289,136 @@ describe('Accounts (e2e)', () => {
       expect(statuses.filter((status) => status === 201)).toHaveLength(3);
       expect(statuses.filter((status) => status === 409)).toHaveLength(7);
       expect(await balanceOf(user, account.id)).toBe('100.00');
+    });
+  });
+
+  describe('archive', () => {
+    const archive = (user: TestUser, id: string) =>
+      http()
+        .post(`/api/accounts/${id}/archive`)
+        .set('Authorization', user.auth);
+
+    it('takes only an account with nothing left on it', async () => {
+      const { user, account, food } = await setUp({ openingBalance: '1500' });
+
+      const refused = await archive(user, account.id).expect(409);
+      await record(user, account.id, food, 'expense', '1500').expect(201);
+      const { body } = await archive(user, account.id).expect(200);
+
+      expect(refused.body).toMatchObject({
+        code: 'ACCOUNT_NOT_EMPTY',
+        details: [
+          {
+            field: 'id',
+            message: expect.stringMatching(/^На счёте ещё 1\s500,00\s₽/),
+          },
+        ],
+      });
+      expect(body.stoppedRecurring).toBe(0);
+      expect(accountSchema.parse(body.account).archivedAt).toBeInstanceOf(Date);
+      // Still listed, with its history: the archive hides, it does not delete.
+      const listed = (await accounts(user)).find((a) => a.id === account.id);
+      expect(listed).toMatchObject({
+        balance: '0.00',
+        archivedAt: expect.any(String),
+      });
+    });
+
+    it('stops the recurring rules of the account', async () => {
+      const { user, account, food } = await setUp({});
+      const { body: rule } = await http()
+        .post('/api/recurring')
+        .set('Authorization', user.auth)
+        .send({
+          type: 'expense',
+          categoryId: food.id,
+          accountId: account.id,
+          amount: '500',
+          startOn: '2030-01-01',
+          timeZone: 'UTC',
+        })
+        .expect(201);
+
+      const { body } = await archive(user, account.id).expect(200);
+
+      expect(body.stoppedRecurring).toBe(1);
+      const { body: rules } = await http()
+        .get('/api/recurring')
+        .set('Authorization', user.auth)
+        .expect(200);
+      expect(rules).toEqual([
+        expect.objectContaining({ id: rule.id, active: false }),
+      ]);
+    });
+
+    it('takes no new transactions or goals, but keeps its history editable', async () => {
+      const { user, account, food, salary } = await setUp({});
+      const { body: income } = await record(
+        user,
+        account.id,
+        salary,
+        'income',
+        '100',
+      ).expect(201);
+      await record(user, account.id, food, 'expense', '100').expect(201);
+      await archive(user, account.id).expect(200);
+
+      const refused = await record(
+        user,
+        account.id,
+        food,
+        'expense',
+        '10',
+      ).expect(400);
+      const goal = await http()
+        .post('/api/goals')
+        .set('Authorization', user.auth)
+        .send({ accountId: account.id, name: 'Отпуск', targetAmount: '1000' })
+        .expect(400);
+      // An old transaction on it is still history to fix.
+      await http()
+        .put(`/api/transactions/${income.id}`)
+        .set('Authorization', user.auth)
+        .send({
+          type: 'income',
+          categoryId: salary.id,
+          accountId: account.id,
+          amount: '100',
+          comment: 'Зарплата за сентябрь',
+          occurredAt: '2026-10-05T12:00:00Z',
+        })
+        .expect(200);
+
+      expect(refused.body.details).toEqual([
+        { field: 'accountId', message: 'Счёт в архиве' },
+      ]);
+      expect(goal.body.details).toEqual([
+        { field: 'accountId', message: 'Счёт в архиве' },
+      ]);
+    });
+
+    it('brings an account back into use', async () => {
+      const { user, account, food } = await setUp({});
+      await archive(user, account.id).expect(200);
+
+      const { body } = await http()
+        .post(`/api/accounts/${account.id}/unarchive`)
+        .set('Authorization', user.auth)
+        .expect(200);
+
+      expect(body.archivedAt).toBeNull();
+      await record(user, account.id, food, 'expense', '10').expect(201);
+    });
+
+    it("treats another user's account as missing", async () => {
+      const alice = await setUp({});
+      const bob = await users.signUp();
+
+      await archive(bob, alice.account.id).expect(404);
+      await http()
+        .post(`/api/accounts/${alice.account.id}/unarchive`)
+        .set('Authorization', bob.auth)
+        .expect(404);
     });
   });
 });

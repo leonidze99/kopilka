@@ -18,6 +18,8 @@ export const errorCodeSchema = z
     'CONFLICT',
     'CATEGORY_IN_USE',
     'ACCOUNT_IN_USE',
+    // Only an account with nothing left on it goes to the archive.
+    'ACCOUNT_NOT_EMPTY',
     // A write would take an account that must not go negative below zero.
     'INSUFFICIENT_FUNDS',
     // No Bank of Russia rate to convert an amount into the base currency;

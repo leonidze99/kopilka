@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Button } from '../button/Button';
 import styles from './ConfirmButton.module.css';
 
@@ -10,19 +10,27 @@ interface ConfirmButtonProps {
   loading?: boolean;
   /** `icon`: a trash icon in a row; `text`: a full-width button in a dialog. */
   look?: 'icon' | 'text';
+  /** For an action other than deleting: what the button says and shows. */
+  text?: string;
+  confirmText?: string;
+  icon?: ReactNode;
 }
 
 const RESET_AFTER_MS = 4000;
 
 /**
- * Two-step delete: the first click asks, the second one acts. Unlike
- * window.confirm() it does not block the page and is easy to test.
+ * Two-step delete (or another action worth a second thought): the first
+ * click asks, the second one acts. Unlike window.confirm() it does not
+ * block the page and is easy to test.
  */
 export function ConfirmButton({
   label,
   onConfirm,
   loading,
   look = 'icon',
+  text: caption = 'Удалить',
+  confirmText = 'Точно удалить?',
+  icon = <Trash2 size={17} aria-hidden />,
 }: ConfirmButtonProps) {
   const [armed, setArmed] = useState(false);
 
@@ -52,14 +60,14 @@ export function ConfirmButton({
       }}
     >
       {armed ? (
-        'Точно удалить?'
+        confirmText
       ) : text ? (
         <>
-          <Trash2 size={17} aria-hidden />
-          Удалить
+          {icon}
+          {caption}
         </>
       ) : (
-        <Trash2 size={17} aria-hidden />
+        icon
       )}
     </Button>
   );

@@ -16,6 +16,7 @@ import type { Request } from 'express';
 import {
   accountRefSelect,
   AccountsService,
+  assertNotArchived,
   toAccountRef,
 } from '../accounts/accounts.service.js';
 import { categorySelect } from '../categories/categories.service.js';
@@ -291,10 +292,13 @@ export class ImportsService {
       }
       const account = await tx.account.findUnique({
         where: { id_userId: { id: dto.accountId, userId } },
-        select: { id: true },
+        select: { id: true, archivedAt: true },
       });
       if (!account)
         throw invalid('accountId', 'Account not found', 'Счёт не найден');
+      assertNotArchived(new Set(account.archivedAt ? [account.id] : []), [
+        { id: account.id, field: 'accountId' },
+      ]);
 
       await tx.importRow.updateMany({
         where: { importId: id, status: { not: null } },
@@ -430,7 +434,7 @@ export class ImportsService {
               ),
             },
           },
-          select: { id: true, currency: true },
+          select: { id: true, currency: true, archivedAt: true },
         }),
       ]);
 
@@ -444,6 +448,9 @@ export class ImportsService {
           if (!target) {
             throw invalid(field, 'Account not found', 'Счёт не найден');
           }
+          assertNotArchived(new Set(target.archivedAt ? [target.id] : []), [
+            { id: target.id, field },
+          ]);
           // The statement has one amount; what arrived in another currency
           // is not in it.
           if (target.currency !== current.currency) {

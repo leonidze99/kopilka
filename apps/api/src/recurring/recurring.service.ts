@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import type { RecurringInputDto, RecurringRule } from '@kopilka/shared';
 import {
   accountRefSelect,
+  assertNotArchived,
   toAccountRef,
 } from '../accounts/accounts.service.js';
 import { categorySelect } from '../categories/categories.service.js';
@@ -170,12 +171,25 @@ export class RecurringService {
     ];
     const owned = await this.prisma.account.findMany({
       where: { userId, id: { in: accountIds } },
-      select: { id: true, currency: true },
+      select: { id: true, currency: true, archivedAt: true },
     });
     const currencies = new Map(owned.map(({ id, currency }) => [id, currency]));
     const found = new Set(currencies.keys());
     if (!found.has(dto.accountId)) {
       throw invalid('accountId', 'Account not found', 'Счёт не найден');
+    }
+    // A stopped rule may stay on an archived account; a running one would
+    // write onto it.
+    if (dto.active) {
+      assertNotArchived(
+        new Set(owned.filter((a) => a.archivedAt).map((a) => a.id)),
+        [
+          { id: dto.accountId, field: 'accountId' },
+          ...(dto.type === 'transfer'
+            ? [{ id: dto.toAccountId, field: 'toAccountId' }]
+            : []),
+        ],
+      );
     }
     if (dto.type === 'transfer') {
       if (!found.has(dto.toAccountId)) {

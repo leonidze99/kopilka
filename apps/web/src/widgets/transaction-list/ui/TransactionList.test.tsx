@@ -92,6 +92,7 @@ describe('TransactionList', () => {
       currency: 'RUB',
       openingBalance: '0.00',
       allowNegative: false,
+      archivedAt: null,
       balance: '300.00',
     } as const;
     const transfer = {

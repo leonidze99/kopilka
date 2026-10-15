@@ -11,7 +11,10 @@ export type Account = AccountList['items'][number];
 export const accountApi = baseApi
   // Transactions show the names of their accounts: a rename refetches them.
   // A balance is what a saving goal counts as saved.
-  .enhanceEndpoints({ addTagTypes: ['Account', 'Transaction', 'Goal'] })
+  // Archiving stops the account's recurring rules.
+  .enhanceEndpoints({
+    addTagTypes: ['Account', 'Transaction', 'Goal', 'Recurring'],
+  })
   .injectEndpoints({
     endpoints: (build) => ({
       /** With balances and their total, computed by the API. */
@@ -41,6 +44,20 @@ export const accountApi = baseApi
         invalidatesTags: ['Account', 'Transaction', 'Goal'],
       }),
 
+      /** Only with a zero balance; its recurring rules stop. */
+      archiveAccount: build.mutation<
+        ResponseBody<'/accounts/{id}/archive', 'post', 200>,
+        string
+      >({
+        query: (id) => ({ url: `/accounts/${id}/archive`, method: 'POST' }),
+        invalidatesTags: ['Account', 'Recurring', 'Goal'],
+      }),
+
+      unarchiveAccount: build.mutation<Account, string>({
+        query: (id) => ({ url: `/accounts/${id}/unarchive`, method: 'POST' }),
+        invalidatesTags: ['Account'],
+      }),
+
       deleteAccount: build.mutation<void, string>({
         query: (id) => ({ url: `/accounts/${id}`, method: 'DELETE' }),
         invalidatesTags: ['Account', 'Goal'],
@@ -52,5 +69,7 @@ export const {
   useListAccountsQuery,
   useCreateAccountMutation,
   useUpdateAccountMutation,
+  useArchiveAccountMutation,
+  useUnarchiveAccountMutation,
   useDeleteAccountMutation,
 } = accountApi;

@@ -8,13 +8,17 @@ import {
   useListAccountsQuery,
 } from '@/entities/account';
 import { useBaseCurrency } from '@/entities/session';
+import { ArchiveAccountButton } from '@/features/account-archive';
 import { DeleteAccountButton } from '@/features/account-delete';
 import { EditAccountForm } from '@/features/account-form';
 import { errorMessage, formatMoney } from '@/shared/lib';
 import { Dialog, EmptyState, FormError, Panel, Skeleton } from '@/shared/ui';
 import styles from './AccountList.module.css';
 
-/** All accounts with their balances; a click opens one for editing. */
+/**
+ * All accounts with their balances; a click opens one for editing.
+ * Archived ones fold away under the list: their history stays reachable.
+ */
 export function AccountList() {
   const { data, error, isLoading } = useListAccountsQuery();
   const baseCurrency = useBaseCurrency();
@@ -22,6 +26,17 @@ export function AccountList() {
   const closeEditor = () => setEditing(undefined);
 
   if (error) return <FormError message={errorMessage(error)} />;
+  const active = data?.items.filter((a) => a.archivedAt === null) ?? [];
+  const archived = data?.items.filter((a) => a.archivedAt !== null) ?? [];
+  const row = (account: Account) => (
+    <li key={account.id}>
+      <AccountRow
+        account={account}
+        baseCurrency={baseCurrency}
+        onOpen={() => setEditing(account)}
+      />
+    </li>
+  );
 
   return (
     <Panel
@@ -40,44 +55,15 @@ export function AccountList() {
           Добавьте карту, наличные или вклад.
         </EmptyState>
       )}
-      <ul className={styles.list}>
-        {data?.items.map((account) => (
-          <li key={account.id}>
-            <button
-              type="button"
-              className={styles.item}
-              aria-haspopup="dialog"
-              onClick={() => setEditing(account)}
-            >
-              <AccountIcon type={account.type} />
-              <span className={styles.main}>
-                <span className={styles.name}>{account.name}</span>
-                <span className={styles.meta}>
-                  {ACCOUNT_TYPE_LABELS[account.type]}
-                  {account.currency !== baseCurrency &&
-                    ` · ${account.currency}`}
-                  {!account.allowNegative && (
-                    <span className={styles.badge}>
-                      <Lock size={12} aria-hidden />
-                      без минуса
-                    </span>
-                  )}
-                </span>
-              </span>
-              <span
-                className={[
-                  styles.balance,
-                  account.balance.startsWith('-') && styles.negative,
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              >
-                {formatMoney(account.balance, account.currency)}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      <ul className={styles.list}>{active.map(row)}</ul>
+      {archived.length > 0 && (
+        <details className={styles.archive}>
+          <summary>Архив · {archived.length}</summary>
+          <ul className={styles.list} aria-label="Счета в архиве">
+            {archived.map(row)}
+          </ul>
+        </details>
+      )}
 
       <Dialog open={!!editing} onClose={closeEditor} title="Счёт">
         {editing && (
@@ -85,12 +71,62 @@ export function AccountList() {
             account={editing}
             onSaved={closeEditor}
             footer={
-              <DeleteAccountButton account={editing} onDeleted={closeEditor} />
+              <>
+                <ArchiveAccountButton account={editing} onDone={closeEditor} />
+                <DeleteAccountButton
+                  account={editing}
+                  onDeleted={closeEditor}
+                />
+              </>
             }
           />
         )}
       </Dialog>
     </Panel>
+  );
+}
+
+function AccountRow({
+  account,
+  baseCurrency,
+  onOpen,
+}: {
+  account: Account;
+  baseCurrency: string;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.item}
+      aria-haspopup="dialog"
+      onClick={onOpen}
+    >
+      <AccountIcon type={account.type} />
+      <span className={styles.main}>
+        <span className={styles.name}>{account.name}</span>
+        <span className={styles.meta}>
+          {ACCOUNT_TYPE_LABELS[account.type]}
+          {account.currency !== baseCurrency && ` · ${account.currency}`}
+          {!account.allowNegative && (
+            <span className={styles.badge}>
+              <Lock size={12} aria-hidden />
+              без минуса
+            </span>
+          )}
+        </span>
+      </span>
+      <span
+        className={[
+          styles.balance,
+          account.balance.startsWith('-') && styles.negative,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {formatMoney(account.balance, account.currency)}
+      </span>
+    </button>
   );
 }
 

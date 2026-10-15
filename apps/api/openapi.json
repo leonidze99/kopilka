@@ -1231,6 +1231,120 @@
         ]
       }
     },
+    "/accounts/{id}/archive": {
+      "post": {
+        "description": "Only with a zero balance (ACCOUNT_NOT_EMPTY otherwise). Its recurring rules stop; its transactions stay and keep counting. No new transactions, rules, goals or imports go onto it until it is back.",
+        "operationId": "AccountsController_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveAccountResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT: clashes with existing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Archive an account",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/accounts/{id}/unarchive": {
+      "post": {
+        "description": "Its stopped recurring rules stay stopped.",
+        "operationId": "AccountsController_unarchive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: missing, invalid or expired credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Bring an account back from the archive",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
     "/auth/base-currency": {
       "put": {
         "description": "Converts the base amount of every transaction at the rate of its day, and the limits of budgets and tag budgets at today’s rate. Accounts keep their currencies. EXCHANGE_RATE_UNAVAILABLE if a Bank of Russia rate is missing; nothing changes then.",
@@ -4031,6 +4145,7 @@
           "CONFLICT",
           "CATEGORY_IN_USE",
           "ACCOUNT_IN_USE",
+          "ACCOUNT_NOT_EMPTY",
           "INSUFFICIENT_FUNDS",
           "EXCHANGE_RATE_UNAVAILABLE",
           "RATE_LIMITED",
@@ -4220,6 +4335,11 @@
           },
           "balance": {
             "type": "string"
+          },
+          "archivedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
@@ -4229,7 +4349,8 @@
           "currency",
           "openingBalance",
           "allowNegative",
-          "balance"
+          "balance",
+          "archivedAt"
         ],
         "additionalProperties": false
       },
@@ -4305,6 +4426,24 @@
             "type": "boolean"
           }
         }
+      },
+      "ArchiveAccountResult": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "stoppedRecurring": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "account",
+          "stoppedRecurring"
+        ],
+        "additionalProperties": false
       },
       "BaseCurrencySettings": {
         "type": "object",

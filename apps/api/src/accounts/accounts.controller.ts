@@ -22,6 +22,8 @@ import {
   type AccountList,
   accountListSchema,
   accountSchema,
+  type ArchiveAccountResult,
+  archiveAccountResultSchema,
   type CreateAccountDto,
   createAccountSchema,
   type UpdateAccountDto,
@@ -71,6 +73,37 @@ export class AccountsController {
     @Body({ schema: updateAccountSchema }) dto: UpdateAccountDto,
   ): Promise<Account> {
     return this.accounts.update(user.id, id, dto);
+  }
+
+  @Post(':id/archive')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Archive an account',
+    description:
+      'Only with a zero balance (ACCOUNT_NOT_EMPTY otherwise). Its recurring rules stop; its transactions stay and keep counting. No new transactions, rules, goals or imports go onto it until it is back.',
+  })
+  @ApiOkResponse({ standardSchema: archiveAccountResultSchema })
+  @ApiErrorResponses(404, 409)
+  archive(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ArchiveAccountResult> {
+    return this.accounts.archive(user.id, id);
+  }
+
+  @Post(':id/unarchive')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Bring an account back from the archive',
+    description: 'Its stopped recurring rules stay stopped.',
+  })
+  @ApiOkResponse({ standardSchema: accountSchema })
+  @ApiErrorResponses(404)
+  unarchive(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Account> {
+    return this.accounts.unarchive(user.id, id);
   }
 
   @Delete(':id')

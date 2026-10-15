@@ -3,6 +3,7 @@ import type { Goal, GoalInputDto } from '@kopilka/shared';
 import {
   accountRefSelect,
   AccountsService,
+  assertNotArchived,
   toAccountRef,
 } from '../accounts/accounts.service.js';
 import { AppException } from '../common/errors/app.exception.js';
@@ -98,7 +99,12 @@ export class GoalsService {
 
   /** The whole goal at once, the account it counts included. */
   async replace(userId: string, id: string, dto: GoalInputDto): Promise<Goal> {
-    await this.checkAccount(userId, dto.accountId);
+    const current = await this.prisma.goal.findFirst({
+      where: { id, userId },
+      select: { accountId: true },
+    });
+    // A goal may stay on an account that went to the archive.
+    await this.checkAccount(userId, dto.accountId, current?.accountId);
     try {
       const { count } = await this.prisma.goal.updateMany({
         where: { id, userId },
@@ -127,14 +133,20 @@ export class GoalsService {
   }
 
   /** The account is the user's; the foreign key would refuse it silently. */
-  private async checkAccount(userId: string, accountId: string) {
+  private async checkAccount(userId: string, accountId: string, kept?: string) {
     const account = await this.prisma.account.findFirst({
       where: { id: accountId, userId },
-      select: { id: true },
+      select: { id: true, archivedAt: true },
     });
     if (!account) {
       throw invalid('accountId', 'Account not found', 'Счёт не найден');
     }
+    // Saving up on a closed account makes no sense.
+    assertNotArchived(
+      new Set(account.archivedAt ? [account.id] : []),
+      [{ id: account.id, field: 'accountId' }],
+      kept ? [kept] : [],
+    );
   }
 
   private columnsOf(dto: GoalInputDto) {

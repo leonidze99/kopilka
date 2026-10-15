@@ -10,6 +10,7 @@ const DOLLARS = {
   currency: 'USD',
   openingBalance: '0.00',
   allowNegative: true,
+  archivedAt: null,
   balance: '0.00',
 } as const;
 

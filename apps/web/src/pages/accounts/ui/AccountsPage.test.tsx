@@ -18,6 +18,7 @@ describe('AccountsPage', () => {
           currency: 'RUB',
           openingBalance: '0.00',
           allowNegative: false,
+          archivedAt: null,
           balance: '250.50',
         },
       ],
@@ -139,6 +140,108 @@ describe('AccountsPage', () => {
     expect(dollars).toHaveTextContent(/Карта · USD.*10,00\s\$/);
     // Converted at today's rate (90 in the mock): approximate.
     expect(screen.getByText(/^≈ 900,00\s₽/)).toBeInTheDocument();
+  });
+
+  describe('archive', () => {
+    const CASH = {
+      id: '0199d0a4-0000-7000-8000-0000000acc02',
+      name: 'Наличные',
+      type: 'cash',
+      currency: 'RUB',
+      openingBalance: '0.00',
+      allowNegative: false,
+      archivedAt: null,
+      balance: '0.00',
+    } as const;
+
+    it('archives an empty account, which folds away under the list', async () => {
+      const { sent } = mockAccount({ accounts: [MAIN_ACCOUNT, CASH] });
+      const { user } = renderApp('/accounts', { session: 'authenticated' });
+
+      await user.click(await screen.findByRole('button', { name: /Наличные/ }));
+      const dialog = within(screen.getByRole('dialog', { name: 'Счёт' }));
+      await user.click(
+        dialog.getByRole('button', { name: 'Отправить в архив' }),
+      );
+      // Twice: it stops the account's recurring payments.
+      await user.click(
+        dialog.getByRole('button', { name: 'Подтвердите: Отправить в архив' }),
+      );
+
+      expect(await screen.findByText('Счёт в архиве')).toBeInTheDocument();
+      expect(sent.archived).toEqual([CASH.id]);
+      const archive = await screen.findByRole('list', {
+        name: 'Счета в архиве',
+      });
+      expect(
+        within(archive).getByRole('button', { name: /Наличные/ }),
+      ).toBeInTheDocument();
+    });
+
+    it('says what is left on an account that is not empty', async () => {
+      mockAccount({ accounts: [MAIN_ACCOUNT, { ...CASH, balance: '250.00' }] });
+      const { user } = renderApp('/accounts', { session: 'authenticated' });
+
+      await user.click(await screen.findByRole('button', { name: /Наличные/ }));
+      const dialog = within(screen.getByRole('dialog', { name: 'Счёт' }));
+      await user.click(
+        dialog.getByRole('button', { name: 'Отправить в архив' }),
+      );
+      await user.click(
+        dialog.getByRole('button', { name: 'Подтвердите: Отправить в архив' }),
+      );
+
+      expect(
+        await dialog.findByText(/сначала переведите остаток/),
+      ).toBeInTheDocument();
+    });
+
+    it('brings an archived account back', async () => {
+      mockAccount({
+        accounts: [
+          MAIN_ACCOUNT,
+          { ...CASH, archivedAt: '2026-10-01T10:00:00.000Z' },
+        ],
+      });
+      const { user } = renderApp('/accounts', { session: 'authenticated' });
+
+      await user.click(await screen.findByText('Архив · 1'));
+      await user.click(screen.getByRole('button', { name: /Наличные/ }));
+      await user.click(
+        within(screen.getByRole('dialog', { name: 'Счёт' })).getByRole(
+          'button',
+          { name: 'Вернуть из архива' },
+        ),
+      );
+
+      expect(
+        await screen.findByText('Счёт снова в работе'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/^Архив/)).not.toBeInTheDocument();
+    });
+
+    it('keeps an archived account out of the new transaction form', async () => {
+      mockAccount({
+        accounts: [
+          MAIN_ACCOUNT,
+          { ...CASH, archivedAt: '2026-10-01T10:00:00.000Z' },
+        ],
+      });
+      renderApp('/', { session: 'authenticated' });
+
+      const form = within(
+        (
+          await screen.findByRole('heading', { name: 'Новая операция' })
+        ).closest('section')!,
+      );
+      const accounts = await form.findByLabelText('Счёт');
+      await within(accounts).findByRole('option', { name: 'Основной счёт' });
+      expect(
+        within(accounts)
+          .getAllByRole('option')
+          .map((option) => option.textContent),
+      ).toEqual(['Выберите счёт', 'Основной счёт']);
+    });
   });
 
   it('explains why an account with transactions cannot be deleted', async () => {

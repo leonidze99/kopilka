@@ -60,6 +60,7 @@ export const MAIN_ACCOUNT = {
   currency: 'RUB',
   openingBalance: '0.00',
   allowNegative: true,
+  archivedAt: null,
   balance: '0.00',
 } as const;
 

@@ -113,6 +113,9 @@ model Account {
   openingBalance Decimal     @default(0) @map("opening_balance") @db.Decimal(14, 2)
   /// false: no write may take the balance below zero (cash, savings).
   allowNegative  Boolean     @default(true) @map("allow_negative")
+  /// In the archive since; NULL: in use. Archived with a zero balance; no
+  /// new transactions, recurring rules, goals or imports go onto it.
+  archivedAt     DateTime?   @map("archived_at") @db.Timestamptz(3)
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 

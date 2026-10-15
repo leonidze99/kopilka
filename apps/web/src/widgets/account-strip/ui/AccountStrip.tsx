@@ -35,30 +35,33 @@ export function AccountStrip({ selectedId, onSelect }: AccountStripProps) {
           </span>
         </div>
       )}
-      {data?.items.map((account) => (
-        <button
-          key={account.id}
-          type="button"
-          className={styles.account}
-          aria-pressed={selectedId === account.id}
-          title={
-            selectedId === account.id
-              ? 'Показать операции всех счетов'
-              : 'Показать операции счёта'
-          }
-          onClick={() =>
-            onSelect(selectedId === account.id ? undefined : account.id)
-          }
-        >
-          <AccountIcon type={account.type} size="sm" />
-          <span className={styles.text}>
-            <span className={styles.label}>{account.name}</span>
-            <span className={styles.amount}>
-              {formatMoney(account.balance, account.currency)}
+      {/* Archived accounts take no new money: out of the way here. */}
+      {data?.items
+        .filter((account) => account.archivedAt === null)
+        .map((account) => (
+          <button
+            key={account.id}
+            type="button"
+            className={styles.account}
+            aria-pressed={selectedId === account.id}
+            title={
+              selectedId === account.id
+                ? 'Показать операции всех счетов'
+                : 'Показать операции счёта'
+            }
+            onClick={() =>
+              onSelect(selectedId === account.id ? undefined : account.id)
+            }
+          >
+            <AccountIcon type={account.type} size="sm" />
+            <span className={styles.text}>
+              <span className={styles.label}>{account.name}</span>
+              <span className={styles.amount}>
+                {formatMoney(account.balance, account.currency)}
+              </span>
             </span>
-          </span>
-        </button>
-      ))}
+          </button>
+        ))}
       <Link to="/accounts" className={styles.add}>
         <Plus size={16} aria-hidden />
         Счёт

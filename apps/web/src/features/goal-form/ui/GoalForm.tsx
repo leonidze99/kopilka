@@ -3,7 +3,7 @@ import { goalInputSchema } from '@kopilka/shared';
 import { Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
-import { useListAccountsQuery } from '@/entities/account';
+import { useListAccountsQuery, usableAccounts } from '@/entities/account';
 import {
   type Goal,
   useCreateGoalMutation,
@@ -94,7 +94,7 @@ export function GoalForm({ goal, onSaved, footer }: GoalFormProps) {
         {...register('accountId')}
       >
         <option value="">Выберите счёт</option>
-        {accounts.items.map((account) => (
+        {usableAccounts(accounts.items, [goal?.account.id]).map((account) => (
           <option key={account.id} value={account.id}>
             {account.name}
           </option>

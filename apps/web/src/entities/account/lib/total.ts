@@ -11,8 +11,11 @@ export function formatAccountsTotal(
   baseCurrency: string,
 ): string {
   if (list.total === null) return '—';
+  // Only money converted makes it approximate: an empty account in another
+  // currency (an archived one, say) adds nothing.
   const converted = list.items.some(
-    (account) => account.currency !== baseCurrency,
+    (account) =>
+      account.currency !== baseCurrency && account.balance !== '0.00',
   );
   return `${converted ? '≈ ' : ''}${formatMoney(list.total, baseCurrency)}`;
 }
