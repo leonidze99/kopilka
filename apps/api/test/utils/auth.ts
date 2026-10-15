@@ -11,6 +11,8 @@ export interface TestUser {
   email: string;
   /** Ready-to-use `Authorization` header value. */
   auth: string;
+  /** The browser it registered from, as a `Cookie` header: device_id=… */
+  device: string;
 }
 
 /**
@@ -40,10 +42,16 @@ export function testUsers(app: INestApplication) {
           where: { userId: id },
         });
       }
+      const cookies = ([] as string[]).concat(res.headers['set-cookie'] ?? []);
+      const device =
+        cookies
+          .find((cookie) => cookie.startsWith('device_id='))
+          ?.split(';')[0] ?? '';
       return {
         id,
         email,
         auth: `Bearer ${res.body.accessToken as string}`,
+        device,
       };
     },
 

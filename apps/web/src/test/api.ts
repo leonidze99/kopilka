@@ -10,6 +10,7 @@ export const USER = {
   email: 'user@example.com',
   budgetAlerts: true,
   recurringAlerts: true,
+  loginAlerts: true,
   baseCurrency: 'RUB' as const,
 };
 

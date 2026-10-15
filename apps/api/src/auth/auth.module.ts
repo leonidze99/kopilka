@@ -7,6 +7,8 @@ import type { Env } from '../config/env.js';
 import { MailModule } from '../mail/mail.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
+import { DevicesService } from './devices.service.js';
+import { LoginAlertsService } from './login-alerts.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { PasswordResetService } from './password-reset.service.js';
 import { RefreshTokenService } from './refresh-token.service.js';
@@ -14,7 +16,7 @@ import { SessionsService } from './sessions.service.js';
 
 @Module({
   imports: [
-    // Mails the password reset link.
+    // Mails the password reset link and the new-device letter.
     MailModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -33,6 +35,8 @@ import { SessionsService } from './sessions.service.js';
   controllers: [AuthController],
   providers: [
     AuthService,
+    DevicesService,
+    LoginAlertsService,
     PasswordResetService,
     RefreshTokenService,
     SessionsService,

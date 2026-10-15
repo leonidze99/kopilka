@@ -45,7 +45,8 @@ import type { CookieOptions, Request, Response } from 'express';
 import { API_PREFIX } from '../common/http/api-prefix.js';
 import { ApiErrorResponses } from '../common/openapi/api-error-responses.decorator.js';
 import type { Env } from '../config/env.js';
-import { AuthService, type Session } from './auth.service.js';
+import { AuthService, type Session, type SignIn } from './auth.service.js';
+import { DEVICE_COOKIE, DEVICE_COOKIE_DAYS } from './devices.service.js';
 import { PasswordResetService } from './password-reset.service.js';
 import type { ClientInfo } from './refresh-token.service.js';
 import { SessionsService } from './sessions.service.js';
@@ -69,6 +70,8 @@ const clientOf = (req: Request): ClientInfo => ({
 });
 
 const SETS_REFRESH_COOKIE = `Also sets the \`refresh_token\` cookie (httpOnly, SameSite=Strict, Path=${REFRESH_COOKIE_PATH}).`;
+
+const SETS_DEVICE_COOKIE = `${SETS_REFRESH_COOKIE} And \`device_id\`, which the browser is known by: a sign-in from one the user has not used before is mailed about.`;
 
 @ApiTags('auth')
 @Controller('auth')
@@ -97,7 +100,7 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Create an account and sign in' })
   @ApiCreatedResponse({
-    description: SETS_REFRESH_COOKIE,
+    description: SETS_DEVICE_COOKIE,
     standardSchema: authResponseSchema,
   })
   @ApiErrorResponses(400, 409, 429)
@@ -106,7 +109,10 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
-    return this.respond(res, await this.auth.register(dto, clientOf(req)));
+    return this.respond(
+      res,
+      await this.auth.register(dto, clientOf(req), this.deviceOf(req)),
+    );
   }
 
   @Public()
@@ -115,7 +121,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Sign in with email and password' })
   @ApiOkResponse({
-    description: SETS_REFRESH_COOKIE,
+    description: SETS_DEVICE_COOKIE,
     standardSchema: authResponseSchema,
   })
   @ApiErrorResponses(400, 401, 429)
@@ -124,7 +130,10 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
-    return this.respond(res, await this.auth.login(dto, clientOf(req)));
+    return this.respond(
+      res,
+      await this.auth.login(dto, clientOf(req), this.deviceOf(req)),
+    );
   }
 
   @Public()
@@ -287,16 +296,29 @@ export class AuthController {
     await this.sessions.revokeOthers(user.id, user.sessionId);
   }
 
+  private deviceOf(req: Request): string | undefined {
+    const value: unknown = req.cookies?.[DEVICE_COOKIE];
+    return typeof value === 'string' ? value : undefined;
+  }
+
   private cookieOf(req: Request): string | undefined {
     const value: unknown = req.cookies?.[REFRESH_COOKIE];
     return typeof value === 'string' ? value : undefined;
   }
 
-  private respond(res: Response, { auth, refreshToken }: Session) {
-    res.cookie(REFRESH_COOKIE, refreshToken.token, {
+  private respond(res: Response, session: Session | SignIn) {
+    res.cookie(REFRESH_COOKIE, session.refreshToken.token, {
       ...this.cookieOptions,
-      expires: refreshToken.expiresAt,
+      expires: session.refreshToken.expiresAt,
     });
-    return auth;
+    // On every sign-in its 400 days start again. Kept on sign-out: the
+    // browser is still the same device.
+    if ('deviceToken' in session) {
+      res.cookie(DEVICE_COOKIE, session.deviceToken, {
+        ...this.cookieOptions,
+        maxAge: DEVICE_COOKIE_DAYS * 86_400_000,
+      });
+    }
+    return session.auth;
   }
 }

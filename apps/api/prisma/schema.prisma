@@ -55,6 +55,8 @@ model User {
   budgetAlerts    Boolean @default(true) @map("budget_alerts")
   /// Mail when a recurring payment could not be made (RecurringAlertsService).
   recurringAlerts Boolean @default(true) @map("recurring_alerts")
+  /// Mail on a sign-in from a device not seen before (LoginAlertsService).
+  loginAlerts     Boolean @default(true) @map("login_alerts")
   /// What totals, budgets and analytics count in (transactions.base_amount).
   /// Accounts have currencies of their own.
   baseCurrency    String  @default("RUB") @map("base_currency") @db.Char(3)
@@ -71,6 +73,7 @@ model User {
   budgetAlertsSent BudgetAlert[]
   tagAlertsSent    TagBudgetAlert[]
   recurringSkips   RecurringSkip[]
+  knownDevices     KnownDevice[]
   goals            Goal[]
   tags             Tag[]
 
@@ -727,4 +730,31 @@ model RecurringSkip {
   @@unique([ruleId, onDate])
   @@index([userId])
   @@map("recurring_skips")
+}
+
+/// A browser the user has signed in from, known by a long-lived httpOnly
+/// cookie (device_id) — not by its User-Agent, which millions of computers
+/// share. Only the SHA-256 of the cookie is kept, as with refresh tokens.
+/// A sign-in without a known cookie is a new device: a row with notified_at
+/// NULL, which LoginAlertsService mails about.
+model KnownDevice {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @map("token_hash") @db.Char(64)
+  /// As the first sign-in showed it: "Chrome, Windows", and the address.
+  device     String    @db.VarChar(100)
+  ip         String?   @db.VarChar(45)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Every sign-in from it; the cleanup forgets one unseen for 400 days
+  /// (the cookie's own lifetime).
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  /// Mailed about, or nothing to tell (the device that registered, letters
+  /// off). NULL: still to mail.
+  notifiedAt DateTime? @map("notified_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One browser may be known to several users (a shared computer).
+  @@unique([userId, tokenHash])
+  @@map("known_devices")
 }

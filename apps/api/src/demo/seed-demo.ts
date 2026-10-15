@@ -48,6 +48,8 @@ export async function seedDemo(
           // empty an account and make a recurring payment skip.
           budgetAlerts: false,
           recurringAlerts: false,
+          // Every visitor signs in from a new device.
+          loginAlerts: false,
         },
         select: { id: true },
       });

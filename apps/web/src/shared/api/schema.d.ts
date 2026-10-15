@@ -949,6 +949,7 @@ export interface components {
             email: string;
             budgetAlerts: boolean;
             recurringAlerts: boolean;
+            loginAlerts: boolean;
             baseCurrency: components["schemas"]["Currency"];
         };
         /**
@@ -987,6 +988,7 @@ export interface components {
         NotificationSettings: {
             budgetAlerts?: boolean;
             recurringAlerts?: boolean;
+            loginAlerts?: boolean;
         };
         AuthSessionList: components["schemas"]["AuthSession"][];
         AuthSession: {
@@ -1527,7 +1529,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). */
+            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). And `device_id`, which the browser is known by: a sign-in from one the user has not used before is mailed about. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -1578,7 +1580,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). */
+            /** @description Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). And `device_id`, which the browser is known by: a sign-in from one the user has not used before is mailed about. */
             200: {
                 headers: {
                     [name: string]: unknown;

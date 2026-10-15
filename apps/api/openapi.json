@@ -17,7 +17,7 @@
         },
         "responses": {
           "201": {
-            "description": "Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth).",
+            "description": "Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). And `device_id`, which the browser is known by: a sign-in from one the user has not used before is mailed about.",
             "content": {
               "application/json": {
                 "schema": {
@@ -82,7 +82,7 @@
         },
         "responses": {
           "200": {
-            "description": "Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth).",
+            "description": "Also sets the `refresh_token` cookie (httpOnly, SameSite=Strict, Path=/api/auth). And `device_id`, which the browser is known by: a sign-in from one the user has not used before is mailed about.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4036,6 +4036,9 @@
           "recurringAlerts": {
             "type": "boolean"
           },
+          "loginAlerts": {
+            "type": "boolean"
+          },
           "baseCurrency": {
             "$ref": "#/components/schemas/Currency"
           }
@@ -4045,6 +4048,7 @@
           "email",
           "budgetAlerts",
           "recurringAlerts",
+          "loginAlerts",
           "baseCurrency"
         ],
         "additionalProperties": false
@@ -4247,6 +4251,9 @@
             "type": "boolean"
           },
           "recurringAlerts": {
+            "type": "boolean"
+          },
+          "loginAlerts": {
             "type": "boolean"
           }
         }

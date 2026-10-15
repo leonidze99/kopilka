@@ -65,6 +65,8 @@ export const userSchema = z
     budgetAlerts: z.boolean(),
     /** Mail when a recurring payment could not be made. */
     recurringAlerts: z.boolean(),
+    /** Mail on a sign-in from a device not seen before. */
+    loginAlerts: z.boolean(),
     /** Totals, budgets and analytics are in it; accounts have their own. */
     baseCurrency: currencySchema,
   })
@@ -75,6 +77,7 @@ export const notificationSettingsSchema = z
   .object({
     budgetAlerts: z.boolean().optional(),
     recurringAlerts: z.boolean().optional(),
+    loginAlerts: z.boolean().optional(),
   })
   .meta({ id: 'NotificationSettings' });
 

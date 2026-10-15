@@ -61,6 +61,7 @@ export class BaseCurrencyService {
         email: true,
         budgetAlerts: true,
         recurringAlerts: true,
+        loginAlerts: true,
         baseCurrency: true,
       },
     });

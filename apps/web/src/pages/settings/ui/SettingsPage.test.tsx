@@ -125,6 +125,11 @@ describe('SettingsPage', () => {
 
     // Only this switch: the budget letters stay as they are.
     expect(sent).toEqual([{ recurringAlerts: false }]);
+    expect(
+      screen.getByRole('switch', {
+        name: /Письма о входе с нового устройства/,
+      }),
+    ).toBeChecked();
     await waitFor(() => expect(toggle).not.toBeChecked());
     expect(
       screen.getByRole('switch', { name: /Письма о перерасходе/ }),

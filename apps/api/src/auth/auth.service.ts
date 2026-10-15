@@ -25,6 +25,8 @@ import {
   nextFailure,
   retryAfterSeconds,
 } from './login-lock.js';
+import { DevicesService } from './devices.service.js';
+import { LoginAlertsService } from './login-alerts.service.js';
 import {
   type ClientInfo,
   type IssuedRefreshToken,
@@ -42,11 +44,17 @@ export interface Session {
   refreshToken: IssuedRefreshToken;
 }
 
+/** A sign-in: the session, and the browser's device_id cookie to set. */
+export interface SignIn extends Session {
+  deviceToken: string;
+}
+
 const userSelect = {
   id: true,
   email: true,
   budgetAlerts: true,
   recurringAlerts: true,
+  loginAlerts: true,
   baseCurrency: true,
 } as const;
 
@@ -56,12 +64,14 @@ const toUser = (row: {
   email: string;
   budgetAlerts: boolean;
   recurringAlerts: boolean;
+  loginAlerts: boolean;
   baseCurrency: string;
 }): User => ({
   id: row.id,
   email: row.email,
   budgetAlerts: row.budgetAlerts,
   recurringAlerts: row.recurringAlerts,
+  loginAlerts: row.loginAlerts,
   baseCurrency: row.baseCurrency as Currency,
 });
 
@@ -98,6 +108,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly refreshTokens: RefreshTokenService,
+    private readonly devices: DevicesService,
+    private readonly loginAlerts: LoginAlertsService,
     config: ConfigService<Env, true>,
   ) {
     this.accessTtlSeconds = config.get('JWT_ACCESS_TTL_SECONDS', {
@@ -111,10 +123,12 @@ export class AuthService {
     };
   }
 
+  /** The browser that registers is known from the start: no letter. */
   async register(
     { email, password, timeZone }: RegisterDto,
     client: ClientInfo,
-  ): Promise<Session> {
+    deviceCookie?: string,
+  ): Promise<SignIn> {
     const passwordHash = await hash(password);
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -131,10 +145,17 @@ export class AuthService {
           },
           select: userSelect,
         });
-        return this.session(
+        const device = await this.devices.recognize(
+          user.id,
+          deviceCookie,
+          client,
+          { known: true, tx },
+        );
+        const session = await this.session(
           user,
           await this.refreshTokens.issue(user.id, client, tx),
         );
+        return { ...session, deviceToken: device.token };
       });
     } catch (error) {
       // The unique index is the source of truth. Checking "is this email
@@ -155,10 +176,15 @@ export class AuthService {
     }
   }
 
+  /**
+   * A browser this user has not signed in from before gets a letter about
+   * it, sent in the background: the sign-in neither waits nor fails for it.
+   */
   async login(
     { email, password }: LoginDto,
     client: ClientInfo,
-  ): Promise<Session> {
+    deviceCookie?: string,
+  ): Promise<SignIn> {
     const user = await this.prisma.user.findUnique({ where: { email } });
     const now = new Date();
 
@@ -195,7 +221,13 @@ export class AuthService {
         data: NO_FAILURES,
       });
     }
-    return this.session(user, await this.refreshTokens.issue(user.id, client));
+    const session = await this.session(
+      user,
+      await this.refreshTokens.issue(user.id, client),
+    );
+    const device = await this.devices.recognize(user.id, deviceCookie, client);
+    if (device.isNew) this.loginAlerts.kick();
+    return { ...session, deviceToken: device.token };
   }
 
   /**
@@ -327,15 +359,15 @@ export class AuthService {
     return { endedSessions };
   }
 
-  /** Turns the budget or the recurring letters on or off. */
+  /** Turns letters on or off: budgets, recurring payments, new devices. */
   async setNotifications(
     userId: string,
-    { budgetAlerts, recurringAlerts }: NotificationSettingsDto,
+    { budgetAlerts, recurringAlerts, loginAlerts }: NotificationSettingsDto,
   ): Promise<User> {
     return toUser(
       await this.prisma.user.update({
         where: { id: userId },
-        data: { budgetAlerts, recurringAlerts },
+        data: { budgetAlerts, recurringAlerts, loginAlerts },
         select: userSelect,
       }),
     );

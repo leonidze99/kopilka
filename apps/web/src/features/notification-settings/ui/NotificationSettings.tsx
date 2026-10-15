@@ -7,8 +7,8 @@ import { errorMessage } from '@/shared/lib';
 import { FormError, Switch } from '@/shared/ui';
 
 /**
- * The letters: about an overspent budget, about a recurring payment that
- * could not be made. The switches follow the user in the session, so they
+ * The letters: about an overspent budget, a recurring payment that could
+ * not be made, a sign-in from a new device. The switches follow the user in the session, so they
  * are right after a reload without a request of their own.
  */
 export function NotificationSettings() {
@@ -34,6 +34,15 @@ export function NotificationSettings() {
         disabled={isLoading || !user}
         onChange={(event) =>
           void setNotifications({ recurringAlerts: event.target.checked })
+        }
+      />
+      <Switch
+        label="Письма о входе с нового устройства"
+        description="Когда в аккаунт входят из браузера, из которого раньше не входили"
+        checked={user?.loginAlerts ?? false}
+        disabled={isLoading || !user}
+        onChange={(event) =>
+          void setNotifications({ loginAlerts: event.target.checked })
         }
       />
       {error && <FormError message={errorMessage(error)} />}

@@ -5,6 +5,7 @@ import type { AuthSession } from '@kopilka/shared';
 import { AppException } from '../common/errors/app.exception.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { DEVICE_COOKIE_DAYS } from './devices.service.js';
 import { RefreshTokenService } from './refresh-token.service.js';
 import { describeUserAgent } from './user-agent.js';
 
@@ -121,9 +122,23 @@ export class SessionsService {
     const resets = await this.prisma.passwordReset.deleteMany({
       where: { userId: scope.userId, expiresAt: { lte: now } },
     });
+    // A browser unseen for as long as its cookie lives is gone for good.
+    const devices = await this.prisma.knownDevice.deleteMany({
+      where: {
+        userId: scope.userId,
+        lastSeenAt: {
+          lte: new Date(now.getTime() - DEVICE_COOKIE_DAYS * 86_400_000),
+        },
+      },
+    });
     this.logger.log(
-      { sessions: sessions.count, tokens: tokens.count, resets: resets.count },
-      'Ended sessions, expired refresh tokens and reset links deleted',
+      {
+        sessions: sessions.count,
+        tokens: tokens.count,
+        resets: resets.count,
+        devices: devices.count,
+      },
+      'Ended sessions, expired refresh tokens, reset links and forgotten devices deleted',
     );
   }
 }
