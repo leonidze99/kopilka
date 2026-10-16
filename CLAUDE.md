@@ -16,7 +16,7 @@
 - `apps/web`: React + TypeScript + Vite + Redux Toolkit, архитектура Feature-Sliced Design, тесты Vitest + RTL, e2e Cypress
 - `apps/api`: NestJS 12 (ESM) + TypeScript, тесты Vitest + Supertest
 - `packages/shared` (`@kopilka/shared`): Zod 4 схемы и типы, общие для фронта и бэка
-- БД: PostgreSQL 16 (docker-compose) + Prisma
+- БД: PostgreSQL 18 (docker-compose; та же версия, что у Neon в проде) + Prisma
 - Авторизация: JWT access + refresh с ротацией, argon2
 - API: REST + Swagger
 - Линтер: oxlint (в обоих приложениях), форматирование: Prettier
@@ -49,7 +49,7 @@
 
 ## Текущий статус
 
-Каркас монорепы готов и закоммичен: `pnpm dev` поднимает shared (tsc --watch), web (Vite, :5173) и api (Nest, :3000); Postgres 16 в compose; `pnpm test`/`lint`/`typecheck` зелёные. `@kopilka/shared` прилинкован в оба приложения, но в коде ещё не используется.
+Каркас монорепы готов и закоммичен: `pnpm dev` поднимает shared (tsc --watch), web (Vite, :5173) и api (Nest, :3000); Postgres в compose; `pnpm test`/`lint`/`typecheck` зелёные. `@kopilka/shared` прилинкован в оба приложения, но в коде ещё не используется.
 
 Prettier настроен на всю монорепу: один конфиг в корне (`.prettierrc.json`), `pnpm format` / `pnpm format:check`. `docs/planning-log.md` исключён — исторический лог.
 
@@ -147,7 +147,7 @@ OpenAPI (`apps/api/src/openapi.ts`, e2e — `apps/api/test/openapi*.e2e-spec.ts`
 CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, параллельные job'ы:
 
 - `checks`: `format:check` → `lint` → `build` → `typecheck` → `test` → `api:generate` + `git diff --exit-code` (устаревшие `openapi.json` / `schema.d.ts` валят CI).
-- `e2e`: Postgres 16 как сервис → `db:deploy` (как при деплое) → `prisma migrate diff --exit-code` (ловит изменение `schema.prisma` без миграции) → e2e на своём контейнере (сервис нужен только двум проверкам миграций).
+- `e2e`: Postgres 18 как сервис → `db:deploy` (как при деплое) → `prisma migrate diff --exit-code` (ловит изменение `schema.prisma` без миграции) → e2e на своём контейнере (сервис нужен только двум проверкам миграций).
 - `cypress`: сборка → миграции → один процесс с API и собранным фронтом на :3000 → браузерные сценарии; скриншоты падений уходят в артефакты.
 - `image`: сборка обоих образов, миграции на пустой БД, старт, smoke-тест.
 - Тестовые `DATABASE_URL` / `JWT_ACCESS_SECRET` заданы в `env` workflow — не секреты. `.env` в CI нет, конфиг читается из окружения.
@@ -158,7 +158,7 @@ CI (`.github/workflows/ci.yml`), на push в `main` и на каждый PR, п
 
 Cypress (`apps/web/cypress/`, `pnpm --filter web e2e`, `e2e:open` — интерактивно): пять сценариев в двух спеках против **реального стека** (`onboarding.cy.ts` — регистрация → счёт и категории из коробки → расход → поиск по комментарию с подсветкой; `auth.cy.ts` — редирект анонима, выход и повторный вход, путь к восстановлению пароля). `baseUrl` по умолчанию `http://localhost:5173` (локально при запущенном `pnpm dev`: Vite проксирует `/api`, origin один как в проде), в CI — `CYPRESS_BASE_URL=http://localhost:3000`, где один процесс отдаёт API и собранный фронт. Пользователей спеки создают сами, домен `@cypress.test`; в dev-базе они остаются (удалять вручную). Бинарь браузера ставится только в job'е Cypress (`CYPRESS_INSTALL_BINARY: '0'` на уровне workflow + кеш `~/.cache/Cypress`), иначе его качали бы все job'ы.
 
-e2e API на Testcontainers (`apps/api/test/utils/test-database.ts`, `test/global-setup.ts`): перед прогоном поднимается свой `postgres:16-alpine`, на него накатываются миграции (`migrate deploy`), URL кладётся в `DATABASE_URL` **через окружение глобального setup'а** (конфиг Vitest читается раньше, чем контейнер существует; воркеры форкаются после и наследуют), после прогона контейнер останавливается. Больше нет базы `_test` рядом с dev-базой и остатков от прошлых прогонов. Локаль контейнера — `C.UTF-8`: от неё зависит `lower()` для кириллицы, на которой держится поиск по комментариям. `E2E_DATABASE_URL` указывает на готовую базу вместо контейнера (её мигрируют и пишут в неё). В CI сервис Postgres остался — но только для двух проверок миграций (`db:deploy` и `migrate diff`), тестам он не нужен.
+e2e API на Testcontainers (`apps/api/test/utils/test-database.ts`, `test/global-setup.ts`): перед прогоном поднимается свой `postgres:18-alpine`, на него накатываются миграции (`migrate deploy`), URL кладётся в `DATABASE_URL` **через окружение глобального setup'а** (конфиг Vitest читается раньше, чем контейнер существует; воркеры форкаются после и наследуют), после прогона контейнер останавливается. Больше нет базы `_test` рядом с dev-базой и остатков от прошлых прогонов. Локаль контейнера — `C.UTF-8`: от неё зависит `lower()` для кириллицы, на которой держится поиск по комментариям. `E2E_DATABASE_URL` указывает на готовую базу вместо контейнера (её мигрируют и пишут в неё). В CI сервис Postgres остался — но только для двух проверок миграций (`db:deploy` и `migrate diff`), тестам он не нужен.
 
 Метрики (`apps/api/src/metrics/`, e2e — `test/metrics.e2e-spec.ts`), prom-client:
 
@@ -179,7 +179,7 @@ e2e API на Testcontainers (`apps/api/test/utils/test-database.ts`, `test/globa
 - Известный компромисс: образ ~890 МБ, из них ~200 МБ — Prisma CLI с деревом (Studio, TypeScript): lockfile разрешает `@prisma/client` вместе с его optional peer `prisma`, и `--prod` его оставляет (`pnpm deploy` — тоже). Убрать — вынести схему и CLI в отдельный пакет.
 - Локально: `pnpm prod:up` (профиль `prod` в `docker-compose.yml`: `migrate` → `app` на `http://localhost:8080`, БД — та же dev-база), `pnpm prod:down`.
 - CI-job `image`: сборка обоих образов, миграции на пустой БД, старт, smoke-тест `/api/health/ready` и страницы `/categories`.
-- Прод (`https://kopilka-1bwt.onrender.com`): **Render** (web service из `Dockerfile`, Free, Frankfurt) + **Neon** (Postgres, Free, AWS Frankfurt). Выбраны как бесплатные без карты. Render Free засыпает через 15 минут без запросов и просыпается ~минуту; пока спит, фоновые задачи стоят и догоняют после пробуждения. **Пингер «чтобы не спал» не ставить**: задачи ходят в базу каждые 30–60 с, Neon не заснёт, а 100 CU-часов бесплатного тарифа — ~400 ч работы в месяц, дальше Neon останавливает базу до конца месяца. Бесплатный Postgres самого Render удаляется через 30 дней — поэтому база отдельно. Лимит Neon Free — 0,5 ГБ, и фото чеков (`bytea`) съедят его первыми. У Neon Postgres 18, dev и тесты — на 16 (миграции совместимы: генерируемые колонки явно `STORED`).
+- Прод (`https://kopilka-1bwt.onrender.com`): **Render** (web service из `Dockerfile`, Free, Frankfurt) + **Neon** (Postgres, Free, AWS Frankfurt). Выбраны как бесплатные без карты. Render Free засыпает через 15 минут без запросов и просыпается ~минуту; пока спит, фоновые задачи стоят и догоняют после пробуждения. **Пингер «чтобы не спал» не ставить**: задачи ходят в базу каждые 30–60 с, Neon не заснёт, а 100 CU-часов бесплатного тарифа — ~400 ч работы в месяц, дальше Neon останавливает базу до конца месяца. Бесплатный Postgres самого Render удаляется через 30 дней — поэтому база отдельно. Лимит Neon Free — 0,5 ГБ, и фото чеков (`bytea`) съедят его первыми. Postgres 18 — тот, что Neon ставит по умолчанию; dev, e2e и CI на той же версии.
 - Выкатка — `.github/workflows/deploy.yml`, **после зелёного CI на `main`** (`workflow_run`; отдельный workflow, потому что CI отменяет прогон при новом пуше, а оборванная миграция требует `migrate resolve`): проверка, что `lower()` в базе складывает кириллицу → `migrate deploy` на Neon → Deploy Hook Render с `&ref=<sha>` (выкатывается проверенный коммит, а не голова `main`). Auto-Deploy в Render выключен, Pre-Deploy Command на Free недоступен. Секреты репозитория: `PRODUCTION_DATABASE_URL` (direct-строка Neon, не pooled), `RENDER_DEPLOY_HOOK_URL`. Ручной запуск (Actions → Deploy) с галочкой `seed-demo` пересоздаёт демо-учётку.
 - Переменные Render: `DATABASE_URL`, `JWT_ACCESS_SECRET` (сгенерирован Render), `TRUST_PROXY_HOPS=3`, `APP_URL`. **Три, а не один**: перед приложением Cloudflare и два прокси Render — в `X-Forwarded-For` три адреса (клиент первым, его же дублирует `cf-connecting-ip`), а сокет — `::1` от локального прокси. С `1` `req.ip` был бы внутренним адресом Render, общим для всех пользователей (лимиты и блокировки — на всех сразу). Проверено по access-логу; если Render поменяет цепочку — пересчитать по нему же. `NODE_ENV=production` уже в образе; задать `DATABASE_URL`, `JWT_ACCESS_SECRET`, `TRUST_PROXY_HOPS=1`, `APP_URL` (публичный адрес — из него строятся ссылки в письмах) и `MAIL_SMTP_URL` с `MAIL_FROM` (без них письма сброса пароля только пишутся в лог); healthcheck — `/api/health/ready`; миграции — образ `migrate` (или `prisma migrate deploy` из CI) перед выкаткой.
 
@@ -424,6 +424,7 @@ Code splitting (`apps/web/src/app/router/routes.tsx`): страницы прил
 
 - `mkdir -p` не работает в PowerShell — вместо него `mkdir apps, packages\shared\src`.
 - Docker Desktop должен быть запущен до `pnpm db:up`.
+- Dev-база с 16 на 18 переехала через `pg_dump`/`pg_restore` в новый volume `pgdata18` (данные мажорной версии под другой не стартуют). Старый `kopilka_pgdata` остался резервной копией — удалить, когда не нужен: `docker volume rm kopilka_pgdata`. На другой машине после `git pull` `pnpm db:up` создаст пустую базу 18 — перенести так же (дамп из `postgres:16-alpine` на старом volume) или накатить миграции и `pnpm db:seed`.
 - `.gitattributes` с `* text=auto eol=lf`, чтобы git не смешивал CRLF и LF.
 - Node >= 22 (зафиксировано в `engines`).
 - У Nest скрипт watch-запуска зовётся `start:dev`, поэтому в `apps/api/package.json` добавлен `"dev": "nest start --watch"` для корневого `pnpm dev`.

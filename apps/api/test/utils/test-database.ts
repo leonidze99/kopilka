@@ -8,7 +8,7 @@ export interface TestDatabase {
 }
 
 // The same server version as development and production run.
-const IMAGE = 'postgres:16-alpine';
+const IMAGE = 'postgres:18-alpine';
 
 /**
  * A database for the e2e run.

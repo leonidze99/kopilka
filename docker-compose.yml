@@ -2,14 +2,18 @@ name: kopilka
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # The version production (Neon) runs.
+    image: postgres:18-alpine
     ports: ['5432:5432']
     environment:
       POSTGRES_USER: kopilka
       POSTGRES_PASSWORD: kopilka
       POSTGRES_DB: kopilka
+    # Since 18 the image keeps data in /var/lib/postgresql/<major>/docker and
+    # refuses a volume at .../data. A new volume, not the old one: files of
+    # one major version do not start under another (pg_dump + restore).
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata18:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U kopilka']
       interval: 5s
@@ -44,4 +48,4 @@ services:
       migrate: { condition: service_completed_successfully }
 
 volumes:
-  pgdata:
+  pgdata18:

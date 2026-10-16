@@ -78,7 +78,7 @@ jobs:
     # which need a server to apply a migration to.
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: kopilka
           POSTGRES_PASSWORD: kopilka
@@ -112,7 +112,7 @@ jobs:
       - name: Migrations match schema.prisma
         run: pnpm --filter api exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
 
-      # Starts postgres:16-alpine through Testcontainers, migrates it and
+      # Starts postgres:18-alpine through Testcontainers, migrates it and
       # drops it afterwards; nothing is left between runs.
       - name: E2E tests
         run: pnpm --filter api test:e2e
@@ -123,7 +123,7 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: kopilka
           POSTGRES_PASSWORD: kopilka
@@ -201,7 +201,7 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: kopilka
           POSTGRES_PASSWORD: kopilka
