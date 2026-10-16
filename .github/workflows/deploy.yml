@@ -1,0 +1,94 @@
+name: Deploy
+
+# Runs after CI has passed on main, never instead of it. A separate workflow
+# rather than a job in ci.yml: CI cancels a run when a newer push arrives,
+# and a migration cut off halfway leaves the database for `migrate resolve`.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # Manual run: redeploys the head of main, optionally resetting the demo
+  # account (seed-demo deletes and recreates it with everything a visitor did).
+  workflow_dispatch:
+    inputs:
+      seed-demo:
+        description: Recreate the demo account after migrations
+        type: boolean
+        default: false
+
+# One deploy at a time, and a queued one waits instead of cancelling.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CYPRESS_INSTALL_BINARY: '0'
+
+jobs:
+  deploy:
+    name: Migrate and deploy
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      # The commit CI checked, not whatever main points at by now.
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Secrets are set
+        run: |
+          for name in DATABASE_URL RENDER_DEPLOY_HOOK_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is empty: add the repository secret (see CLAUDE.md, Деплой)"
+              exit 1
+            fi
+          done
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SHA }}
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # lower() folds Cyrillic only under a UTF-8 LC_CTYPE: comment search and
+      # tag uniqueness depend on it, and a C-locale database breaks them
+      # silently. Cheap to check on every deploy, expensive to discover later.
+      - name: Database folds Cyrillic
+        run: |
+          folded=$(psql "$DATABASE_URL" -tAc "SELECT lower('ЁЛКА') = 'ёлка'")
+          if [ "$folded" != "t" ]; then
+            echo "::error::lower() does not fold Cyrillic: LC_CTYPE is $(psql "$DATABASE_URL" -tAc 'SHOW lc_ctype')"
+            exit 1
+          fi
+
+      # Before the new code goes out: it may need the new schema, while the
+      # running code must keep working with it (expand, then contract).
+      - name: Apply migrations
+        run: pnpm --filter api db:deploy
+
+      - name: Recreate the demo account
+        if: inputs.seed-demo
+        env:
+          NODE_ENV: production
+        run: |
+          pnpm --filter @kopilka/shared build
+          pnpm --filter api build
+          node apps/api/dist/scripts/seed-demo.js --production
+
+      # Render's auto-deploy is off: it would ship a commit before its
+      # migrations and regardless of CI. `ref` pins the build to this commit.
+      - name: Trigger the Render deploy
+        run: curl -fsS -X POST "${RENDER_DEPLOY_HOOK_URL}&ref=${SHA}" -o /dev/null
